@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<settings>
+    <category label="Stremio Addons">
+        <setting id="stremio_addons" type="text" label="Addon URLs (separate with ;;)" default="https://v3-cinemeta.strem.io;;https://94c8cb9f702d-tmdb-addon.baby-beamup.club;;https://torrentio.strem.fun;;https://peerflix.mov;;https://mediafusion.elfhosted.com"/>
+        <setting id="stremio_timeout" type="slider" label="Request timeout (seconds)" default="10" range="3,1,30" option="int"/>
+        <setting id="stremio_parallel" type="bool" label="Parallel addon queries" default="true"/>
+    </category>
+    <category label="Spanish / Idioma">
+        <setting id="spanish_boost" type="bool" label="Prioritize Spanish streams" default="true"/>
+        <setting id="spanish_filter_mode" type="labelenum" label="Spanish filter mode" values="boost|only|off" default="boost"/>
+        <setting id="spanish_variant" type="labelenum" label="Preferred variant" values="all|castellano|latino|dual" default="all"/>
+    </category>
+    <category label="Torrents">
+        <setting id="torrent_engine" type="labelenum" label="Torrent engine" values="Elementum|Quasar" default="Elementum"/>
+        <setting id="torrent_sort" type="labelenum" label="Sort streams by" values="Seeds|Quality|Size" default="Seeds"/>
+        <setting id="torrent_quality" type="labelenum" label="Preferred quality" values="4K|1080p|720p|480p|Any" default="1080p"/>
+        <setting id="torrent_autoplay" type="bool" label="Auto-play best stream" default="false"/>
+    </category>
+    <category label="AceStream">
+        <setting id="acestream_enabled" type="bool" label="Enable AceStream / TV en Directo" default="true"/>
+        <setting id="acestream_urls" type="text" label="AceStream URLs (JSON or M3U, separate with ;;)" default="https://ipfs.io/ipns/k51qzi5uqu5di462t7j4vu4akwfhvtjhy88qbupktvoacqfqe9uforjvhyi4wr/hashes.json"/>
+        <setting id="acestream_engine" type="labelenum" label="AceStream engine" values="Plexus|Horus|AceStream|AceWeb|Elementum" default="Plexus"/>
+        <setting id="acestream_port" type="slider" label="AceWeb local port" default="6878" range="1024,1,65535" option="int"/>
+        <setting id="acestream_cache_ttl" type="slider" label="Channel list cache (minutes)" default="30" range="5,5,360" option="int"/>
+    </category>
+    <category label="Real-Debrid">
+        <setting id="rd_enabled" type="bool" label="Enable Real-Debrid" default="false"/>
+        <setting id="rd_apikey" type="text" label="API Key" default=""/>
+        <setting id="rd_priority" type="bool" label="Prioritize RD cached streams" default="true"/>
+    </category>
+    <category label="Trakt">
+        <setting id="trakt_enabled" type="bool" label="Enable Trakt" default="false"/>
+        <setting id="trakt_clientid" type="text" label="Client ID" default=""/>
+        <setting id="trakt_token" type="text" label="Access Token" default=""/>
+        <setting id="trakt_auth" type="action" label="Authorize Trakt..." action="RunPlugin(plugin://plugin.video.stremio4kodi/?action=trakt_auth)"/>
+        <setting id="trakt_sync_watched" type="bool" label="Sync watched status" default="true"/>
+    </category>
+    <category label="Subtitles">
+        <setting id="subs_auto_search" type="bool" label="Auto-search subtitles on play" default="true"/>
+        <setting id="subs_language" type="text" label="Subtitle language (ISO 639-1)" default="es"/>
+        <setting id="subs_enabled" type="bool" label="Enable OpenSubtitles addon" default="true"/>
+        <setting id="subs_addon_url" type="text" label="OpenSubtitles URL" default="https://opensubtitles-v3.strem.io"/>
+    </category>
+    <category label="Playback">
+        <setting id="auto_next_episode" type="bool" label="Auto-play next episode" default="true"/>
+        <setting id="auto_next_percent" type="slider" label="Trigger at % watched" default="90" range="70,5,98" option="int"/>
+        <setting id="resume_enabled" type="bool" label="Enable resume (Continue Watching)" default="true"/>
+    </category>
+    <category label="Cache">
+        <setting id="cache_enabled" type="bool" label="Enable catalog cache" default="true"/>
+        <setting id="cache_ttl" type="slider" label="Cache TTL (hours)" default="6" range="1,1,72" option="int"/>
+        <setting id="cache_clear" type="action" label="Clear all cache" action="RunPlugin(plugin://plugin.video.stremio4kodi/?action=clear_cache)"/>
+    </category>
+    <category label="General">
+        <setting id="language" type="labelenum" label="Metadata language" values="es|en|fr|de|it|pt" default="es"/>
+        <setting id="items_per_page" type="slider" label="Items per page" default="50" range="10,5,100" option="int"/>
+        <setting id="log_level" type="labelenum" label="Log level" values="Info|Debug|Verbose" default="Info"/>
+    </category>
+    <category label="Extras (v3)">
+        <setting id="streaming_catalogs_enabled" type="bool" label="Netflix/HBO/Disney+ catalogs" default="true"/>
+        <setting id="streaming_catalogs_url" type="text" label="Streaming Catalogs URL" default="https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club"/>
+    </category>
+</settings>

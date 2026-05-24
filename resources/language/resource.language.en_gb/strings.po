@@ -1,0 +1,40 @@
+# Kodi Media Center language file
+# Addon Name: Stremio for Kodi
+# Addon id: plugin.video.stremio4kodi
+# Addon Provider: stremio4kodi
+
+msgctxt "#32001"
+msgid "Movies"
+msgstr ""
+
+msgctxt "#32002"
+msgid "Series"
+msgstr ""
+
+msgctxt "#32003"
+msgid "Search"
+msgstr ""
+
+msgctxt "#32004"
+msgid "Favorites"
+msgstr ""
+
+msgctxt "#32005"
+msgid "History"
+msgstr ""
+
+msgctxt "#32006"
+msgid "Settings"
+msgstr ""
+
+msgctxt "#32010"
+msgid "No streams found"
+msgstr ""
+
+msgctxt "#32011"
+msgid "Loading streams..."
+msgstr ""
+
+msgctxt "#32012"
+msgid "Cache cleared"
+msgstr ""
