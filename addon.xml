@@ -19,5 +19,8 @@
         <description lang="es">Peliculas y series desde addons de Stremio en Kodi. v3.2.1: AceStream/TV en directo, Plataformas (sin duplicados), Subtitulos, Puntuaciones.</description>
         <platform>all</platform>
         <license>MIT</license>
+        <assets>
+            <icon>resources/media/icon.png</icon>
+        </assets>
     </extension>
 </addon>

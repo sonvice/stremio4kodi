@@ -70,7 +70,7 @@ cp -r plugin.video.stremio4kodi /storage/.kodi/addons/
 
 ### Finding Stremio Addon URLs
 
-Visit [stremio-addons.netlify.app](https://stremio-addons.netlify.app/) or the Stremio addon catalog to find community addon URLs. Copy the base URL (before `/manifest.json`).
+Visit [stremio-addons.net](https://stremio-addons.net/) or the Stremio addon catalog to find community addon URLs. Copy the base URL (before `/manifest.json`).
 
 Popular addons:
 | Addon | URL | Purpose |
@@ -207,6 +207,8 @@ Main Menu
 |-------|----------|
 | No catalogs found | Check addon URLs in Settings. Ensure they end without `/` |
 | Streams don't play | Verify Elementum is installed and working independently |
+| AceStream doesn't play (Mobile/Android) | Change **AceStream Engine** from `Plexus` to `AceStream` or `AceWeb` in the addon settings. |
+| "Stream not found" / "No streams found" (CoreELEC / Kodi 19) | 1. Go to settings and select **Clear cache** to wipe corrupt data.<br>2. Older Pythons on Kodi 19 might have SSL issues; make sure your Stremio URLs are correct and accessible.<br>3. Verify Elementum is active. |
 | Slow loading | Enable "Parallel addon queries" in settings |
 | Stale data | Clear cache from Settings or reduce Cache TTL |
 | Debug logging | Set Log Level to "Debug" in settings, check `kodi.log` |
