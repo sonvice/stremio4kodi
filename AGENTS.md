@@ -31,15 +31,25 @@ El proyecto está dividido en dos repositorios/carpetas hermanas:
 
 ---
 
-## 3. Características Clave Añadidas en v3.2.4
+## 3. Características Clave Añadidas en v3.2.6
 
-### 3.1. Buscador DHT Descentralizado
+### 3.1. Buscador DHT Descentralizado Multifuente (Paralelo)
 * **Archivo del Cliente:** [dht_search.py](file:///home/wilson/Pictures/plugin.video.stremio4kodi_v3.2.3/plugin.video.stremio4kodi/resources/lib/dht_search.py)
-* **API Utilizada:** `https://bitsearch.eu/api/v1/search` (Endpoint JSON público del crawler DHT Bitsearch).
-* **Mecanismo:** Permite realizar búsquedas de texto directo en la DHT de Kademlia. Los resultados se devuelven formateados como objetos de flujo compatibles con `TorrentResolver`, permitiendo reproducir directamente a través de **Elementum/Quasar** o **Real-Debrid** con soporte de ordenación por semillas, filtrados de idioma y calidad automáticos.
+* **APIs Utilizadas:** 
+  * `Bitsearch` (`https://bitsearch.eu/api/v1/search`)
+  * `Apibay (The Pirate Bay)` (`https://apibay.org/q.php`)
+  * `SolidTorrents` (`https://solidtorrents.net/api/v1/search`)
+* **Mecanismo:** Realiza búsquedas de texto simultáneas en paralelo utilizando un `ThreadPoolExecutor` con hilos concurrentes. Combina los resultados de los tres buscadores y los deduplica según su `infoHash` de forma insensible a mayúsculas. Los resultados se integran con `TorrentResolver`.
 * **Integración en Menú:** Añadido como ruta `dht_search` en [router.py](file:///home/wilson/Pictures/plugin.video.stremio4kodi_v3.2.3/plugin.video.stremio4kodi/resources/lib/router.py).
 
-### 3.2. Repositorio con Espejo CDN (jsDelivr)
+### 3.2. Trending Torrents (Tendencias)
+* **APIs Utilizadas:** Endpoints JSON precompilados de Apibay/The Pirate Bay:
+  * Top 48h: `https://apibay.org/precompiled/data_top100_48h.json`
+  * Recientes/Novedades: `https://apibay.org/precompiled/data_top100_recent.json`
+* **Mecanismo:** Permite listar las tendencias o novedades de torrents de las últimas 48 horas sin necesidad de escribir una búsqueda, estructurándolas como streams listos para reproducir.
+* **Integración en Menú:** Añadido como ruta `trending` en [router.py](file:///home/wilson/Pictures/plugin.video.stremio4kodi_v3.2.3/plugin.video.stremio4kodi/resources/lib/router.py).
+
+### 3.3. Repositorio con Espejo CDN (jsDelivr)
 * **Objetivo:** Evitar que los bloqueos de ISPs locales al dominio `raw.githubusercontent.com` rompan las actualizaciones automáticas.
 * **Mecanismo:** El archivo `addon.xml` del repositorio remoto utiliza URLs de la red de entrega de contenido (CDN) gratuita **jsDelivr** (apuntando a la rama `main` del repo de GitHub).
 
