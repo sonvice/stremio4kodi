@@ -2,6 +2,7 @@
 """
 DHT & Public Index Search Engine.
 Queries Bitsearch, Apibay (The Pirate Bay) and SolidTorrents in parallel.
+Supports category filtering: movies, series, and music.
 """
 import json
 import urllib.parse
@@ -53,12 +54,12 @@ class BitsearchClient:
             
         return streams
 
-    def search(self, query):
+    def search(self, query, category="movies"):
         """
         Search torrents across Bitsearch, Apibay and SolidTorrents in parallel.
         Returns a merged, deduped list of streams.
         """
-        log(f"Multi-search query: '{query}'", level="info")
+        log(f"Multi-search query: '{query}' | category: '{category}'", level="info")
         
         funcs = [
             (self._search_bitsearch, "Bitsearch"),
@@ -68,7 +69,7 @@ class BitsearchClient:
         
         all_streams = []
         with ThreadPoolExecutor(max_workers=3) as pool:
-            futures = {pool.submit(func, query): name for func, name in funcs}
+            futures = {pool.submit(func, query, category): name for func, name in funcs}
             for f in as_completed(futures):
                 name = futures[f]
                 try:
@@ -91,9 +92,13 @@ class BitsearchClient:
         log(f"Multi-search completed: {len(unique_streams)} unique results", level="info")
         return unique_streams
 
-    def _search_bitsearch(self, query):
+    def _search_bitsearch(self, query, category):
+        # Category mapping: Movies=2, TV=3, Music=7
+        cat_map = {"movies": 2, "series": 3, "music": 7}
+        cat_id = cat_map.get(category, 2)
+        
         encoded_q = urllib.parse.quote(query)
-        url = f"https://bitsearch.eu/api/v1/search?q={encoded_q}&sort=seeders&limit=50"
+        url = f"https://bitsearch.eu/api/v1/search?q={encoded_q}&category={cat_id}&sort=seeders&limit=50"
         data = self._get_json(url)
         if not data or not data.get("success"):
             return []
@@ -116,15 +121,18 @@ class BitsearchClient:
             ))
         return streams
 
-    def _search_apibay(self, query):
+    def _search_apibay(self, query, category):
+        # Category mapping: Movies=201 (Movies), Series=205 (TV), Music=101 (Music)
+        cat_map = {"movies": 201, "series": 205, "music": 101}
+        cat_id = cat_map.get(category, 201)
+        
         # The Pirate Bay API
         encoded_q = urllib.parse.quote(query)
-        url = f"https://apibay.org/q.php?q={encoded_q}"
+        url = f"https://apibay.org/q.php?q={encoded_q}&cat={cat_id}"
         data = self._get_json(url)
         if not data or not isinstance(data, list):
             return []
             
-        # Apibay returns [{"id":"0","name":"No results found",...}] if nothing found
         if len(data) == 1 and data[0].get("id") == "0":
             return []
 
@@ -152,9 +160,13 @@ class BitsearchClient:
             ))
         return streams
 
-    def _search_solidtorrents(self, query):
+    def _search_solidtorrents(self, query, category):
+        # Category mapping: Movies=video, Series=video, Music=audio
+        cat_map = {"movies": "video", "series": "video", "music": "audio"}
+        cat_name = cat_map.get(category, "video")
+        
         encoded_q = urllib.parse.quote(query)
-        url = f"https://solidtorrents.net/api/v1/search?q={encoded_q}&sort=seeders&limit=50"
+        url = f"https://solidtorrents.net/api/v1/search?q={encoded_q}&category={cat_name}&sort=seeders&limit=50"
         data = self._get_json(url)
         if not data or "results" not in data:
             return []

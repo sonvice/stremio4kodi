@@ -256,3 +256,25 @@ class Trakt:
         except Exception as e:
             log(f"Trakt trending error: {e}", level="error")
         return []
+
+    # ── Scrobbling / Real-time Sync ────────────────────────
+    def scrobble_action(self, action, imdb_id, media_type, progress):
+        """
+        Scrobble action: 'start', 'pause', or 'stop'.
+        progress: float percentage (0.0 to 100.0)
+        """
+        if not self.is_configured():
+            return
+        key = "movie" if media_type == "movie" else "episode"
+        try:
+            self.session.post(
+                f"{TRAKT_API}/scrobble/{action}",
+                json={
+                    key: {"ids": {"imdb": imdb_id}},
+                    "progress": progress
+                },
+                timeout=10,
+            )
+            log(f"Trakt scrobble {action}: {imdb_id} ({progress}%)", level="info")
+        except Exception as e:
+            log(f"Trakt scrobble error: {e}", level="error")

@@ -332,7 +332,8 @@ class Router:
         try:
             # 1. First query DHT Search using the query title
             log(f"DHT resolving stream first for: {title}", level="info")
-            streams = self.bitsearch.search(title)
+            category = "movies" if media_type == "movie" else "series"
+            streams = self.bitsearch.search(title, category)
 
             # 2. Fallback to Stremio Addons if no DHT streams found
             if not streams:
@@ -342,6 +343,9 @@ class Router:
             if not streams:
                 ui.show_notification("No se encontraron streams.")
                 return
+
+            if self.rd.is_configured():
+                streams = self.rd.tag_cached_streams(streams)
 
             streams = self.resolver.filter_by_quality(streams)
             streams = self.resolver.filter_spanish(streams)
@@ -407,7 +411,8 @@ class Router:
 
         # 1. First query DHT Search using the query title
         log(f"DHT resolving stream first for direct play: {title}", level="info")
-        streams = self.bitsearch.search(title)
+        category = "movies" if media_type == "movie" else "series"
+        streams = self.bitsearch.search(title, category)
 
         # 2. Fallback to Stremio Addons if no DHT streams found
         if not streams:
@@ -417,6 +422,9 @@ class Router:
         if not streams:
             ui.show_notification("No streams found.")
             return
+
+        if self.rd.is_configured():
+            streams = self.rd.tag_cached_streams(streams)
 
         streams = self.resolver.filter_by_quality(streams)
         streams = self.resolver.filter_spanish(streams)
@@ -517,13 +525,34 @@ class Router:
         if not query:
             return
 
+        categories = [
+            "• 🎬 Películas (Video)",
+            "• 📺 Series (TV)",
+            "• 🎵 Música"
+        ]
+        cat_choice = xbmcgui.Dialog().select("Seleccionar Categoría", categories)
+        if cat_choice < 0:
+            return
+
+        category_map = {
+            0: "movies",
+            1: "series",
+            2: "music"
+        }
+        category = category_map[cat_choice]
+
         dialog = xbmcgui.DialogProgress()
         dialog.create("DHT Search", f'Buscando "{query}" en Kademlia DHT...')
         dialog.update(10)
 
         try:
-            streams = self.bitsearch.search(query)
-            dialog.update(50, "Filtrando y Ordenando...")
+            streams = self.bitsearch.search(query, category)
+            dialog.update(40, "Comprobando caché Real-Debrid...")
+
+            if self.rd.is_configured():
+                streams = self.rd.tag_cached_streams(streams)
+
+            dialog.update(60, "Filtrando y Ordenando...")
 
             if not streams:
                 dialog.close()
@@ -534,7 +563,7 @@ class Router:
             streams = self.resolver.filter_spanish(streams)
             streams = self.resolver.sort_streams(streams)
 
-            dialog.update(80, f"{len(streams)} torrents listos")
+            dialog.update(90, f"{len(streams)} torrents listos")
             dialog.close()
 
             labels = []
@@ -625,7 +654,12 @@ class Router:
 
         try:
             streams = self.bitsearch.trending(trend_type)
-            dialog.update(50, "Filtrando y Ordenando...")
+            dialog.update(40, "Comprobando caché Real-Debrid...")
+
+            if self.rd.is_configured():
+                streams = self.rd.tag_cached_streams(streams)
+
+            dialog.update(60, "Filtrando y Ordenando...")
 
             if not streams:
                 dialog.close()
@@ -636,7 +670,7 @@ class Router:
             streams = self.resolver.filter_spanish(streams)
             streams = self.resolver.sort_streams(streams)
 
-            dialog.update(80, f"{len(streams)} torrents listos")
+            dialog.update(90, f"{len(streams)} torrents listos")
             dialog.close()
 
             labels = []

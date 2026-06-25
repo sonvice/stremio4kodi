@@ -27,24 +27,28 @@ class PlaybackMonitor(xbmc.Player):
         self.cache = cache
         self._playing = False
         self._subs_searched = False
+        self._last_scrobble_time = 0
 
     def onPlayBackStarted(self):
         """Called when playback starts."""
         self._playing = True
         self._subs_searched = False
         log("Playback started", level="info")
+        self._scrobble("start", 0.0)
 
     def onPlayBackStopped(self):
         """Called when user stops playback."""
         self._save_position()
         self._playing = False
         log("Playback stopped", level="info")
+        self._scrobble("stop")
 
     def onPlayBackEnded(self):
         """Called when playback reaches the end."""
         self._playing = False
         self._mark_completed()
         log("Playback ended", level="info")
+        self._scrobble("stop", 100.0)
 
         # Auto-next episode
         if Config.auto_next_episode():
@@ -52,6 +56,10 @@ class PlaybackMonitor(xbmc.Player):
 
     def onPlayBackPaused(self):
         self._save_position()
+        self._scrobble("pause")
+
+    def onPlayBackResumed(self):
+        self._scrobble("start")
 
     def tick(self):
         """Called periodically from the main service loop."""
@@ -73,12 +81,53 @@ class PlaybackMonitor(xbmc.Player):
             # Save position periodically
             self._save_position()
 
+            # Periodic Trakt scrobble (every 60 seconds)
+            import time
+            if time.time() - self._last_scrobble_time > 60:
+                self._scrobble("start")
+
             # Check for auto-next trigger
             if Config.auto_next_episode():
                 self._check_auto_next()
 
         except Exception as e:
             log(f"Monitor tick error: {e}", level="debug")
+
+    def _scrobble(self, action, progress=None):
+        """Send scrobble progress to Trakt."""
+        try:
+            from resources.lib.trakt import Trakt
+            trakt = Trakt()
+            if not trakt.is_configured():
+                return
+            context = self.cache.get("_playback_context")
+            if not context:
+                return
+            
+            imdb_id = context.get("content_id") or context.get("imdb_id")
+            if not imdb_id:
+                return
+            media_type = context.get("media_type", "movie")
+            
+            if progress is None:
+                try:
+                    pos = self.getTime()
+                    dur = self.getTotalTime()
+                    if dur > 0:
+                        progress = (pos / dur) * 100
+                    else:
+                        progress = 0.0
+                except Exception:
+                    progress = 0.0
+            
+            progress = max(0.0, min(100.0, float(progress)))
+            
+            trakt.scrobble_action(action, imdb_id, media_type, progress)
+            
+            import time
+            self._last_scrobble_time = time.time()
+        except Exception as e:
+            log(f"Trakt scrobble helper error: {e}", level="debug")
 
     def _save_position(self):
         """Save current playback position for resume."""

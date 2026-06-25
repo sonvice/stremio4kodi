@@ -55,7 +55,25 @@ El proyecto está dividido en dos repositorios/carpetas hermanas:
 
 ---
 
-## 4. Pautas para Futuros Cambios
+## 4. Características Añadidas en v3.2.9
+
+### 4.1. Filtros de Búsqueda DHT
+* **Selector de Categorías:** Se añade una ventana de diálogo interactiva al buscar torrents en DHT que permite filtrar por:
+  * 🎬 Películas (Video)
+  * 📺 Series (TV)
+  * 🎵 Música
+* **Exclusión de Basura:** Esto evita que aparezcan archivos ejecutables de software, comprimidos u otros tipos de archivos no aptos para reproducción.
+
+### 4.2. Verificador de Caché Real-Debrid en DHT / Tendencias
+* **Comprobación rápida de disponibilidad instantánea (Instant Availability):** Al buscar en DHT o consultar tendencias, el addon verifica en paralelo contra la API de Real-Debrid si el torrent está almacenado en su caché.
+* **Priorización visual:** Muestra la etiqueta `[RD+]` al inicio de cada stream y prioriza su orden colocándolos al principio del listado.
+
+### 4.3. Sincronización en Tiempo Real con Trakt (Scrobbling)
+* **Monitor de Reproducción en Segundo Plano:** Implementado en `service.py` como un reproductor monitorizado que informa periódicamente a la API de Trakt.tv sobre el estado de la reproducción actual (`start` / `pause` / `stop`) y su progreso porcentual en tiempo real.
+
+---
+
+## 5. Pautas para Futuros Cambios
 
 1. **Evitar dependencias pesadas de Python:** Kodi se ejecuta en múltiples arquitecturas y sistemas limitados. Cualquier cliente HTTP debe usar preferiblemente `requests` con un fallback a comandos del sistema como `curl` (usando `subprocess`).
 2. **Preservar los motores locales:** El plugin debe permitir la resolución de torrents directos mediante magnet links hacia Elementum o Quasar de forma nativa cuando no hay cuentas Debrid configuradas.
@@ -63,11 +81,8 @@ El proyecto está dividido en dos repositorios/carpetas hermanas:
 
 ---
 
-## 5. Roadmap de Futuras Mejoras Propuestas
+## 6. Roadmap de Futuras Mejoras Propuestas
 
 Para seguir mejorando el addon en el futuro, se han propuesto las siguientes características:
 
-1. **Verificador de Caché Real-Debrid en DHT / Tendencias:** Integrar la llamada `self.resolver.rd.tag_cached_streams(streams)` al listar resultados de DHT y Tendencias para comprobar en milisegundos si están cacheados en Real-Debrid y mostrarlos con la etiqueta `[RD+]` al inicio de la lista.
-2. **Filtros de Búsqueda DHT:** Añadir un selector de categorías (Películas, Series, Música, Software) antes de realizar una búsqueda en DHT para filtrar los resultados de la API de forma más precisa.
-3. **Sincronización en Tiempo Real con Trakt (Scrobbling):** Implementar un monitor de reproducción en segundo plano en `service.py` que reporte a Trakt el porcentaje de visualización del vídeo en tiempo real.
-4. **Búsqueda e Integración de Subtítulos de Respaldo:** Implementar búsquedas de subtítulos directas en bases de datos públicas si los addons de Stremio fallan.
+1. **Búsqueda e Integración de Subtítulos de Respaldo:** Implementar búsquedas de subtítulos directas en bases de datos públicas si los addons de Stremio fallan.
