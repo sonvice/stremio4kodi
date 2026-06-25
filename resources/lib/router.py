@@ -58,6 +58,7 @@ class Router:
             "search":          self._search,
             "search_results":  self._search_results,
             "dht_search":      self._dht_search,
+            "trending":        self._trending,
             "manual_torrent":  self._manual_torrent,
             "favorites":       self._favorites,
             "toggle_favorite": self._toggle_favorite,
@@ -104,6 +105,7 @@ class Router:
             ("Series",              "series",             "DefaultTVShows.png"),
             ("Buscar",              "search",             "DefaultAddonsSearch.png"),
             ("Buscador DHT",        "dht_search",         "DefaultAddonsSearch.png"),
+            ("Trending Torrents",   "trending",           "DefaultTVShows.png"),
             ("Generos",             "genres",             "DefaultGenre.png"),
         ]
 
@@ -593,6 +595,90 @@ class Router:
             log(f"DHT Player.play -> {playable_url[:100]}", level="info")
             li = xbmcgui.ListItem(label=title, path=playable_url)
             xbmc.Player().play(playable_url, li)
+
+    # ══════════════════════════════════════════════════════
+    #  TRENDING TORRENTS
+    # ══════════════════════════════════════════════════════
+    def _trending(self):
+        xbmcplugin.endOfDirectory(self.handle, succeeded=False)
+        xbmc.sleep(200)
+
+        choice = xbmcgui.Dialog().select(
+            "Seleccionar Categoría Trending",
+            ["Top Torrents (Últimas 48h)", "Torrents Más Recientes (Nuevos)"]
+        )
+        if choice < 0:
+            return
+
+        trend_type = "48h" if choice == 0 else "recent"
+        title_label = "Top 48h" if choice == 0 else "Recientes"
+
+        dialog = xbmcgui.DialogProgress()
+        dialog.create("Trending Torrents", f"Obteniendo {title_label}...")
+        dialog.update(20)
+
+        try:
+            streams = self.bitsearch.trending(trend_type)
+            dialog.update(50, "Filtrando y Ordenando...")
+
+            if not streams:
+                dialog.close()
+                ui.show_notification("No se encontraron torrents en tendencias.")
+                return
+
+            streams = self.resolver.filter_by_quality(streams)
+            streams = self.resolver.filter_spanish(streams)
+            streams = self.resolver.sort_streams(streams)
+
+            dialog.update(80, f"{len(streams)} torrents listos")
+            dialog.close()
+
+            labels = []
+            for stream in streams:
+                quality = self.resolver.get_quality_label(stream)
+                seeds = self.resolver.get_seeds_label(stream)
+                size = self.resolver.get_size_label(stream)
+                addon_name = stream.get("_addon", "")
+                rd_label = self.resolver.get_rd_label(stream)
+                esp_label = self.resolver.get_spanish_tag(stream)
+
+                stream_title = stream.get("title", "") or stream.get("name", "Unknown")
+                line1 = stream_title.split("\n")[0][:80]
+
+                parts = []
+                if esp_label:
+                    parts.append(esp_label)
+                if rd_label:
+                    parts.append(rd_label)
+                if quality:
+                    parts.append(quality)
+                parts.append(line1)
+                if seeds:
+                    parts.append(seeds)
+                if size:
+                    parts.append(size)
+                if addon_name:
+                    parts.append(f"[{addon_name}]")
+
+                labels.append("  ".join(parts))
+
+            selected = xbmcgui.Dialog().select(
+                f"Trending Torrents ({title_label})",
+                labels,
+            )
+
+            if selected < 0:
+                return
+
+            self._launch_dht_stream(streams[selected], title_label)
+
+        except Exception as e:
+            try:
+                dialog.close()
+            except Exception:
+                pass
+            log(f"Trending Torrents error: {e}", level="error")
+            ui.show_notification(str(e), icon=xbmcgui.NOTIFICATION_ERROR)
 
     # ══════════════════════════════════════════════════════
     #  SEARCH

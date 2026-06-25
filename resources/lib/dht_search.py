@@ -12,6 +12,47 @@ class BitsearchClient:
     def __init__(self):
         pass
 
+    def trending(self, trend_type="48h"):
+        """
+        Get trending torrents from Apibay precompiled JSON.
+        Types: "48h" (Top 48 hours), "recent" (Top recent)
+        """
+        if trend_type == "recent":
+            url = "https://apibay.org/precompiled/data_top100_recent.json"
+        else:
+            url = "https://apibay.org/precompiled/data_top100_48h.json"
+            
+        log(f"Fetching trending torrents: {url}", level="info")
+        data = self._get_json(url)
+        if not data or not isinstance(data, list):
+            log("Trending request failed or data is not a list", level="warning")
+            return []
+            
+        streams = []
+        for item in data:
+            infohash = item.get("info_hash") or item.get("infoHash")
+            if not infohash or infohash == "0000000000000000000000000000000000000000":
+                continue
+            try:
+                size = int(item.get("size") or 0)
+            except Exception:
+                size = 0
+            try:
+                seeds = int(item.get("seeders") or 0)
+            except Exception:
+                seeds = 0
+                
+            streams.append(self._format_stream(
+                title=item.get("name", "Unknown"),
+                infohash=infohash,
+                size=size,
+                seeds=seeds,
+                source="Apibay Trending",
+                category="Top"
+            ))
+            
+        return streams
+
     def search(self, query):
         """
         Search torrents across Bitsearch, Apibay and SolidTorrents in parallel.
