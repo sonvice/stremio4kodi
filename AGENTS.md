@@ -60,3 +60,14 @@ El proyecto está dividido en dos repositorios/carpetas hermanas:
 1. **Evitar dependencias pesadas de Python:** Kodi se ejecuta en múltiples arquitecturas y sistemas limitados. Cualquier cliente HTTP debe usar preferiblemente `requests` con un fallback a comandos del sistema como `curl` (usando `subprocess`).
 2. **Preservar los motores locales:** El plugin debe permitir la resolución de torrents directos mediante magnet links hacia Elementum o Quasar de forma nativa cuando no hay cuentas Debrid configuradas.
 3. **Mantenimiento del Generador:** No modifiques las carpetas empaquetadas dentro de `repository.sonvice/repo/` directamente; siempre modifícalas en la carpeta del addon original y vuelve a correr `generator.py`.
+
+---
+
+## 5. Roadmap de Futuras Mejoras Propuestas
+
+Para seguir mejorando el addon en el futuro, se han propuesto las siguientes características:
+
+1. **Verificador de Caché Real-Debrid en DHT / Tendencias:** Integrar la llamada `self.resolver.rd.tag_cached_streams(streams)` al listar resultados de DHT y Tendencias para comprobar en milisegundos si están cacheados en Real-Debrid y mostrarlos con la etiqueta `[RD+]` al inicio de la lista.
+2. **Filtros de Búsqueda DHT:** Añadir un selector de categorías (Películas, Series, Música, Software) antes de realizar una búsqueda en DHT para filtrar los resultados de la API de forma más precisa.
+3. **Sincronización en Tiempo Real con Trakt (Scrobbling):** Implementar un monitor de reproducción en segundo plano en `service.py` que reporte a Trakt el porcentaje de visualización del vídeo en tiempo real.
+4. **Búsqueda e Integración de Subtítulos de Respaldo:** Implementar búsquedas de subtítulos directas en bases de datos públicas si los addons de Stremio fallan.
