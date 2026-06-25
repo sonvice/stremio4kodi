@@ -100,7 +100,7 @@ class Config:
     # ── Subtitles ──────────────────────────────────────────
     @staticmethod
     def subs_auto_search():
-        return ADDON.getSetting("subs_auto_search") == "true"
+        return ADDON.getSetting("subs_auto_search_v2") == "true"
 
     @staticmethod
     def subs_language():

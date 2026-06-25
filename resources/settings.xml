@@ -36,7 +36,7 @@
         <setting id="trakt_sync_watched" type="bool" label="Sync watched status" default="true"/>
     </category>
     <category label="Subtitles">
-        <setting id="subs_auto_search" type="bool" label="Auto-search subtitles on play" default="false"/>
+        <setting id="subs_auto_search_v2" type="bool" label="Auto-search subtitles on play" default="false"/>
         <setting id="subs_language" type="text" label="Subtitle language (ISO 639-1)" default="es"/>
         <setting id="subs_enabled" type="bool" label="Enable OpenSubtitles addon" default="true"/>
         <setting id="subs_addon_url" type="text" label="OpenSubtitles URL" default="https://opensubtitles-v3.strem.io"/>
