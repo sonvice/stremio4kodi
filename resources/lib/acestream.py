@@ -92,13 +92,14 @@ class AceStreamClient:
             log("No AceStream URLs configured", level="warning")
             return []
 
-        channels = []
-        for url in urls:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        def _fetch_one(url):
             try:
                 raw = self._get_raw(url)
                 if not raw:
                     log(f"AceStream: empty response from {url[:80]}", level="warning")
-                    continue
+                    return []
 
                 raw = raw.strip()
                 if raw.startswith("{") or raw.startswith("["):
@@ -109,13 +110,25 @@ class AceStreamClient:
                     parsed = self._parse_m3u(raw)
                 else:
                     log(f"AceStream: unknown format from {url[:80]}", level="warning")
-                    continue
+                    return []
 
                 if parsed:
-                    channels.extend(parsed)
                     log(f"AceStream: loaded {len(parsed)} channels from {url[:60]}", level="info")
+                    return parsed
             except Exception as e:
                 log(f"AceStream fetch error [{url[:60]}]: {e}", level="error")
+            return []
+
+        channels = []
+        with ThreadPoolExecutor(max_workers=min(5, len(urls))) as executor:
+            futures = {executor.submit(_fetch_one, url): url for url in urls}
+            for future in as_completed(futures):
+                url = futures[future]
+                try:
+                    res = future.result()
+                    channels.extend(res)
+                except Exception as e:
+                    log(f"Error executing fetch for {url}: {e}", level="error")
 
         # Dedup by hash
         seen = set()

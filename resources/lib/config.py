@@ -67,6 +67,10 @@ class Config:
     def rd_priority():
         return ADDON.getSetting("rd_priority") == "true"
 
+    @staticmethod
+    def strict_debrid():
+        return ADDON.getSetting("strict_debrid") == "true"
+
     # ── Trakt ──────────────────────────────────────────────
     @staticmethod
     def trakt_enabled():

@@ -27,6 +27,7 @@
         <setting id="rd_enabled" type="bool" label="Enable Real-Debrid" default="false"/>
         <setting id="rd_apikey" type="text" label="API Key" default=""/>
         <setting id="rd_priority" type="bool" label="Prioritize RD cached streams" default="true"/>
+        <setting id="strict_debrid" type="bool" label="Strict Debrid (Bloquear P2P local)" default="false"/>
     </category>
     <category label="Trakt">
         <setting id="trakt_enabled" type="bool" label="Enable Trakt" default="false"/>

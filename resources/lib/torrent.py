@@ -52,7 +52,7 @@ class TorrentResolver:
         # ── infoHash → magnet → engine ─────────────────────
         if info_hash:
             magnet = self._build_magnet(info_hash, stream)
-            return self._to_engine_url(magnet, stream)
+            return self._check_privacy_and_engine(self._to_engine_url(magnet, stream))
 
         # ── magnet: link ───────────────────────────────────
         if url.startswith("magnet:"):
@@ -61,11 +61,11 @@ class TorrentResolver:
                 rd_url = self.rd.resolve(url, file_idx)
                 if rd_url:
                     return rd_url
-            return self._to_engine_url(url, stream)
+            return self._check_privacy_and_engine(self._to_engine_url(url, stream))
 
         # ── HTTP .torrent file ─────────────────────────────
         if url.startswith("http") and ".torrent" in url:
-            return self._to_engine_url(url, stream)
+            return self._check_privacy_and_engine(self._to_engine_url(url, stream))
 
         # ── Direct HTTP stream ─────────────────────────────
         if url.startswith("http"):
@@ -81,7 +81,36 @@ class TorrentResolver:
             if rd_url:
                 return rd_url, "direct"
         engine_url = self._to_engine_url(magnet_uri, {})
-        return engine_url, "plugin"
+        checked = self._check_privacy_and_engine(engine_url)
+        if not checked:
+            return None, "plugin"
+        return checked, "plugin"
+
+    def _check_privacy_and_engine(self, engine_url):
+        if Config.strict_debrid():
+            log("P2P blocked by Strict Debrid setting", level="warning")
+            import xbmcgui
+            xbmcgui.Dialog().ok(
+                "Strict Debrid",
+                "Reproducción P2P local bloqueada por seguridad (Strict Debrid activo)."
+            )
+            return None
+
+        from resources.lib.cache import CacheDB
+        cache = CacheDB()
+        if not cache.get("_p2p_privacy_warned"):
+            import xbmcgui
+            confirm = xbmcgui.Dialog().yesno(
+                "Advertencia de Privacidad P2P",
+                "Vas a reproducir mediante un motor P2P local (Elementum/Quasar).\n"
+                "Tu dirección IP será pública en la red Kademlia DHT.\n"
+                "¿Deseas continuar con la reproducción?"
+            )
+            if not confirm:
+                return None
+            cache.set("_p2p_privacy_warned", True, ttl=31536000)
+
+        return engine_url
 
     def _to_engine_url(self, uri, stream):
         encoded = quote(uri, safe="")
