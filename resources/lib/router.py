@@ -329,25 +329,23 @@ class Router:
         xbmcplugin.endOfDirectory(self.handle, succeeded=False)
         xbmc.sleep(300)
 
-        dialog = xbmcgui.DialogProgress()
-        dialog.create("Cargando Streams", "Consultando addons...")
-        dialog.update(10)
-
         try:
-            streams = self.stremio.get_streams(media_type, imdb_id)
-            dialog.update(50, "Filtrando...")
+            # 1. First query DHT Search using the query title
+            log(f"DHT resolving stream first for: {title}", level="info")
+            streams = self.bitsearch.search(title)
+
+            # 2. Fallback to Stremio Addons if no DHT streams found
+            if not streams:
+                log(f"DHT returned no results for: {title}. Falling back to Stremio addons", level="info")
+                streams = self.stremio.get_streams(media_type, imdb_id)
 
             if not streams:
-                dialog.close()
                 ui.show_notification("No se encontraron streams.")
                 return
 
             streams = self.resolver.filter_by_quality(streams)
             streams = self.resolver.filter_spanish(streams)
             streams = self.resolver.sort_streams(streams)
-
-            dialog.update(80, f"{len(streams)} streams")
-            dialog.close()
 
             if Config.torrent_autoplay() and streams:
                 self._launch_stream(streams[0], imdb_id, media_type, title)
@@ -393,10 +391,6 @@ class Router:
             self._launch_stream(streams[choice], imdb_id, media_type, title)
 
         except Exception as e:
-            try:
-                dialog.close()
-            except Exception:
-                pass
             log(f"Stream error: {e}", level="error")
             ui.show_notification(str(e), icon=xbmcgui.NOTIFICATION_ERROR)
 
@@ -411,7 +405,15 @@ class Router:
         xbmcplugin.endOfDirectory(self.handle, succeeded=False)
         xbmc.sleep(300)
 
-        streams = self.stremio.get_streams(media_type, imdb_id)
+        # 1. First query DHT Search using the query title
+        log(f"DHT resolving stream first for direct play: {title}", level="info")
+        streams = self.bitsearch.search(title)
+
+        # 2. Fallback to Stremio Addons if no DHT streams found
+        if not streams:
+            log(f"DHT returned no results for direct play: {title}. Falling back to Stremio addons", level="info")
+            streams = self.stremio.get_streams(media_type, imdb_id)
+
         if not streams:
             ui.show_notification("No streams found.")
             return
@@ -588,12 +590,16 @@ class Router:
             ui.show_notification("No se pudo resolver el torrent.")
             return
 
+        # Clean title to use the actual stream name if available
+        stream_title = stream.get("title", "") or stream.get("name", "") or title
+        stream_title = stream_title.split("\n")[0]
+
         if playable_url.startswith("plugin://"):
             log(f"DHT PlayMedia -> {playable_url[:100]}", level="info")
             xbmc.executebuiltin(f'PlayMedia("{playable_url}")')
         else:
             log(f"DHT Player.play -> {playable_url[:100]}", level="info")
-            li = xbmcgui.ListItem(label=title, path=playable_url)
+            li = xbmcgui.ListItem(label=stream_title, path=playable_url)
             xbmc.Player().play(playable_url, li)
 
     # ══════════════════════════════════════════════════════
