@@ -111,11 +111,26 @@ class StremioClient:
 
     def get_all_manifests(self):
         manifests = {}
-        for url in Config.stremio_addon_urls():
-            resolved = self._resolve_addon_url(url)
-            m = self.get_manifest(url)
-            if m:
-                manifests[resolved] = m
+        urls = Config.stremio_addon_urls()
+
+        if Config.stremio_parallel() and len(urls) > 1:
+            with ThreadPoolExecutor(max_workers=min(len(urls), 5)) as pool:
+                futures = {pool.submit(self.get_manifest, u): u for u in urls}
+                for future in as_completed(futures):
+                    url = futures[future]
+                    try:
+                        m = future.result()
+                        if m:
+                            resolved = m.get("_resolved_url", self._resolve_addon_url(url))
+                            manifests[resolved] = m
+                    except Exception as e:
+                        log(f"Error fetching manifest for {url}: {e}", level="error")
+        else:
+            for url in urls:
+                resolved = self._resolve_addon_url(url)
+                m = self.get_manifest(url)
+                if m:
+                    manifests[resolved] = m
         return manifests
 
     # ── Catalogs ───────────────────────────────────────────
