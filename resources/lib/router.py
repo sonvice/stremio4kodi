@@ -21,6 +21,7 @@ from resources.lib.cache import CacheDB
 from resources.lib.config import Config
 from resources.lib.logger import log
 from resources.lib import ui
+from resources.lib.dht_search import BitsearchClient
 
 
 class Router:
@@ -30,6 +31,7 @@ class Router:
         self.rd = RealDebrid()
         self.trakt = Trakt()
         self.cache = CacheDB()
+        self.bitsearch = BitsearchClient()
 
     def dispatch(self, argv):
         self.base_url = argv[0]
@@ -55,6 +57,7 @@ class Router:
             "play":            self._play,
             "search":          self._search,
             "search_results":  self._search_results,
+            "dht_search":      self._dht_search,
             "manual_torrent":  self._manual_torrent,
             "favorites":       self._favorites,
             "toggle_favorite": self._toggle_favorite,
@@ -100,6 +103,7 @@ class Router:
             ("Peliculas",           "movies",             "DefaultMovies.png"),
             ("Series",              "series",             "DefaultTVShows.png"),
             ("Buscar",              "search",             "DefaultAddonsSearch.png"),
+            ("Buscador DHT",        "dht_search",         "DefaultAddonsSearch.png"),
             ("Generos",             "genres",             "DefaultGenre.png"),
         ]
 
@@ -496,6 +500,98 @@ class Router:
             xbmc.executebuiltin(f'PlayMedia("{playable_url}")')
         else:
             li = xbmcgui.ListItem(label="Manual Torrent", path=playable_url)
+            xbmc.Player().play(playable_url, li)
+
+    # ══════════════════════════════════════════════════════
+    #  DHT SEARCH
+    # ══════════════════════════════════════════════════════
+    def _dht_search(self):
+        xbmcplugin.endOfDirectory(self.handle, succeeded=False)
+        xbmc.sleep(200)
+
+        query = ui.show_input("Buscar Torrent en DHT (ej: Iron Man 1080p)")
+        if not query:
+            return
+
+        dialog = xbmcgui.DialogProgress()
+        dialog.create("DHT Search", f'Buscando "{query}" en Kademlia DHT...')
+        dialog.update(10)
+
+        try:
+            streams = self.bitsearch.search(query)
+            dialog.update(50, "Filtrando y Ordenando...")
+
+            if not streams:
+                dialog.close()
+                ui.show_notification("No se encontraron torrents en DHT.")
+                return
+
+            streams = self.resolver.filter_by_quality(streams)
+            streams = self.resolver.filter_spanish(streams)
+            streams = self.resolver.sort_streams(streams)
+
+            dialog.update(80, f"{len(streams)} torrents listos")
+            dialog.close()
+
+            labels = []
+            for stream in streams:
+                quality = self.resolver.get_quality_label(stream)
+                seeds = self.resolver.get_seeds_label(stream)
+                size = self.resolver.get_size_label(stream)
+                addon_name = stream.get("_addon", "")
+                rd_label = self.resolver.get_rd_label(stream)
+                esp_label = self.resolver.get_spanish_tag(stream)
+
+                stream_title = stream.get("title", "") or stream.get("name", "Unknown")
+                line1 = stream_title.split("\n")[0][:80]
+
+                parts = []
+                if esp_label:
+                    parts.append(esp_label)
+                if rd_label:
+                    parts.append(rd_label)
+                if quality:
+                    parts.append(quality)
+                parts.append(line1)
+                if seeds:
+                    parts.append(seeds)
+                if size:
+                    parts.append(size)
+                if addon_name:
+                    parts.append(f"[{addon_name}]")
+
+                labels.append("  ".join(parts))
+
+            choice = xbmcgui.Dialog().select(
+                f"Resultados DHT: {query}",
+                labels,
+            )
+
+            if choice < 0:
+                return
+
+            self._launch_dht_stream(streams[choice], query)
+
+        except Exception as e:
+            try:
+                dialog.close()
+            except Exception:
+                pass
+            log(f"DHT Search error: {e}", level="error")
+            ui.show_notification(str(e), icon=xbmcgui.NOTIFICATION_ERROR)
+
+    def _launch_dht_stream(self, stream, title):
+        playable_url = self.resolver.resolve(stream)
+        if not playable_url:
+            ui.show_notification("No se pudo resolver el torrent.")
+            return
+
+        if playable_url.startswith("plugin://"):
+            log(f"DHT PlayMedia -> {playable_url[:100]}", level="info")
+            xbmc.executebuiltin(f'PlayMedia("{playable_url}")')
+        else:
+            log(f"DHT Player.play -> {playable_url[:100]}", level="info")
+            li = xbmcgui.ListItem(label=title, path=playable_url)
             xbmc.Player().play(playable_url, li)
 
     # ══════════════════════════════════════════════════════
