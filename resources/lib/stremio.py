@@ -38,14 +38,36 @@ class StremioClient:
         return addon_url
 
     def _get(self, url, timeout=None):
-        import json as jsonlib
         timeout = timeout or Config.stremio_timeout()
+        data = self._get_urllib(url, timeout)
+        if data is not None:
+            return data
         data = self._get_requests(url, timeout)
         if data is not None:
             return data
         data = self._get_curl(url, timeout)
         if data is not None:
             return data
+        return None
+
+    def _get_urllib(self, url, timeout):
+        import json as jsonlib
+        try:
+            import urllib.request
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "User-Agent": "Stremio4Kodi/3.3",
+                    "Accept": "application/json",
+                }
+            )
+            resp = urllib.request.urlopen(req, timeout=timeout)
+            text = resp.read().decode("utf-8").strip()
+            if not text or text[0] not in ('{', '['):
+                return None
+            return jsonlib.loads(text)
+        except Exception as e:
+            log(f"urllib error [{url}]: {e}", level="debug")
         return None
 
     def _get_requests(self, url, timeout):
