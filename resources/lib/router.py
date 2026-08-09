@@ -623,9 +623,6 @@ class Router:
         title = self.params.get("title", "")
         original_title = self.params.get("original_title", "") or title
 
-        xbmcplugin.endOfDirectory(self.handle, succeeded=False)
-        xbmc.sleep(300)
-
         # Resolve IMDb ID from TMDB if missing
         if not imdb_id and tmdb_id:
             try:
@@ -667,6 +664,7 @@ class Router:
 
             if not streams:
                 ui.show_notification("No se encontraron streams.")
+                ui.end_directory(self.handle, succeeded=False)
                 return
 
             if self.rd.is_configured():
@@ -677,6 +675,7 @@ class Router:
             streams = self.resolver.sort_streams(streams)
 
             if Config.torrent_autoplay() and streams:
+                ui.end_directory(self.handle, succeeded=True)
                 self._launch_stream(streams[0], imdb_id, media_type, title)
                 return
 
@@ -708,6 +707,8 @@ class Router:
                     parts.append(f"[{addon_name}]")
 
                 labels.append("  ".join(parts))
+
+            ui.end_directory(self.handle, succeeded=True)
 
             choice = xbmcgui.Dialog().select(
                 f"Streams para: {title}" if title else "Seleccionar stream",
