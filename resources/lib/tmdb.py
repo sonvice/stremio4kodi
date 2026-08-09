@@ -268,6 +268,19 @@ class TMDBClient:
                 "title": ep.get("name") or f"Episodio {ep_num}",
                 "overview": ep.get("overview", ""),
                 "thumbnail": thumb,
-                "vote_average": ep.get("vote_average", 0)
+                "air_date": ep.get("air_date", "")
             })
         return parsed_episodes, item
+
+    def get_movie_changes(self, start_date=None, end_date=None, page=1):
+        """
+        Get a list of movie IDs changed in TMDB (up to 14 days query range).
+        Endpoint: /3/movie/changes
+        """
+        params = {"page": page}
+        if start_date:
+            params["start_date"] = start_date
+        if end_date:
+            params["end_date"] = end_date
+        data = self._get("/movie/changes", params)
+        return data.get("results", []), data.get("total_pages", 1)
