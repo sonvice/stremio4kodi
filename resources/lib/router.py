@@ -181,7 +181,7 @@ class Router:
         for label, section, icon in submenus:
             action = "tmdb_genres" if section == "genres" else ("catalog_list" if section == "catalog_list" else "tmdb_catalog")
             ui.add_directory_item(
-                handle=self.handle, label=f"[COLOR cyan]📁 {label}[/COLOR]", action=action,
+                handle=self.handle, label=f"[COLOR cyan]{label}[/COLOR]", action=action,
                 base_url=self.base_url, icon=icon, media_type="movie",
                 section=section
             )
@@ -217,7 +217,7 @@ class Router:
         for label, section, icon in submenus:
             action = "tmdb_genres" if section == "genres" else ("catalog_list" if section == "catalog_list" else "tmdb_catalog")
             ui.add_directory_item(
-                handle=self.handle, label=f"[COLOR cyan]📁 {label}[/COLOR]", action=action,
+                handle=self.handle, label=f"[COLOR cyan]{label}[/COLOR]", action=action,
                 base_url=self.base_url, icon=icon, media_type="series",
                 section=section
             )

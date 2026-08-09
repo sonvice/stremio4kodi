@@ -60,34 +60,42 @@ def add_directory_item(handle, label, action, base_url, is_folder=True,
     li.setArt(art)
 
     # Info
-    info_tag = li.getVideoInfoTag()
-    if plot:
-        info_tag.setPlot(plot)
-    if year:
-        try:
-            info_tag.setYear(int(year))
-        except (ValueError, TypeError):
-            pass
-    if media_type in ("movie", "series", "tvshow"):
-        info_tag.setMediaType("movie" if media_type == "movie" else "tvshow")
-    if imdb_id:
-        info_tag.setIMDBNumber(imdb_id)
-
-    # v3: Rating (safe — silently ignored on older Kodi)
-    if rating:
-        try:
-            info_tag.setRating(float(rating), votes=0, type="imdb", isdefault=True)
-        except Exception:
-            pass
-
-    # v3: Genres (safe — silently ignored on older Kodi)
-    if genres:
-        try:
-            genre_list = [g.strip() for g in str(genres).split(",") if g.strip()]
-            if genre_list:
-                info_tag.setGenres(genre_list)
-        except Exception:
-            pass
+    try:
+        info_tag = li.getVideoInfoTag()
+        if plot:
+            try:
+                info_tag.setPlot(str(plot))
+            except Exception:
+                pass
+        if year:
+            try:
+                info_tag.setYear(int(year))
+            except Exception:
+                pass
+        if media_type in ("movie", "series", "tvshow"):
+            try:
+                info_tag.setMediaType("movie" if media_type == "movie" else "tvshow")
+            except Exception:
+                pass
+        if imdb_id:
+            try:
+                info_tag.setIMDBNumber(str(imdb_id))
+            except Exception:
+                pass
+        if rating:
+            try:
+                info_tag.setRating(float(rating), votes=0, type="imdb", isdefault=True)
+            except Exception:
+                pass
+        if genres:
+            try:
+                genre_list = [g.strip() for g in str(genres).split(",") if g.strip()]
+                if genre_list:
+                    info_tag.setGenres(genre_list)
+            except Exception:
+                pass
+    except Exception as e:
+        log(f"InfoTag error (non-fatal): {e}", level="debug")
 
     # Context menu
     if context_menu:
