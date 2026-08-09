@@ -762,22 +762,23 @@ class Router:
             except Exception:
                 pass
 
-        subtitle_url = None
+        sub_list = []
         try:
             subs = self.stremio.get_subtitles(media_type, imdb_id)
-            if subs and subs[0].get("url"):
-                subtitle_url = subs[0]["url"]
+            if subs:
+                sub_list.extend([s["url"] for s in subs if s.get("url")])
         except Exception:
             pass
 
-        if not subtitle_url and imdb_id:
+        if imdb_id:
             try:
-                from resources.lib.subtitles import fetch_spanish_subtitles
+                from resources.lib.subtitles import fetch_subtitles
                 sn = self.params.get("season")
                 ep = self.params.get("episode")
-                sub_urls = fetch_spanish_subtitles(imdb_id.split(":")[0], media_type, sn, ep)
-                if sub_urls:
-                    subtitle_url = sub_urls[0]
+                extra_subs = fetch_subtitles(imdb_id.split(":")[0], media_type, sn, ep)
+                for su in extra_subs:
+                    if su not in sub_list:
+                        sub_list.append(su)
             except Exception as e:
                 log(f"Subtitle fallback error: {e}", level="debug")
 
@@ -787,10 +788,10 @@ class Router:
         else:
             log(f"Player.play -> {playable_url[:100]}", level="info")
             li = xbmcgui.ListItem(label=title, path=playable_url)
-            if subtitle_url:
+            if sub_list:
                 try:
-                    li.setSubtitles([subtitle_url])
-                    ui.show_notification("Subtítulos en Español cargados")
+                    li.setSubtitles(sub_list)
+                    ui.show_notification("Subtítulos (Español e Inglés) cargados")
                 except Exception:
                     pass
             xbmc.Player().play(playable_url, li)
