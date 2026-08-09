@@ -66,6 +66,7 @@ class CacheDB:
             CREATE INDEX IF NOT EXISTS idx_cache_expires ON cache(expires);
             CREATE INDEX IF NOT EXISTS idx_history_watched ON history(watched_at);
             CREATE INDEX IF NOT EXISTS idx_resume_updated ON resume(updated_at);
+            DELETE FROM cache WHERE value = '{}' OR value = '[]' OR value LIKE '%"results": []%' OR value LIKE '%"metas": []%';
         """)
         self._conn().commit()
 
@@ -76,7 +77,12 @@ class CacheDB:
                 "SELECT value, expires FROM cache WHERE key = ?", (key,)
             ).fetchone()
             if row and row["expires"] > time.time():
-                return json.loads(row["value"])
+                val = json.loads(row["value"])
+                if not val or val == {} or val == [] or (isinstance(val, dict) and val.get("results") == []) or (isinstance(val, dict) and val.get("metas") == []):
+                    self._conn().execute("DELETE FROM cache WHERE key = ?", (key,))
+                    self._conn().commit()
+                    return None
+                return val
             if row:
                 self._conn().execute("DELETE FROM cache WHERE key = ?", (key,))
                 self._conn().commit()
@@ -85,6 +91,8 @@ class CacheDB:
         return None
 
     def set(self, key, value, ttl=None):
+        if not value or value == {} or value == [] or (isinstance(value, dict) and value.get("results") == []) or (isinstance(value, dict) and value.get("metas") == []):
+            return
         if ttl is None:
             ttl = Config.cache_ttl_seconds()
         try:
