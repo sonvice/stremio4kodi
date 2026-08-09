@@ -1,0 +1,228 @@
+# -*- coding: utf-8 -*-
+"""
+TMDB Client — Direct integration with The Movie Database API v3.
+Provides Trending, Popular, Now Playing, Top Rated, Genres, and Top 100 Recent
+for both Movies and TV Shows, in Spanish and English with automatic IMDb ID resolution.
+"""
+import time
+from urllib.parse import urlencode
+
+from resources.lib.config import Config
+from resources.lib.cache import CacheDB
+from resources.lib.logger import log
+
+DEFAULT_TMDB_KEY = "f090bb54758cb5471f094936e01e92d8"
+
+class TMDBClient:
+    BASE_URL = "https://api.themoviedb.org/3"
+
+    def __init__(self):
+        self.cache = CacheDB()
+
+    @property
+    def api_key(self):
+        key = Config.tmdb_apikey()
+        return key.strip() if key and key.strip() else DEFAULT_TMDB_KEY
+
+    @property
+    def language(self):
+        lang = Config.language() or "es"
+        lang_map = {
+            "es": "es-ES",
+            "en": "en-US",
+            "fr": "fr-FR",
+            "de": "de-DE",
+            "it": "it-IT",
+            "pt": "pt-BR"
+        }
+        return lang_map.get(lang, "es-ES")
+
+    def _get(self, endpoint, params=None, cache_ttl=21600):
+        if params is None:
+            params = {}
+        params["api_key"] = self.api_key
+        if "language" not in params:
+            params["language"] = self.language
+
+        query_str = urlencode(params)
+        url = f"{self.BASE_URL}{endpoint}?{query_str}"
+        cache_key = f"tmdb:{url}"
+
+        if Config.cache_enabled() and cache_ttl > 0:
+            cached = self.cache.get(cache_key)
+            if cached is not None:
+                return cached
+
+        data = None
+        try:
+            import requests
+            resp = requests.get(
+                url,
+                headers={"User-Agent": "Stremio4Kodi/3.3", "Accept": "application/json"},
+                timeout=(Config.stremio_timeout(), Config.stremio_timeout() + 5),
+                verify=False
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+        except Exception as e:
+            log(f"TMDB requests error [{endpoint}]: {e}", level="debug")
+
+        if data is None:
+            try:
+                import subprocess, json
+                cmd = [
+                    "curl", "-skL",
+                    "--connect-timeout", str(Config.stremio_timeout()),
+                    "--max-time", str(Config.stremio_timeout() + 5),
+                    "-H", "User-Agent: Stremio4Kodi/3.3",
+                    "-H", "Accept: application/json",
+                    url
+                ]
+                res = subprocess.run(cmd, capture_output=True, text=True, timeout=Config.stremio_timeout() + 10)
+                if res.returncode == 0 and res.stdout.strip():
+                    data = json.loads(res.stdout)
+            except Exception as e:
+                log(f"TMDB curl error [{endpoint}]: {e}", level="error")
+
+        if data and Config.cache_enabled() and cache_ttl > 0:
+            self.cache.set(cache_key, data, ttl=cache_ttl)
+
+        return data or {}
+
+    def parse_item(self, raw, media_type="movie"):
+        """Format raw TMDB item into standard dictionary for Stremio4Kodi rendering."""
+        tmdb_id = raw.get("id")
+        title = raw.get("title") or raw.get("name") or raw.get("original_title") or raw.get("original_name") or "Sin título"
+        original_title = raw.get("original_title") or raw.get("original_name") or title
+        
+        rel_date = raw.get("release_date") or raw.get("first_air_date") or ""
+        year = rel_date[:4] if rel_date else ""
+        
+        poster_path = raw.get("poster_path")
+        poster = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else ""
+        
+        backdrop_path = raw.get("backdrop_path")
+        backdrop = f"https://image.tmdb.org/t/p/w1280{backdrop_path}" if backdrop_path else ""
+        
+        vote_avg = raw.get("vote_average", 0)
+        rating = f"{vote_avg:.1f}" if vote_avg else ""
+
+        imdb_id = raw.get("imdb_id") or raw.get("external_ids", {}).get("imdb_id", "")
+
+        return {
+            "tmdb_id": str(tmdb_id),
+            "imdb_id": imdb_id,
+            "name": title,
+            "title": title,
+            "original_title": original_title,
+            "year": year,
+            "releaseInfo": year,
+            "poster": poster,
+            "fanart": backdrop,
+            "background": backdrop,
+            "description": raw.get("overview", ""),
+            "imdbRating": rating,
+            "type": media_type
+        }
+
+    def _parse_results(self, data, media_type):
+        results = data.get("results", [])
+        parsed = []
+        for item in results:
+            parsed.append(self.parse_item(item, media_type))
+        return parsed
+
+    # ── TMDB ENDPOINTS ─────────────────────────────────────
+    def get_trending(self, media_type="movie", time_window="day", page=1):
+        data = self._get(f"/trending/{media_type}/{time_window}", {"page": page})
+        return self._parse_results(data, media_type), data.get("total_pages", 1)
+
+    def get_popular(self, media_type="movie", page=1):
+        data = self._get(f"/{media_type}/popular", {"page": page})
+        return self._parse_results(data, media_type), data.get("total_pages", 1)
+
+    def get_now_playing(self, media_type="movie", page=1):
+        endpoint = f"/movie/now_playing" if media_type == "movie" else f"/tv/on_the_air"
+        data = self._get(endpoint, {"page": page})
+        return self._parse_results(data, media_type), data.get("total_pages", 1)
+
+    def get_top_rated(self, media_type="movie", page=1):
+        data = self._get(f"/{media_type}/top_rated", {"page": page})
+        return self._parse_results(data, media_type), data.get("total_pages", 1)
+
+    def get_genres(self, media_type="movie"):
+        data = self._get(f"/genre/{media_type}/list")
+        return data.get("genres", [])
+
+    def discover_by_genre(self, media_type, genre_id, page=1):
+        params = {
+            "with_genres": str(genre_id),
+            "sort_by": "popularity.desc",
+            "page": page
+        }
+        data = self._get(f"/discover/{media_type}", params)
+        return self._parse_results(data, media_type), data.get("total_pages", 1)
+
+    def get_top_100_recent(self, media_type="movie", page=1):
+        """
+        Fetch top rated & highly popular movies/shows from recent years (last 5 years).
+        5 pages * 20 items per page = 100 items total.
+        """
+        current_year = int(time.strftime("%Y"))
+        min_year = current_year - 4
+        
+        params = {
+            "sort_by": "vote_average.desc",
+            "vote_count.gte": "200" if media_type == "movie" else "100",
+            "page": page
+        }
+        if media_type == "movie":
+            params["primary_release_date.gte"] = f"{min_year}-01-01"
+            params["primary_release_date.lte"] = f"{current_year}-12-31"
+        else:
+            params["first_air_date.gte"] = f"{min_year}-01-01"
+            params["first_air_date.lte"] = f"{current_year}-12-31"
+
+        data = self._get(f"/discover/{media_type}", params)
+        return self._parse_results(data, media_type), data.get("total_pages", 5)
+
+    def get_external_ids(self, media_type, tmdb_id):
+        data = self._get(f"/{media_type}/{tmdb_id}/external_ids", cache_ttl=86400)
+        return data.get("imdb_id", "") or ""
+
+    def get_details(self, media_type, tmdb_id):
+        data = self._get(f"/{media_type}/{tmdb_id}", {"append_to_response": "external_ids"}, cache_ttl=21600)
+        if not data:
+            return None
+        item = self.parse_item(data, media_type)
+        ext = data.get("external_ids", {})
+        if ext.get("imdb_id"):
+            item["imdb_id"] = ext["imdb_id"]
+        return item, data
+
+    def get_tv_seasons(self, tmdb_id):
+        item, data = self.get_details("tv", tmdb_id)
+        if not data:
+            return [], item
+        seasons = data.get("seasons", [])
+        valid_seasons = [s for s in seasons if s.get("season_number", 0) > 0]
+        return valid_seasons, item
+
+    def get_tv_episodes(self, tmdb_id, season_number):
+        item, _ = self.get_details("tv", tmdb_id)
+        data = self._get(f"/tv/{tmdb_id}/season/{season_number}", cache_ttl=21600)
+        episodes = data.get("episodes", [])
+        parsed_episodes = []
+        for ep in episodes:
+            ep_num = ep.get("episode_number")
+            poster_path = ep.get("still_path")
+            thumb = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else item.get("poster", "")
+            parsed_episodes.append({
+                "episode": ep_num,
+                "season": season_number,
+                "title": ep.get("name") or f"Episodio {ep_num}",
+                "overview": ep.get("overview", ""),
+                "thumbnail": thumb,
+                "vote_average": ep.get("vote_average", 0)
+            })
+        return parsed_episodes, item

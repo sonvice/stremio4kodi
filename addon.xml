@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.stremio4kodi"
        name="Stremio for Kodi"
-       version="3.2.12"
+       version="3.3.0"
        provider-name="stremio4kodi">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
@@ -14,9 +14,9 @@
     <extension point="xbmc.service" library="service.py" start="startup"/>
     <extension point="xbmc.addon.metadata">
         <summary lang="en">Stremio addons on Kodi — Spanish-first streaming</summary>
-        <summary lang="es">Stremio en Kodi — Optimizado para espanol</summary>
-        <description lang="en">Stream movies and series from Stremio addons on Kodi. Features: Cinemeta, TMDB (Spanish), Torrentio, Peerflix, MediaFusion, Real-Debrid, Trakt, Elementum. v3.2.1: AceStream/Live TV, Streaming Catalogs (fixed), Subtitles, Ratings.</description>
-        <description lang="es">Peliculas y series desde addons de Stremio en Kodi. v3.2.1: AceStream/TV en directo, Plataformas (sin duplicados), Subtitulos, Puntuaciones.</description>
+        <summary lang="es">Stremio en Kodi — Catálogos TMDB y Búsqueda EN/ES</summary>
+        <description lang="en">Stream movies and series from Stremio addons on Kodi. v3.3.0: Direct TMDB integration (Trending, Popular, Now Playing, Top Rated, Top 100, Genres) with seamless EN/ES search and DHT/Real-Debrid stream resolution.</description>
+        <description lang="es">Películas y series desde addons de Stremio y TMDB en Kodi. v3.3.0: Integración directa de TMDB (Tendencias, Popular, En cartelera, Mejor puntuadas, Top 100 últimos años, Géneros) y búsqueda bilingüe EN/ES sin fallos.</description>
         <platform>all</platform>
         <license>MIT</license>
         <assets>

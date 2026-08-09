@@ -57,6 +57,10 @@
         <setting id="items_per_page" type="slider" label="Items per page" default="50" range="10,5,100" option="int"/>
         <setting id="log_level" type="labelenum" label="Log level" values="Info|Debug|Verbose" default="Info"/>
     </category>
+    <category label="TMDB">
+        <setting id="tmdb_enabled" type="bool" label="Habilitar catálogos TMDB (Tendencias, Popular, Cartelera)" default="true"/>
+        <setting id="tmdb_apikey" type="text" label="API Key de TMDB (Opcional)" default=""/>
+    </category>
     <category label="Extras (v3)">
         <setting id="streaming_catalogs_enabled" type="bool" label="Netflix/HBO/Disney+ catalogs" default="true"/>
         <setting id="streaming_catalogs_url" type="text" label="Streaming Catalogs URL" default="https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club"/>

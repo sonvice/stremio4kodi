@@ -22,6 +22,7 @@ from resources.lib.config import Config
 from resources.lib.logger import log
 from resources.lib import ui
 from resources.lib.dht_search import BitsearchClient
+from resources.lib.tmdb import TMDBClient
 
 
 class Router:
@@ -32,6 +33,7 @@ class Router:
         self.trakt = Trakt()
         self.cache = CacheDB()
         self.bitsearch = BitsearchClient()
+        self.tmdb = TMDBClient()
 
     def dispatch(self, argv):
         self.base_url = argv[0]
@@ -85,6 +87,13 @@ class Router:
             "acestream_refresh":   self._acestream_refresh,
             "acestream_all":       self._acestream_all,
             "acestream_manual":    self._acestream_manual,
+            # v3.3: TMDB Routes
+            "tmdb_movies":         self._tmdb_movies,
+            "tmdb_series":         self._tmdb_series,
+            "tmdb_catalog":        self._tmdb_catalog,
+            "tmdb_genres":         self._tmdb_genres,
+            "tmdb_seasons":        self._tmdb_seasons,
+            "tmdb_episodes":       self._tmdb_episodes,
         }
 
         handler = routes.get(action, self._main_menu)
@@ -145,11 +154,202 @@ class Router:
     # ══════════════════════════════════════════════════════
     #  MOVIES / SERIES
     # ══════════════════════════════════════════════════════
+    # ══════════════════════════════════════════════════════
+    #  MOVIES / SERIES / TMDB
+    # ══════════════════════════════════════════════════════
     def _movies(self):
-        self._list_catalogs("movie")
+        if Config.tmdb_enabled():
+            self._tmdb_movies()
+        else:
+            self._list_catalogs("movie")
 
     def _series(self):
-        self._list_catalogs("series")
+        if Config.tmdb_enabled():
+            self._tmdb_series()
+        else:
+            self._list_catalogs("series")
+
+    def _tmdb_movies(self):
+        items = [
+            ("Tendencias (Hoy / Semana)", "trending", "DefaultRecentlyAddedMovies.png"),
+            ("Lo mas popular", "popular", "DefaultMovies.png"),
+            ("En cartelera (Estrenos Cine)", "now_playing", "DefaultMovies.png"),
+            ("Mejor puntuadas", "top_rated", "DefaultMovies.png"),
+            ("Top 100 Ultimos Anos", "top_100", "DefaultYear.png"),
+            ("Categorias / Generos TMDB", "genres", "DefaultGenre.png"),
+        ]
+        for label, section, icon in items:
+            action = "tmdb_genres" if section == "genres" else "tmdb_catalog"
+            ui.add_directory_item(
+                handle=self.handle, label=label, action=action,
+                base_url=self.base_url, icon=icon, media_type="movie",
+                section=section
+            )
+        
+        ui.add_directory_item(
+            handle=self.handle, label="[B]Catalogos Stremio (Cinemeta / Addons)[/B]", action="catalog_list",
+            base_url=self.base_url, icon="DefaultFolder.png", media_type="movie"
+        )
+        ui.end_directory(self.handle)
+
+    def _tmdb_series(self):
+        items = [
+            ("Tendencias (Hoy / Semana)", "trending", "DefaultRecentlyAddedEpisodes.png"),
+            ("Lo mas popular", "popular", "DefaultTVShows.png"),
+            ("En emision / Al aire", "now_playing", "DefaultTVShows.png"),
+            ("Mejor puntuadas", "top_rated", "DefaultTVShows.png"),
+            ("Top 100 Ultimos Anos", "top_100", "DefaultYear.png"),
+            ("Categorias / Generos TMDB", "genres", "DefaultGenre.png"),
+        ]
+        for label, section, icon in items:
+            action = "tmdb_genres" if section == "genres" else "tmdb_catalog"
+            ui.add_directory_item(
+                handle=self.handle, label=label, action=action,
+                base_url=self.base_url, icon=icon, media_type="series",
+                section=section
+            )
+        
+        ui.add_directory_item(
+            handle=self.handle, label="[B]Catalogos Stremio (Cinemeta / Addons)[/B]", action="catalog_list",
+            base_url=self.base_url, icon="DefaultFolder.png", media_type="series"
+        )
+        ui.end_directory(self.handle)
+
+    def _tmdb_catalog(self):
+        media_type = self.params.get("media_type", "movie")
+        section = self.params.get("section", "popular")
+        page = int(self.params.get("page", "1"))
+        genre_id = self.params.get("genre_id", "")
+
+        tmdb_media = "movie" if media_type == "movie" else "tv"
+
+        if section == "trending":
+            items, total_pages = self.tmdb.get_trending(tmdb_media, time_window="week", page=page)
+        elif section == "popular":
+            items, total_pages = self.tmdb.get_popular(tmdb_media, page=page)
+        elif section == "now_playing":
+            items, total_pages = self.tmdb.get_now_playing(tmdb_media, page=page)
+        elif section == "top_rated":
+            items, total_pages = self.tmdb.get_top_rated(tmdb_media, page=page)
+        elif section == "top_100":
+            items, total_pages = self.tmdb.get_top_100_recent(tmdb_media, page=page)
+        elif section == "genre":
+            items, total_pages = self.tmdb.discover_by_genre(tmdb_media, genre_id, page=page)
+        else:
+            items, total_pages = self.tmdb.get_popular(tmdb_media, page=page)
+
+        if not items:
+            ui.show_notification("No se encontraron elementos en TMDB.")
+            ui.end_directory(self.handle)
+            return
+
+        self._render_item_list(items, media_type)
+
+        if page < total_pages and page < 50:
+            kwargs = {
+                "handle": self.handle, "label": "[B]>> Siguiente pagina[/B]",
+                "action": "tmdb_catalog", "base_url": self.base_url,
+                "media_type": media_type, "section": section, "page": str(page + 1)
+            }
+            if genre_id:
+                kwargs["genre_id"] = genre_id
+            ui.add_directory_item(**kwargs)
+
+        content = "movies" if media_type == "movie" else "tvshows"
+        ui.end_directory(self.handle, content_type=content)
+
+    def _tmdb_genres(self):
+        media_type = self.params.get("media_type", "movie")
+        tmdb_media = "movie" if media_type == "movie" else "tv"
+        genres = self.tmdb.get_genres(tmdb_media)
+
+        if not genres:
+            ui.show_notification("No se pudieron cargar géneros.")
+            ui.end_directory(self.handle)
+            return
+
+        for g in genres:
+            gid = str(g.get("id"))
+            gname = g.get("name")
+            ui.add_directory_item(
+                handle=self.handle, label=gname, action="tmdb_catalog",
+                base_url=self.base_url, icon="DefaultGenre.png",
+                media_type=media_type, section="genre", genre_id=gid
+            )
+        ui.end_directory(self.handle)
+
+    def _tmdb_seasons(self):
+        tmdb_id = self.params.get("tmdb_id", "")
+        title = self.params.get("title", "")
+        original_title = self.params.get("original_title", title)
+        imdb_id = self.params.get("imdb_id", "")
+
+        seasons, show_info = self.tmdb.get_tv_seasons(tmdb_id)
+        if not seasons:
+            ui.show_notification("No se pudieron cargar las temporadas.")
+            ui.end_directory(self.handle)
+            return
+
+        if not imdb_id and show_info:
+            imdb_id = show_info.get("imdb_id", "")
+
+        for s in seasons:
+            sn = s.get("season_number", 1)
+            ep_count = s.get("episode_count", 0)
+            s_name = s.get("name", f"Temporada {sn}")
+            label = f"{s_name} ({ep_count} episodios)"
+            poster_path = s.get("poster_path")
+            poster = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else show_info.get("poster", "")
+
+            ui.add_directory_item(
+                handle=self.handle, label=label, action="tmdb_episodes",
+                base_url=self.base_url, icon="DefaultTVShows.png",
+                poster=poster, fanart=show_info.get("background", ""),
+                imdb_id=imdb_id, tmdb_id=tmdb_id, media_type="series",
+                season=str(sn), title=title, original_title=original_title
+            )
+        ui.end_directory(self.handle, content_type="seasons")
+
+    def _tmdb_episodes(self):
+        tmdb_id = self.params.get("tmdb_id", "")
+        season = int(self.params.get("season", "1"))
+        title = self.params.get("title", "")
+        original_title = self.params.get("original_title", title)
+        imdb_id = self.params.get("imdb_id", "")
+
+        episodes, show_info = self.tmdb.get_tv_episodes(tmdb_id, season)
+        if not episodes:
+            ui.show_notification("No se encontraron episodios.")
+            ui.end_directory(self.handle)
+            return
+
+        if not imdb_id and show_info:
+            imdb_id = show_info.get("imdb_id", "")
+
+        for ep in episodes:
+            ep_num = ep.get("episode", 1)
+            ep_title = ep.get("title", f"Episodio {ep_num}")
+            
+            label = f"{ep_num}. {ep_title}"
+            vote = ep.get("vote_average", 0)
+            if vote:
+                label += f" [COLOR yellow]★{vote:.1f}[/COLOR]"
+
+            ep_imdb_id = f"{imdb_id}:{season}:{ep_num}" if imdb_id else ""
+
+            ui.add_directory_item(
+                handle=self.handle, label=label, action="streams",
+                base_url=self.base_url, icon="DefaultTVShows.png",
+                poster=ep.get("thumbnail", show_info.get("poster", "")),
+                fanart=show_info.get("background", ""),
+                plot=ep.get("overview", ""),
+                imdb_id=ep_imdb_id, tmdb_id=tmdb_id, media_type="series",
+                title=f"{title} S{season:02d}E{ep_num:02d}",
+                original_title=f"{original_title} S{season:02d}E{ep_num:02d}",
+                series_imdb=imdb_id, season=str(season), episode=str(ep_num)
+            )
+
+        ui.end_directory(self.handle, content_type="episodes")
 
     def _list_catalogs(self, media_type):
         catalogs = self.stremio.get_catalogs_for_type(media_type)
@@ -323,22 +523,52 @@ class Router:
     # ══════════════════════════════════════════════════════
     def _streams(self):
         imdb_id = self.params.get("imdb_id", "")
+        tmdb_id = self.params.get("tmdb_id", "")
         media_type = self.params.get("media_type", "movie")
         title = self.params.get("title", "")
+        original_title = self.params.get("original_title", "") or title
 
         xbmcplugin.endOfDirectory(self.handle, succeeded=False)
         xbmc.sleep(300)
 
-        try:
-            # 1. First query DHT Search using the query title
-            log(f"DHT resolving stream first for: {title}", level="info")
-            category = "movies" if media_type == "movie" else "series"
-            streams = self.bitsearch.search(title, category)
+        # Resolve IMDb ID from TMDB if missing
+        if not imdb_id and tmdb_id:
+            try:
+                tmdb_media = "movie" if media_type == "movie" else "tv"
+                imdb_id = self.tmdb.get_external_ids(tmdb_media, tmdb_id)
+            except Exception as e:
+                log(f"Error resolving TMDB external_ids: {e}", level="error")
 
-            # 2. Fallback to Stremio Addons if no DHT streams found
-            if not streams:
-                log(f"DHT returned no results for: {title}. Falling back to Stremio addons", level="info")
-                streams = self.stremio.get_streams(media_type, imdb_id)
+        try:
+            category = "movies" if media_type == "movie" else "series"
+            streams = []
+
+            # 1. Search DHT with Original Title (English/Native)
+            if original_title:
+                log(f"DHT resolving stream for original title: {original_title}", level="info")
+                streams = self.bitsearch.search(original_title, category)
+
+            # 2. Search DHT with Local Title (Spanish) if different
+            if title and title != original_title:
+                log(f"DHT resolving stream for Spanish title: {title}", level="info")
+                es_streams = self.bitsearch.search(title, category)
+                if es_streams:
+                    existing_hashes = {s.get("infoHash", "").lower() for s in streams if s.get("infoHash")}
+                    for s in es_streams:
+                        h = s.get("infoHash", "").lower()
+                        if not h or h not in existing_hashes:
+                            streams.append(s)
+
+            # 3. Query Stremio Addons if imdb_id is available
+            if imdb_id:
+                log(f"Querying Stremio addons for ID: {imdb_id}", level="info")
+                stremio_streams = self.stremio.get_streams(media_type, imdb_id)
+                if stremio_streams:
+                    existing_hashes = {s.get("infoHash", "").lower() for s in streams if s.get("infoHash")}
+                    for s in stremio_streams:
+                        h = s.get("infoHash", "").lower()
+                        if not h or h not in existing_hashes:
+                            streams.append(s)
 
             if not streams:
                 ui.show_notification("No se encontraron streams.")
@@ -1441,7 +1671,9 @@ class Router:
     def _render_item_list(self, items, media_type):
         for item in items:
             imdb_id = item.get("imdb_id") or item.get("id", "")
+            tmdb_id = item.get("tmdb_id", "")
             title = item.get("name", "Unknown")
+            original_title = item.get("original_title", title)
             year = str(item.get("releaseInfo", item.get("year", "")))
             poster = item.get("poster", "")
             plot = item.get("description", "")
@@ -1461,22 +1693,31 @@ class Router:
                     pass
 
             label = f"{title} ({year}){rating_tag}" if year else f"{title}{rating_tag}"
-            click = "streams" if media_type == "movie" else "seasons"
-            ctx = self._make_fav_context(imdb_id, media_type, title, year, poster)
+            if media_type == "movie":
+                click = "streams"
+            else:
+                click = "tmdb_seasons" if tmdb_id else "seasons"
+
+            fav_id = imdb_id if imdb_id else f"tmdb:{tmdb_id}"
+            ctx = self._make_fav_context(fav_id, media_type, title, year, poster)
 
             if rating and plot:
-                plot = f"IMDB: {rating}/10\n{plot}"
+                plot = f"Rating: {rating}/10\n{plot}"
             elif rating:
-                plot = f"IMDB: {rating}/10"
+                plot = f"Rating: {rating}/10"
 
-            ui.add_directory_item(
-                handle=self.handle, label=label, action=click,
-                base_url=self.base_url, poster=poster,
-                fanart=item.get("background", item.get("fanart", "")),
-                plot=plot, year=year, imdb_id=imdb_id,
-                media_type=media_type, context_menu=ctx, title=title,
-                rating=rating,
-            )
+            kwargs = {
+                "handle": self.handle, "label": label, "action": click,
+                "base_url": self.base_url, "poster": poster,
+                "fanart": item.get("background", item.get("fanart", "")),
+                "plot": plot, "year": year, "imdb_id": imdb_id,
+                "media_type": media_type, "context_menu": ctx, "title": title,
+                "original_title": original_title, "rating": rating
+            }
+            if tmdb_id:
+                kwargs["tmdb_id"] = tmdb_id
+
+            ui.add_directory_item(**kwargs)
 
     def _make_fav_context(self, imdb_id, media_type, title, year, poster):
         fav_label = "Quitar de Favoritos" if self.cache.is_favorite(imdb_id) \

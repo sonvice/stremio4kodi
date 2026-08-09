@@ -239,3 +239,21 @@ class Config:
     @staticmethod
     def livetv_url():
         return ""
+
+    # ══════════════════════════════════════════════════════
+    #  v3.3 — TMDB Integration
+    # ══════════════════════════════════════════════════════
+    @staticmethod
+    def tmdb_enabled():
+        try:
+            return ADDON.getSetting("tmdb_enabled") != "false"
+        except Exception:
+            return True
+
+    @staticmethod
+    def tmdb_apikey():
+        try:
+            return ADDON.getSetting("tmdb_apikey") or ""
+        except Exception:
+            return ""
+
