@@ -94,6 +94,7 @@ class Router:
             "tmdb_genres":         self._tmdb_genres,
             "tmdb_seasons":        self._tmdb_seasons,
             "tmdb_episodes":       self._tmdb_episodes,
+            "catalog_list":        self._catalog_list_route,
         }
 
         handler = routes.get(action, self._main_menu)
@@ -431,6 +432,10 @@ class Router:
                 addon_url=cat["addon_url"], catalog_id=cat["catalog_id"],
             )
         ui.end_directory(self.handle)
+
+    def _catalog_list_route(self):
+        media_type = self.params.get("media_type", "movie")
+        self._list_catalogs(media_type)
 
     # ══════════════════════════════════════════════════════
     #  CATALOG
