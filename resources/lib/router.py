@@ -244,8 +244,7 @@ class Router:
 
         # FALLBACK TO STREMIO CATALOGS IF TMDB FAILS OR IS EMPTY
         if not items:
-            log("TMDB catalog empty or failed. Falling back to Stremio Cinemeta catalogs", level="warning")
-            ui.show_notification("TMDB no disponible. Cargando catálogos Stremio...")
+            log("TMDB catalog empty or failed. Falling back to Stremio Cinemeta catalogs", level="info")
 
             cat_id = "top"
             extra = f"skip={(page - 1) * 25}" if page > 1 else ""
@@ -293,8 +292,7 @@ class Router:
             log(f"TMDB genres error: {e}", level="error")
 
         if not genres:
-            log("TMDB genres failed. Falling back to Stremio genres", level="warning")
-            ui.show_notification("TMDB no disponible. Cargando géneros Stremio...")
+            log("TMDB genres failed. Falling back to Stremio genres", level="info")
             genres_list = self.stremio.get_genres(media_type)
             for gname in genres_list:
                 ui.add_directory_item(
@@ -330,8 +328,7 @@ class Router:
                 log(f"TMDB seasons error: {e}", level="error")
 
         if not seasons and imdb_id:
-            log("TMDB seasons failed. Falling back to Stremio seasons", level="warning")
-            ui.show_notification("TMDB no disponible. Cargando temporadas de Stremio...")
+            log("TMDB seasons failed. Falling back to Stremio seasons", level="info")
             self._seasons()
             return
 
@@ -376,8 +373,7 @@ class Router:
                 log(f"TMDB episodes error: {e}", level="error")
 
         if not episodes and imdb_id:
-            log("TMDB episodes failed. Falling back to Stremio episodes", level="warning")
-            ui.show_notification("TMDB no disponible. Cargando episodios de Stremio...")
+            log("TMDB episodes failed. Falling back to Stremio episodes", level="info")
             self._episodes()
             return
 
