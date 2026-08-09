@@ -112,8 +112,7 @@ class Router:
         items = [
             ("Peliculas",           "movies",             "DefaultMovies.png"),
             ("Series",              "series",             "DefaultTVShows.png"),
-            ("Buscar",              "search",             "DefaultAddonsSearch.png"),
-            ("Buscador DHT",        "dht_search",         "DefaultAddonsSearch.png"),
+            ("Buscador",            "dht_search",         "DefaultAddonsSearch.png"),
             ("Trending Torrents",   "trending",           "DefaultTVShows.png"),
             ("Generos",             "genres",             "DefaultGenre.png"),
         ]
