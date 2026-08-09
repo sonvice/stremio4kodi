@@ -222,27 +222,53 @@ class Router:
         genre_id = self.params.get("genre_id", "")
 
         tmdb_media = "movie" if media_type == "movie" else "tv"
+        items = []
+        total_pages = 1
 
-        if section == "trending":
-            items, total_pages = self.tmdb.get_trending(tmdb_media, time_window="week", page=page)
-        elif section == "popular":
-            items, total_pages = self.tmdb.get_popular(tmdb_media, page=page)
-        elif section == "now_playing":
-            items, total_pages = self.tmdb.get_now_playing(tmdb_media, page=page)
-        elif section == "top_rated":
-            items, total_pages = self.tmdb.get_top_rated(tmdb_media, page=page)
-        elif section == "top_100":
-            items, total_pages = self.tmdb.get_top_100_recent(tmdb_media, page=page)
-        elif section == "genre":
-            items, total_pages = self.tmdb.discover_by_genre(tmdb_media, genre_id, page=page)
-        else:
-            items, total_pages = self.tmdb.get_popular(tmdb_media, page=page)
+        try:
+            if section == "trending":
+                items, total_pages = self.tmdb.get_trending(tmdb_media, time_window="week", page=page)
+            elif section == "popular":
+                items, total_pages = self.tmdb.get_popular(tmdb_media, page=page)
+            elif section == "now_playing":
+                items, total_pages = self.tmdb.get_now_playing(tmdb_media, page=page)
+            elif section == "top_rated":
+                items, total_pages = self.tmdb.get_top_rated(tmdb_media, page=page)
+            elif section == "top_100":
+                items, total_pages = self.tmdb.get_top_100_recent(tmdb_media, page=page)
+            elif section == "genre":
+                items, total_pages = self.tmdb.discover_by_genre(tmdb_media, genre_id, page=page)
+            else:
+                items, total_pages = self.tmdb.get_popular(tmdb_media, page=page)
+        except Exception as e:
+            log(f"TMDB catalog error [{section}]: {e}", level="error")
+
+        # FALLBACK TO STREMIO CATALOGS IF TMDB FAILS OR IS EMPTY
+        if not items:
+            log("TMDB catalog empty or failed. Falling back to Stremio Cinemeta catalogs", level="warning")
+            ui.show_notification("TMDB no disponible. Cargando catálogos Stremio...")
+
+            cat_id = "top"
+            extra = f"skip={(page - 1) * 25}" if page > 1 else ""
+            if section in ("now_playing", "top_100"):
+                cat_id = "year"
+                extra = f"genre=2026&skip={(page - 1) * 25}"
+
+            for addon_url in Config.stremio_addon_urls():
+                try:
+                    c_items = self.stremio.get_catalog(addon_url, media_type, cat_id, extra)
+                    if c_items:
+                        items.extend(c_items)
+                        break
+                except Exception as e:
+                    log(f"Fallback Stremio catalog error [{addon_url}]: {e}", level="debug")
 
         if not items:
-            ui.show_notification("No se encontraron elementos en TMDB.")
+            ui.show_notification("No se encontraron elementos.")
             ui.end_directory(self.handle)
             return
 
+        items = self.stremio.dedup_items(items) if hasattr(self.stremio, "dedup_items") else items
         self._render_item_list(items, media_type)
 
         if page < total_pages and page < 50:
@@ -261,10 +287,22 @@ class Router:
     def _tmdb_genres(self):
         media_type = self.params.get("media_type", "movie")
         tmdb_media = "movie" if media_type == "movie" else "tv"
-        genres = self.tmdb.get_genres(tmdb_media)
+        genres = []
+        try:
+            genres = self.tmdb.get_genres(tmdb_media)
+        except Exception as e:
+            log(f"TMDB genres error: {e}", level="error")
 
         if not genres:
-            ui.show_notification("No se pudieron cargar géneros.")
+            log("TMDB genres failed. Falling back to Stremio genres", level="warning")
+            ui.show_notification("TMDB no disponible. Cargando géneros Stremio...")
+            genres_list = self.stremio.get_genres(media_type)
+            for gname in genres_list:
+                ui.add_directory_item(
+                    handle=self.handle, label=gname, action="genre_list",
+                    base_url=self.base_url, icon="DefaultGenre.png",
+                    media_type=media_type, genre=gname
+                )
             ui.end_directory(self.handle)
             return
 
@@ -284,7 +322,20 @@ class Router:
         original_title = self.params.get("original_title", title)
         imdb_id = self.params.get("imdb_id", "")
 
-        seasons, show_info = self.tmdb.get_tv_seasons(tmdb_id)
+        seasons = []
+        show_info = None
+        if tmdb_id:
+            try:
+                seasons, show_info = self.tmdb.get_tv_seasons(tmdb_id)
+            except Exception as e:
+                log(f"TMDB seasons error: {e}", level="error")
+
+        if not seasons and imdb_id:
+            log("TMDB seasons failed. Falling back to Stremio seasons", level="warning")
+            ui.show_notification("TMDB no disponible. Cargando temporadas de Stremio...")
+            self._seasons()
+            return
+
         if not seasons:
             ui.show_notification("No se pudieron cargar las temporadas.")
             ui.end_directory(self.handle)
@@ -299,12 +350,12 @@ class Router:
             s_name = s.get("name", f"Temporada {sn}")
             label = f"{s_name} ({ep_count} episodios)"
             poster_path = s.get("poster_path")
-            poster = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else show_info.get("poster", "")
+            poster = f"https://image.tmdb.org/t/p/w500{poster_path}" if poster_path else (show_info.get("poster", "") if show_info else "")
 
             ui.add_directory_item(
                 handle=self.handle, label=label, action="tmdb_episodes",
                 base_url=self.base_url, icon="DefaultTVShows.png",
-                poster=poster, fanart=show_info.get("background", ""),
+                poster=poster, fanart=show_info.get("background", "") if show_info else "",
                 imdb_id=imdb_id, tmdb_id=tmdb_id, media_type="series",
                 season=str(sn), title=title, original_title=original_title
             )
@@ -317,7 +368,20 @@ class Router:
         original_title = self.params.get("original_title", title)
         imdb_id = self.params.get("imdb_id", "")
 
-        episodes, show_info = self.tmdb.get_tv_episodes(tmdb_id, season)
+        episodes = []
+        show_info = None
+        if tmdb_id:
+            try:
+                episodes, show_info = self.tmdb.get_tv_episodes(tmdb_id, season)
+            except Exception as e:
+                log(f"TMDB episodes error: {e}", level="error")
+
+        if not episodes and imdb_id:
+            log("TMDB episodes failed. Falling back to Stremio episodes", level="warning")
+            ui.show_notification("TMDB no disponible. Cargando episodios de Stremio...")
+            self._episodes()
+            return
+
         if not episodes:
             ui.show_notification("No se encontraron episodios.")
             ui.end_directory(self.handle)
@@ -340,8 +404,8 @@ class Router:
             ui.add_directory_item(
                 handle=self.handle, label=label, action="streams",
                 base_url=self.base_url, icon="DefaultTVShows.png",
-                poster=ep.get("thumbnail", show_info.get("poster", "")),
-                fanart=show_info.get("background", ""),
+                poster=ep.get("thumbnail", show_info.get("poster", "") if show_info else ""),
+                fanart=show_info.get("background", "") if show_info else "",
                 plot=ep.get("overview", ""),
                 imdb_id=ep_imdb_id, tmdb_id=tmdb_id, media_type="series",
                 title=f"{title} S{season:02d}E{ep_num:02d}",
