@@ -64,7 +64,7 @@ class TMDBClient:
 
         if Config.cache_enabled() and cache_ttl > 0:
             cached = self.cache.get(cache_key)
-            if cached is not None:
+            if cached and isinstance(cached, dict) and (cached.get("results") or cached.get("id") or cached.get("genres") or cached.get("episodes")):
                 return cached
 
         data = None
@@ -98,10 +98,12 @@ class TMDBClient:
             except Exception as e:
                 log(f"TMDB curl error [{endpoint}]: {e}", level="error")
 
-        if data and Config.cache_enabled() and cache_ttl > 0:
-            self.cache.set(cache_key, data, ttl=cache_ttl)
+        if data and isinstance(data, dict) and (data.get("results") or data.get("id") or data.get("genres") or data.get("episodes")):
+            if Config.cache_enabled() and cache_ttl > 0:
+                self.cache.set(cache_key, data, ttl=cache_ttl)
+            return data
 
-        return data or {}
+        return {}
 
     def parse_item(self, raw, media_type="movie"):
         """Format raw TMDB item into standard dictionary for Stremio4Kodi rendering."""

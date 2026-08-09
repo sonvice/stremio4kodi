@@ -246,11 +246,8 @@ class Router:
         if not items:
             log("TMDB catalog empty or failed. Falling back to Stremio Cinemeta catalogs", level="info")
 
-            cat_id = "top"
+            cat_id = "imdbRating" if section in ("now_playing", "top_100", "top_rated") else "top"
             extra = f"skip={(page - 1) * 25}" if page > 1 else ""
-            if section in ("now_playing", "top_100"):
-                cat_id = "year"
-                extra = f"genre=2026&skip={(page - 1) * 25}"
 
             for addon_url in Config.stremio_addon_urls():
                 try:
@@ -262,6 +259,14 @@ class Router:
                     log(f"Fallback Stremio catalog error [{addon_url}]: {e}", level="debug")
 
         if not items:
+            try:
+                c_items = self.stremio.get_catalog("https://v3-cinemeta.strem.io", media_type, "top", "")
+                if c_items:
+                    items.extend(c_items)
+            except Exception as e:
+                log(f"Direct Cinemeta fallback error: {e}", level="debug")
+
+        if not items:
             ui.show_notification("No se encontraron elementos.")
             ui.end_directory(self.handle)
             return
@@ -269,7 +274,7 @@ class Router:
         items = self.stremio.dedup_items(items) if hasattr(self.stremio, "dedup_items") else items
         self._render_item_list(items, media_type)
 
-        if page < total_pages and page < 50:
+        if items and page < total_pages and page < 50:
             kwargs = {
                 "handle": self.handle, "label": "[B]>> Siguiente pagina[/B]",
                 "action": "tmdb_catalog", "base_url": self.base_url,
