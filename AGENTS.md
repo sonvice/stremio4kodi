@@ -73,16 +73,45 @@ El proyecto está dividido en dos repositorios/carpetas hermanas:
 
 ---
 
-## 5. Pautas para Futuros Cambios
+## 5. Características Añadidas en v3.3.0 - v3.4.5
 
-1. **Evitar dependencias pesadas de Python:** Kodi se ejecuta en múltiples arquitecturas y sistemas limitados. Cualquier cliente HTTP debe usar preferiblemente `requests` con un fallback a comandos del sistema como `curl` (usando `subprocess`).
+### 5.1. Integración Completa de la API de TMDB
+* **Soporte de Autenticación Híbrida (v3 Key y v4 JWT):** Admite claves de API de 32 caracteres hex así como Tokens Bearer v4 JWT (`eyJhbGci...`), enviándolos automáticamente mediante la cabecera `Authorization: Bearer <token>`.
+* **Menús y Navegación Limpios:**
+  * *Tendencias (Hoy / Semana)*
+  * *Lo más popular*
+  * *En cartelera (Estrenos Cine)* con parámetro `region=ES` para evitar colisiones con lo más popular global.
+  * *Mejor puntuadas*
+  * *Top 100 Últimos Años*
+  * *Categorías / Géneros*
+  * *Catálogos Stremio (Cinemeta / Addons)*
+* **Respaldo Cinemeta Transparente:** En caso de fallo de red o caída de la API de TMDB, el addon conmuta automáticamente a los catálogos de Stremio Cinemeta (`https://v3-cinemeta.strem.io`) garantizando que nunca aparezca una pantalla vacía (`0/0`).
+
+### 5.2. Resolución de Streams y Reproducción DHT (Wolchok et al.)
+* **Documentación Base:** Basado en la investigación de *Scott Wolchok et al.* (`Wolchok.pdf`) sobre la indagación e indexación de torrent `infoHash` y nodos pares en la red **Mainline BitTorrent DHT**.
+* **Búsqueda Bilingüe Paralela:** Consulta streams usando el título original en inglés y el título traducido al español para maximizar la tasa de acierto de torrents disponibles.
+* **Desduplicación Inteligente:** `StremioClient.dedup_items` desduplica elementos según la firma unificada `tmdb_id`, `imdb_id`, `id` de catálogo o combinación `título:año`.
+
+### 5.3. Interfaz Nativa de Kodi a Prueba de Fallos
+* **Compatibilidad de Fuentes (Sin Emojis):** Se eliminaron los caracteres emoji unicode (que generaban rectángulos rotos `[]` en la tipografía por defecto de Kodi Estuary) sustituyéndolos por iconos nativos (`DefaultFolder.png`, `DefaultMovies.png`, `DefaultTVShows.png`, `DefaultGenre.png`, `DefaultYear.png`).
+* **Manejo Seguro de Metadatos:** En `resources/lib/ui.py`, todas las llamadas a la API `VideoInfoTag` (`setPlot`, `setYear`, `setMediaType`, `setIMDBNumber`, `setRating`, `setGenres`) están protegidas con bloques `try/except` para garantizar que la interfaz procese e imprima siempre todos los elementos sin interrumpir la renderización del contenedor.
+* **Firma Robusta de Finalización:** `ui.end_directory(handle, content_type, sort_methods, update_listing, cache_to_disc, succeeded)` soporta el parámetro `succeeded` evitando errores de ejecución `TypeError`.
+
+---
+
+## 6. Pautas para Futuros Cambios
+
+1. **Evitar dependencias pesadas de Python:** Kodi se ejecuta en múltiples arquitecturas y sistemas limitados. Cualquier cliente HTTP debe usar preferiblemente `urllib.request` como motor primario, con fallbacks a `requests` y `curl` (usando `subprocess`).
 2. **Preservar los motores locales:** El plugin debe permitir la resolución de torrents directos mediante magnet links hacia Elementum o Quasar de forma nativa cuando no hay cuentas Debrid configuradas.
 3. **Mantenimiento del Generador:** No modifiques las carpetas empaquetadas dentro de `repository.sonvice/repo/` directamente; siempre modifícalas en la carpeta del addon original y vuelve a correr `generator.py`.
 
 ---
 
-## 6. Roadmap de Futuras Mejoras Propuestas
+## 7. Roadmap de Futuras Mejoras Propuestas
 
-Para seguir mejorando el addon en el futuro, se han propuesto las siguientes características:
+1. **Filtro Avanzado de Audio (Castellano / Latino / VOSE):** Etiquetar visualmente en la lista de streams con banderas o distintivos `[ES-ES]` (Castellano), `[ES-LA]` (Latino) o `[VOSE]` (Subtitulado).
+2. **Descarga de Subtítulos Automáticos (OpenSubtitles v3 / Subscene):** Descargar automáticamente subtítulos sincronizados en español si el torrent carece de pistas de subtítulos incrustadas.
+3. **Integración Personal de Trakt.tv:** Mostrar las listas personales ("Ver más tarde", "Películas vistas", "Colección") directamente en el menú principal del addon.
+4. **Reproducción de Trailers Oficiales de YouTube:** Añadir una opción en el menú contextual de cada película ("Ver Tráiler") para reproducir el avance oficial en YouTube antes de abrir los torrents.
+5. **Soporte Multi-Debrid (AllDebrid / Premiumize):** Ampliar los conectores de Debrid para soportar AllDebrid y Premiumize.me junto con Real-Debrid.
 
-1. **Búsqueda e Integración de Subtítulos de Respaldo:** Implementar búsquedas de subtítulos directas en bases de datos públicas si los addons de Stremio fallan.
