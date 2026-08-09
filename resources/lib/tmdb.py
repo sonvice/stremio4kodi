@@ -11,7 +11,7 @@ from resources.lib.config import Config
 from resources.lib.cache import CacheDB
 from resources.lib.logger import log
 
-DEFAULT_TMDB_KEY = "f090bb54758cb5471f094936e01e92d8"
+DEFAULT_TMDB_KEY = "9d13fcef48d5353656dc4b1146a298ce"
 
 class TMDBClient:
     BASE_URL = "https://api.themoviedb.org/3"
@@ -22,7 +22,21 @@ class TMDBClient:
     @property
     def api_key(self):
         key = Config.tmdb_apikey()
-        return key.strip() if key and key.strip() else DEFAULT_TMDB_KEY
+        if not key or not key.strip():
+            return DEFAULT_TMDB_KEY
+        key = key.strip()
+        if key.startswith("eyJ"):
+            try:
+                import base64, json
+                parts = key.split(".")
+                if len(parts) >= 2:
+                    padding = "=" * (4 - len(parts[1]) % 4)
+                    payload = json.loads(base64.b64decode(parts[1] + padding).decode('utf-8'))
+                    if payload.get("aud"):
+                        return payload["aud"]
+            except Exception as e:
+                log(f"JWT TMDB parse error: {e}", level="debug")
+        return key
 
     @property
     def language(self):
@@ -152,7 +166,8 @@ class TMDBClient:
 
     def get_genres(self, media_type="movie"):
         data = self._get(f"/genre/{media_type}/list")
-        return data.get("genres", [])
+        genres = data.get("genres", [])
+        return sorted(genres, key=lambda g: g.get("name", ""))
 
     def discover_by_genre(self, media_type, genre_id, page=1):
         params = {
@@ -173,7 +188,7 @@ class TMDBClient:
         
         params = {
             "sort_by": "vote_average.desc",
-            "vote_count.gte": "200" if media_type == "movie" else "100",
+            "vote_count.gte": "500" if media_type == "movie" else "300",
             "page": page
         }
         if media_type == "movie":
