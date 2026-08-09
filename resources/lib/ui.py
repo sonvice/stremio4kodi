@@ -160,23 +160,35 @@ def add_stream_item(handle, stream, base_url, resolver, imdb_id, media_type,
 
 
 def end_directory(handle, content_type="videos", sort_methods=None,
-                  update_listing=False, cache_to_disc=True):
+                  update_listing=False, cache_to_disc=True, succeeded=True):
     """Finalize the directory listing."""
     if content_type:
-        xbmcplugin.setContent(handle, content_type)
+        try:
+            xbmcplugin.setContent(handle, content_type)
+        except Exception:
+            pass
 
     if sort_methods:
         for method in sort_methods:
-            xbmcplugin.addSortMethod(handle, method)
+            try:
+                xbmcplugin.addSortMethod(handle, method)
+            except Exception:
+                pass
     else:
-        xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
+        try:
+            xbmcplugin.addSortMethod(handle, xbmcplugin.SORT_METHOD_UNSORTED)
+        except Exception:
+            pass
 
-    xbmcplugin.endOfDirectory(
-        handle,
-        succeeded=True,
-        updateListing=update_listing,
-        cacheToDisc=cache_to_disc,
-    )
+    try:
+        xbmcplugin.endOfDirectory(
+            handle,
+            succeeded=succeeded,
+            updateListing=update_listing,
+            cacheToDisc=cache_to_disc,
+        )
+    except Exception as e:
+        log(f"endOfDirectory error: {e}", level="debug")
 
 
 def show_notification(message, heading="Stremio4Kodi", icon=xbmcgui.NOTIFICATION_INFO,

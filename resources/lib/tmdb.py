@@ -186,8 +186,10 @@ class TMDBClient:
         return self._parse_results(data, media_type), data.get("total_pages", 1)
 
     def get_now_playing(self, media_type="movie", page=1):
-        endpoint = f"/movie/now_playing" if media_type == "movie" else f"/tv/on_the_air"
-        data = self._get(endpoint, {"page": page})
+        if media_type == "movie":
+            data = self._get("/movie/now_playing", {"page": page, "region": "ES"})
+        else:
+            data = self._get("/tv/on_the_air", {"page": page})
         return self._parse_results(data, media_type), data.get("total_pages", 1)
 
     def get_top_rated(self, media_type="movie", page=1):
