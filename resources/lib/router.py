@@ -1810,6 +1810,11 @@ class Router:
     def _clear_cache(self):
         self.cache.clear_all()
         ui.show_notification("Cache limpiada!")
+        try:
+            import xbmcplugin
+            xbmcplugin.endOfDirectory(self.handle, succeeded=True)
+        except Exception:
+            pass
 
     def _clear_history(self):
         self.cache.clear_history()

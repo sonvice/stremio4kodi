@@ -67,7 +67,36 @@ class TMDBClient:
             if cached and isinstance(cached, dict) and (cached.get("results") or cached.get("id") or cached.get("genres") or cached.get("episodes")):
                 return cached
 
-        data = None
+        data = self._fetch_url(url)
+
+        # Automatic retry with DEFAULT_TMDB_KEY if custom key failed
+        if not data and params.get("api_key") != DEFAULT_TMDB_KEY:
+            log("Configured TMDB key failed. Retrying with default TMDB key...", level="info")
+            params["api_key"] = DEFAULT_TMDB_KEY
+            retry_url = f"{self.BASE_URL}{endpoint}?{urlencode(params)}"
+            data = self._fetch_url(retry_url)
+
+        if data and isinstance(data, dict) and (data.get("results") or data.get("id") or data.get("genres") or data.get("episodes")):
+            if Config.cache_enabled() and cache_ttl > 0:
+                self.cache.set(cache_key, data, ttl=cache_ttl)
+            return data
+
+        return {}
+
+    def _fetch_url(self, url):
+        # 1. urllib.request
+        try:
+            import urllib.request, json
+            req = urllib.request.Request(url, headers={"User-Agent": "Stremio4Kodi/3.3", "Accept": "application/json"})
+            resp = urllib.request.urlopen(req, timeout=Config.stremio_timeout())
+            raw = resp.read().decode("utf-8")
+            data = json.loads(raw)
+            if data and isinstance(data, dict) and (data.get("results") or data.get("id") or data.get("genres") or data.get("episodes")):
+                return data
+        except Exception as e:
+            log(f"TMDB urllib fetch debug [{url[:60]}]: {e}", level="debug")
+
+        # 2. requests
         try:
             import requests
             resp = requests.get(
@@ -78,32 +107,31 @@ class TMDBClient:
             )
             if resp.status_code == 200:
                 data = resp.json()
+                if data and isinstance(data, dict) and (data.get("results") or data.get("id") or data.get("genres") or data.get("episodes")):
+                    return data
         except Exception as e:
-            log(f"TMDB requests error [{endpoint}]: {e}", level="debug")
+            log(f"TMDB requests fetch debug [{url[:60]}]: {e}", level="debug")
 
-        if data is None:
-            try:
-                import subprocess, json
-                cmd = [
-                    "curl", "-skL",
-                    "--connect-timeout", str(Config.stremio_timeout()),
-                    "--max-time", str(Config.stremio_timeout() + 5),
-                    "-H", "User-Agent: Stremio4Kodi/3.3",
-                    "-H", "Accept: application/json",
-                    url
-                ]
-                res = subprocess.run(cmd, capture_output=True, text=True, timeout=Config.stremio_timeout() + 10)
-                if res.returncode == 0 and res.stdout.strip():
-                    data = json.loads(res.stdout)
-            except Exception as e:
-                log(f"TMDB curl error [{endpoint}]: {e}", level="error")
+        # 3. curl
+        try:
+            import subprocess, json
+            cmd = [
+                "curl", "-skL",
+                "--connect-timeout", str(Config.stremio_timeout()),
+                "--max-time", str(Config.stremio_timeout() + 5),
+                "-H", "User-Agent: Stremio4Kodi/3.3",
+                "-H", "Accept: application/json",
+                url
+            ]
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=Config.stremio_timeout() + 10)
+            if res.returncode == 0 and res.stdout.strip():
+                data = json.loads(res.stdout)
+                if data and isinstance(data, dict) and (data.get("results") or data.get("id") or data.get("genres") or data.get("episodes")):
+                    return data
+        except Exception as e:
+            log(f"TMDB curl fetch error [{url[:60]}]: {e}", level="error")
 
-        if data and isinstance(data, dict) and (data.get("results") or data.get("id") or data.get("genres") or data.get("episodes")):
-            if Config.cache_enabled() and cache_ttl > 0:
-                self.cache.set(cache_key, data, ttl=cache_ttl)
-            return data
-
-        return {}
+        return None
 
     def parse_item(self, raw, media_type="movie"):
         """Format raw TMDB item into standard dictionary for Stremio4Kodi rendering."""
