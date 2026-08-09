@@ -770,6 +770,17 @@ class Router:
         except Exception:
             pass
 
+        if not subtitle_url and imdb_id:
+            try:
+                from resources.lib.subtitles import fetch_spanish_subtitles
+                sn = self.params.get("season")
+                ep = self.params.get("episode")
+                sub_urls = fetch_spanish_subtitles(imdb_id.split(":")[0], media_type, sn, ep)
+                if sub_urls:
+                    subtitle_url = sub_urls[0]
+            except Exception as e:
+                log(f"Subtitle fallback error: {e}", level="debug")
+
         if playable_url.startswith("plugin://"):
             log(f"PlayMedia -> {playable_url[:100]}", level="info")
             xbmc.executebuiltin(f'PlayMedia("{playable_url}")')
@@ -779,6 +790,7 @@ class Router:
             if subtitle_url:
                 try:
                     li.setSubtitles([subtitle_url])
+                    ui.show_notification("Subtítulos en Español cargados")
                 except Exception:
                     pass
             xbmc.Player().play(playable_url, li)

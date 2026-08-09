@@ -90,17 +90,17 @@ def get_spanish_label(stream):
 
     variant = info["variant"]
     if variant == "CAST":
-        return "[COLOR orange][CAST][/COLOR]"
+        return "[COLOR orange][Castellano][/COLOR]"
     elif variant in ("LAT", "LAT-MX"):
-        return "[COLOR deepskyblue][LAT][/COLOR]"
+        return "[COLOR deepskyblue][Latino][/COLOR]"
     elif variant == "DUAL":
-        return "[COLOR yellow][DUAL][/COLOR]"
+        return "[COLOR gold][Dual Audio][/COLOR]"
     elif variant == "MULTI":
-        return "[COLOR mediumpurple][MULTI][/COLOR]"
+        return "[COLOR mediumpurple][Multi Audio][/COLOR]"
     elif variant in ("SubESP", "VOSE"):
-        return "[COLOR grey][SubESP][/COLOR]"
+        return "[COLOR lightgreen][Sub Español][/COLOR]"
     elif variant == "ESP":
-        return "[COLOR orange][ESP][/COLOR]"
+        return "[COLOR orange][Castellano/ESP][/COLOR]"
     return ""
 
 
