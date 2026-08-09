@@ -170,76 +170,50 @@ class Router:
             self._list_catalogs("series")
 
     def _tmdb_movies(self):
-        submenus = [
-            ("Tendencias (Semana)", "trending", "DefaultRecentlyAddedMovies.png"),
+        items = [
+            ("Tendencias (Hoy / Semana)", "trending", "DefaultRecentlyAddedMovies.png"),
+            ("Lo mas popular", "popular", "DefaultMovies.png"),
             ("En cartelera (Estrenos Cine)", "now_playing", "DefaultMovies.png"),
             ("Mejor puntuadas", "top_rated", "DefaultMovies.png"),
             ("Top 100 Ultimos Anos", "top_100", "DefaultYear.png"),
             ("Categorias / Generos", "genres", "DefaultGenre.png"),
-            ("Catalogos Stremio (Cinemeta / Addons)", "catalog_list", "DefaultFolder.png"),
         ]
-        for label, section, icon in submenus:
-            action = "tmdb_genres" if section == "genres" else ("catalog_list" if section == "catalog_list" else "tmdb_catalog")
+        for label, section, icon in items:
+            action = "tmdb_genres" if section == "genres" else "tmdb_catalog"
             ui.add_directory_item(
-                handle=self.handle, label=f"[COLOR cyan]{label}[/COLOR]", action=action,
+                handle=self.handle, label=label, action=action,
                 base_url=self.base_url, icon=icon, media_type="movie",
                 section=section
             )
         
-        items = []
-        try:
-            items, _ = self.tmdb.get_popular("movie", page=1)
-        except Exception as e:
-            log(f"TMDB popular fetch error in _tmdb_movies: {e}", level="error")
-
-        if not items:
-            log("TMDB popular empty or failed. Fetching Stremio Cinemeta popular movies...", level="info")
-            try:
-                items = self.stremio.get_catalog("https://v3-cinemeta.strem.io", "movie", "top", "")
-            except Exception as e:
-                log(f"Cinemeta fetch error: {e}", level="error")
-
-        if items:
-            items = self.stremio.dedup_items(items) if hasattr(self.stremio, "dedup_items") else items
-            self._render_item_list(items, "movie")
-
-        ui.end_directory(self.handle, content_type="movies")
+        ui.add_directory_item(
+            handle=self.handle, label="[B]Catalogos Stremio (Cinemeta / Addons)[/B]", action="catalog_list",
+            base_url=self.base_url, icon="DefaultFolder.png", media_type="movie"
+        )
+        ui.end_directory(self.handle)
 
     def _tmdb_series(self):
-        submenus = [
-            ("Tendencias (Semana)", "trending", "DefaultRecentlyAddedEpisodes.png"),
+        items = [
+            ("Tendencias (Hoy / Semana)", "trending", "DefaultRecentlyAddedEpisodes.png"),
+            ("Lo mas popular", "popular", "DefaultTVShows.png"),
             ("En emision / Al aire", "now_playing", "DefaultTVShows.png"),
             ("Mejor puntuadas", "top_rated", "DefaultTVShows.png"),
             ("Top 100 Ultimos Anos", "top_100", "DefaultYear.png"),
             ("Categorias / Generos", "genres", "DefaultGenre.png"),
-            ("Catalogos Stremio (Cinemeta / Addons)", "catalog_list", "DefaultFolder.png"),
         ]
-        for label, section, icon in submenus:
-            action = "tmdb_genres" if section == "genres" else ("catalog_list" if section == "catalog_list" else "tmdb_catalog")
+        for label, section, icon in items:
+            action = "tmdb_genres" if section == "genres" else "tmdb_catalog"
             ui.add_directory_item(
-                handle=self.handle, label=f"[COLOR cyan]{label}[/COLOR]", action=action,
+                handle=self.handle, label=label, action=action,
                 base_url=self.base_url, icon=icon, media_type="series",
                 section=section
             )
-
-        items = []
-        try:
-            items, _ = self.tmdb.get_popular("tv", page=1)
-        except Exception as e:
-            log(f"TMDB TV popular fetch error: {e}", level="error")
-
-        if not items:
-            log("TMDB TV popular empty or failed. Fetching Stremio Cinemeta popular series...", level="info")
-            try:
-                items = self.stremio.get_catalog("https://v3-cinemeta.strem.io", "series", "top", "")
-            except Exception as e:
-                log(f"Cinemeta TV fetch error: {e}", level="error")
-
-        if items:
-            items = self.stremio.dedup_items(items) if hasattr(self.stremio, "dedup_items") else items
-            self._render_item_list(items, "series")
-
-        ui.end_directory(self.handle, content_type="tvshows")
+        
+        ui.add_directory_item(
+            handle=self.handle, label="[B]Catalogos Stremio (Cinemeta / Addons)[/B]", action="catalog_list",
+            base_url=self.base_url, icon="DefaultFolder.png", media_type="series"
+        )
+        ui.end_directory(self.handle)
 
     def _tmdb_catalog(self):
         media_type = self.params.get("media_type", "movie")

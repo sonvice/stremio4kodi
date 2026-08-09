@@ -367,14 +367,36 @@ class StremioClient:
 
     @staticmethod
     def dedup_items(items):
+        if not items:
+            return []
         try:
             seen = set()
             unique = []
             for item in items:
-                iid = item.get("imdb_id") or item.get("id", "")
-                if not iid or iid in seen:
+                tmdb_id = str(item.get("tmdb_id", "")).strip()
+                imdb_id = str(item.get("imdb_id", "")).strip()
+                item_id = str(item.get("id", "")).strip()
+                title = str(item.get("title") or item.get("name") or "").strip().lower()
+                year = str(item.get("year") or item.get("releaseInfo") or "").strip()
+
+                sig = None
+                if tmdb_id:
+                    sig = f"tmdb:{tmdb_id}"
+                elif imdb_id:
+                    sig = f"imdb:{imdb_id}"
+                elif item_id:
+                    sig = f"id:{item_id}"
+                elif title:
+                    sig = f"title:{title}:{year}"
+
+                if not sig:
+                    unique.append(item)
                     continue
-                seen.add(iid)
+
+                if sig in seen:
+                    continue
+
+                seen.add(sig)
                 unique.append(item)
             return unique
         except Exception:
