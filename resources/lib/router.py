@@ -597,13 +597,20 @@ class Router:
         title = self.params.get("title", "")
         original_title = self.params.get("original_title", "") or title
 
-        # Resolve IMDb ID from TMDB if missing
-        if not imdb_id and tmdb_id:
+        # Resolve IMDb ID and Original Title (English) from TMDB if missing
+        if tmdb_id:
             try:
                 tmdb_media = "movie" if media_type == "movie" else "tv"
-                imdb_id = self.tmdb.get_external_ids(tmdb_media, tmdb_id)
+                if not imdb_id:
+                    imdb_id = self.tmdb.get_external_ids(tmdb_media, tmdb_id)
+                if not original_title or original_title == title:
+                    details = self.tmdb.get_movie(tmdb_id) if media_type == "movie" else self.tmdb.get_tv(tmdb_id)
+                    if details:
+                        orig = details.get("original_title") or details.get("original_name")
+                        if orig:
+                            original_title = orig
             except Exception as e:
-                log(f"Error resolving TMDB external_ids: {e}", level="error")
+                log(f"Error resolving TMDB details in _streams: {e}", level="error")
 
         try:
             category = "movies" if media_type == "movie" else "series"
@@ -1775,7 +1782,12 @@ class Router:
                 except (ValueError, TypeError):
                     pass
 
-            label = f"{title} ({year}){rating_tag}" if year else f"{title}{rating_tag}"
+            if original_title and original_title.strip().lower() != title.strip().lower():
+                display_title = f"{original_title} [COLOR grey]({title})[/COLOR]"
+            else:
+                display_title = title
+
+            label = f"{display_title} ({year}){rating_tag}" if year else f"{display_title}{rating_tag}"
             if media_type == "movie":
                 click = "streams"
             else:
