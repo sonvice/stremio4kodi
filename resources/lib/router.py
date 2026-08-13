@@ -841,10 +841,9 @@ class Router:
     def _dht_search(self):
         query = self.params.get("query", "")
         if not query:
-            xbmcplugin.endOfDirectory(self.handle, succeeded=False)
-            xbmc.sleep(200)
             query = ui.show_input("Buscar película, serie o torrent...")
             if not query:
+                ui.end_directory(self.handle, succeeded=False)
                 return
 
         # 1. Unified Search via TMDB Multi-Search
@@ -872,12 +871,11 @@ class Router:
         self._raw_dht_search_with_query(query)
 
     def _raw_dht_search(self):
-        xbmcplugin.endOfDirectory(self.handle, succeeded=False)
-        xbmc.sleep(200)
         query = self.params.get("query", "")
         if not query:
             query = ui.show_input("Buscar Torrent en DHT (ej: Iron Man 1080p)")
             if not query:
+                ui.end_directory(self.handle, succeeded=False)
                 return
         self._raw_dht_search_with_query(query)
 
