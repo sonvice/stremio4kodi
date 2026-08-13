@@ -1793,7 +1793,7 @@ class Router:
     # ══════════════════════════════════════════════════════
     #  UTILITIES
     # ══════════════════════════════════════════════════════
-    def _render_item_list(self, items, media_type):
+    def _render_item_list(self, items, default_media_type="movie"):
         for item in items:
             imdb_id = item.get("imdb_id") or item.get("id", "")
             tmdb_id = item.get("tmdb_id", "")
@@ -1802,6 +1802,10 @@ class Router:
             year = str(item.get("releaseInfo", item.get("year", "")))
             poster = item.get("poster", "")
             plot = item.get("description", "")
+
+            item_type = item.get("type") or default_media_type
+            is_series = item_type in ("series", "tv", "show")
+            media_type = "series" if is_series else "movie"
 
             rating = item.get("imdbRating", "")
             rating_tag = ""
@@ -1823,10 +1827,10 @@ class Router:
                 display_title = title
 
             label = f"{display_title} ({year}){rating_tag}" if year else f"{display_title}{rating_tag}"
-            if media_type == "movie":
-                click = "streams"
-            else:
+            if is_series:
                 click = "tmdb_seasons" if tmdb_id else "seasons"
+            else:
+                click = "streams"
 
             fav_id = imdb_id if imdb_id else f"tmdb:{tmdb_id}"
             ctx = self._make_fav_context(fav_id, media_type, title, year, poster)
