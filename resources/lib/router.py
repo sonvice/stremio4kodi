@@ -60,6 +60,7 @@ class Router:
             "search":          self._search,
             "search_results":  self._search_results,
             "dht_search":      self._dht_search,
+            "raw_dht_search":  self._raw_dht_search,
             "trending":        self._trending,
             "manual_torrent":  self._manual_torrent,
             "favorites":       self._favorites,
@@ -838,13 +839,49 @@ class Router:
     #  DHT SEARCH
     # ══════════════════════════════════════════════════════
     def _dht_search(self):
-        xbmcplugin.endOfDirectory(self.handle, succeeded=False)
-        xbmc.sleep(200)
-
-        query = ui.show_input("Buscar Torrent en DHT (ej: Iron Man 1080p)")
+        query = self.params.get("query", "")
         if not query:
+            xbmcplugin.endOfDirectory(self.handle, succeeded=False)
+            xbmc.sleep(200)
+            query = ui.show_input("Buscar película, serie o torrent...")
+            if not query:
+                return
+
+        # 1. Unified Search via TMDB Multi-Search
+        items = []
+        try:
+            items, _ = self.tmdb.search_multi(query)
+        except Exception as e:
+            log(f"TMDB search_multi error: {e}", level="error")
+
+        if items:
+            ui.add_directory_item(
+                handle=self.handle,
+                label=f"[COLOR cyan][B]🔍 Buscar torrents directos en DHT para: '{query}'[/B][/COLOR]",
+                action="raw_dht_search",
+                base_url=self.base_url,
+                icon="DefaultAddonsSearch.png",
+                query=query
+            )
+            items = self.stremio.dedup_items(items) if hasattr(self.stremio, "dedup_items") else items
+            self._render_item_list(items, "movie")
+            ui.end_directory(self.handle)
             return
 
+        # 2. Direct fallback to raw DHT search if no TMDB items returned
+        self._raw_dht_search_with_query(query)
+
+    def _raw_dht_search(self):
+        xbmcplugin.endOfDirectory(self.handle, succeeded=False)
+        xbmc.sleep(200)
+        query = self.params.get("query", "")
+        if not query:
+            query = ui.show_input("Buscar Torrent en DHT (ej: Iron Man 1080p)")
+            if not query:
+                return
+        self._raw_dht_search_with_query(query)
+
+    def _raw_dht_search_with_query(self, query):
         categories = [
             "• 🎬 Películas (Video)",
             "• 📺 Series (TV)",

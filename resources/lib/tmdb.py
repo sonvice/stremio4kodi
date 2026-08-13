@@ -201,6 +201,25 @@ class TMDBClient:
         genres = data.get("genres", [])
         return sorted(genres, key=lambda g: g.get("name", ""))
 
+    def search_multi(self, query, page=1):
+        data = self._get("/search/multi", {"query": query, "page": page})
+        results = data.get("results", [])
+        parsed = []
+        for item in results:
+            media_type = item.get("media_type")
+            if media_type in ("movie", "tv"):
+                mtype = "movie" if media_type == "movie" else "series"
+                parsed.append(self.parse_item(item, mtype))
+        return parsed, data.get("total_pages", 1)
+
+    def search_movies(self, query, page=1):
+        data = self._get("/search/movie", {"query": query, "page": page})
+        return self._parse_results(data, "movie"), data.get("total_pages", 1)
+
+    def search_tv(self, query, page=1):
+        data = self._get("/search/tv", {"query": query, "page": page})
+        return self._parse_results(data, "series"), data.get("total_pages", 1)
+
     def discover_by_genre(self, media_type, genre_id, page=1):
         params = {
             "with_genres": str(genre_id),
