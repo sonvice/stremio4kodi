@@ -686,9 +686,9 @@ class Router:
         if tmdb_id:
             try:
                 if not original_title or original_title == title:
-                    details = self.tmdb.get_movie(tmdb_id) if media_type == "movie" else self.tmdb.get_tv(tmdb_id)
-                    if details:
-                        orig = details.get("original_title") or details.get("original_name")
+                    item_details, _ = self.tmdb.get_details("movie" if media_type == "movie" else "tv", tmdb_id)
+                    if item_details:
+                        orig = item_details.get("original_title") or item_details.get("title")
                         if orig:
                             if media_type == "series" and season and episode:
                                 original_title = f"{orig} S{int(season):02d}E{int(episode):02d}"
