@@ -357,8 +357,16 @@ class Router:
             ui.end_directory(self.handle)
             return
 
-        if not imdb_id and show_info:
+        # Ensure we have the canonical tt... IMDb ID for Stremio addons
+        if (not imdb_id or imdb_id.startswith("tmdb:")) and show_info:
             imdb_id = show_info.get("imdb_id", "")
+        if (not imdb_id or imdb_id.startswith("tmdb:")) and tmdb_id:
+            try:
+                ext_id = self.tmdb.get_external_ids("tv", tmdb_id)
+                if ext_id and ext_id.startswith("tt"):
+                    imdb_id = ext_id
+            except Exception:
+                pass
 
         for s in seasons:
             sn = s.get("season_number", 1)
@@ -402,8 +410,16 @@ class Router:
             ui.end_directory(self.handle)
             return
 
-        if not imdb_id and show_info:
+        # Ensure we have the canonical tt... IMDb ID for Stremio addons
+        if (not imdb_id or imdb_id.startswith("tmdb:")) and show_info:
             imdb_id = show_info.get("imdb_id", "")
+        if (not imdb_id or imdb_id.startswith("tmdb:")) and tmdb_id:
+            try:
+                ext_id = self.tmdb.get_external_ids("tv", tmdb_id)
+                if ext_id and ext_id.startswith("tt"):
+                    imdb_id = ext_id
+            except Exception:
+                pass
 
         for ep in episodes:
             ep_num = ep.get("episode", 1)
@@ -414,7 +430,7 @@ class Router:
             if vote:
                 label += f" [COLOR yellow]★{vote:.1f}[/COLOR]"
 
-            ep_imdb_id = f"{imdb_id}:{season}:{ep_num}" if imdb_id else ""
+            ep_imdb_id = f"{imdb_id}:{season}:{ep_num}" if (imdb_id and imdb_id.startswith("tt")) else (f"tmdb:{tmdb_id}:{season}:{ep_num}" if tmdb_id else "")
 
             ui.add_directory_item(
                 handle=self.handle, label=label, action="streams",
@@ -638,23 +654,48 @@ class Router:
         title = self.params.get("title", "")
         original_title = self.params.get("original_title", "") or title
 
-        # Resolve IMDb ID and Original Title (English) from TMDB if missing
+        season = self.params.get("season")
+        episode = self.params.get("episode")
+
+        # Normalize tmdb_id from imdb_id if needed
+        if not tmdb_id and imdb_id and imdb_id.startswith("tmdb:"):
+            parts = imdb_id.split(":")
+            if len(parts) >= 2:
+                tmdb_id = parts[1]
+            if len(parts) >= 4 and not season and not episode:
+                season = parts[2]
+                episode = parts[3]
+
+        # Resolve canonical IMDb ID (tt...) from TMDB if missing or starting with tmdb:
+        if not imdb_id or imdb_id.startswith("tmdb:"):
+            if tmdb_id:
+                try:
+                    tmdb_media = "movie" if media_type == "movie" else "tv"
+                    resolved_tt = self.tmdb.get_external_ids(tmdb_media, tmdb_id)
+                    if resolved_tt and resolved_tt.startswith("tt"):
+                        if media_type == "series" and season and episode:
+                            imdb_id = f"{resolved_tt}:{season}:{episode}"
+                        else:
+                            imdb_id = resolved_tt
+                except Exception as e:
+                    log(f"Error resolving external ID in _streams: {e}", level="error")
+        elif media_type == "series" and season and episode and ":" not in imdb_id:
+            imdb_id = f"{imdb_id}:{season}:{episode}"
+
+        # Resolve Original Title from TMDB if missing
         if tmdb_id:
             try:
-                tmdb_media = "movie" if media_type == "movie" else "tv"
-                if not imdb_id:
-                    imdb_id = self.tmdb.get_external_ids(tmdb_media, tmdb_id)
                 if not original_title or original_title == title:
                     details = self.tmdb.get_movie(tmdb_id) if media_type == "movie" else self.tmdb.get_tv(tmdb_id)
                     if details:
                         orig = details.get("original_title") or details.get("original_name")
                         if orig:
-                            original_title = orig
+                            if media_type == "series" and season and episode:
+                                original_title = f"{orig} S{int(season):02d}E{int(episode):02d}"
+                            else:
+                                original_title = orig
             except Exception as e:
                 log(f"Error resolving TMDB details in _streams: {e}", level="error")
-
-        season = self.params.get("season")
-        episode = self.params.get("episode")
 
         try:
             category = "movies" if media_type == "movie" else "series"
@@ -1252,6 +1293,12 @@ class Router:
             tmdb_id = ""
             if imdb_id.startswith("tmdb:"):
                 tmdb_id = imdb_id.split("tmdb:")[1]
+                try:
+                    ext_id = self.tmdb.get_external_ids("tv" if mt == "series" else "movie", tmdb_id)
+                    if ext_id and ext_id.startswith("tt"):
+                        imdb_id = ext_id
+                except Exception as e:
+                    log(f"TMDB favorite resolve error: {e}", level="debug")
             elif imdb_id.startswith("tt") and Config.tmdb_enabled():
                 try:
                     found_id, _ = self.tmdb.find_by_imdb_id(imdb_id)

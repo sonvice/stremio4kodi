@@ -208,7 +208,11 @@ class TorrentResolver:
                     rf"\bseason\s*0*{s_int}\s*episode\s*0*{e_int}\b",
                     rf"\bs0*{s_int}\b(?!\s*e\d+)",
                     rf"\bseason\s*0*{s_int}\b",
-                    rf"\btemporada\s*0*{s_int}\b"
+                    rf"\btemporada\s*0*{s_int}\b",
+                    r"\bcomplete\s*(?:series|tv|boxset|season)?\b",
+                    r"\ball\s*seasons\b",
+                    r"\bseasons?\s*\d+(?:\s*(?:-|to|\sand\s|,|\s)\s*\d+)*\b",
+                    r"\bs\d+\s*-\s*s\d+\b"
                 ]
                 has_ep = any(re.search(p, clean_torrent, re.IGNORECASE) for p in ep_patterns)
                 if not has_ep:
