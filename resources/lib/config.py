@@ -257,3 +257,20 @@ class Config:
         except Exception:
             return ""
 
+    # ══════════════════════════════════════════════════════
+    #  v3.5.6 — Rotten Tomatoes & Ratings Integration
+    # ══════════════════════════════════════════════════════
+    @staticmethod
+    def rt_enabled():
+        try:
+            return ADDON.getSetting("rt_enabled") != "false"
+        except Exception:
+            return True
+
+    @staticmethod
+    def rt_show_consensus():
+        try:
+            return ADDON.getSetting("rt_show_consensus") != "false"
+        except Exception:
+            return True
+

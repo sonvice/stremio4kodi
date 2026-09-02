@@ -61,6 +61,10 @@
         <setting id="tmdb_enabled" type="bool" label="Habilitar catálogos TMDB (Tendencias, Popular, Cartelera)" default="true"/>
         <setting id="tmdb_apikey" type="text" label="API Key de TMDB (Opcional)" default=""/>
     </category>
+    <category label="Rotten Tomatoes">
+        <setting id="rt_enabled" type="bool" label="Habilitar puntuaciones y descripciones Rotten Tomatoes" default="true"/>
+        <setting id="rt_show_consensus" type="bool" label="Mostrar datos ampliados en sinopsis" default="true"/>
+    </category>
     <category label="Extras (v3)">
         <setting id="streaming_catalogs_enabled" type="bool" label="Netflix/HBO/Disney+ catalogs" default="true"/>
         <setting id="streaming_catalogs_url" type="text" label="Streaming Catalogs URL" default="https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club"/>

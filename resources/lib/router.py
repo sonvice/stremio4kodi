@@ -23,6 +23,7 @@ from resources.lib.logger import log
 from resources.lib import ui
 from resources.lib.dht_search import BitsearchClient
 from resources.lib.tmdb import TMDBClient
+from resources.lib.rottentomatoes import RottenTomatoesClient
 
 
 class Router:
@@ -34,6 +35,7 @@ class Router:
         self.cache = CacheDB()
         self.bitsearch = BitsearchClient()
         self.tmdb = TMDBClient()
+        self.rt = RottenTomatoesClient()
 
     def dispatch(self, argv):
         self.base_url = argv[0]
@@ -326,6 +328,17 @@ class Router:
         original_title = self.params.get("original_title", title)
         imdb_id = self.params.get("imdb_id", "")
 
+        if not tmdb_id and imdb_id:
+            if imdb_id.startswith("tmdb:"):
+                tmdb_id = imdb_id.split("tmdb:")[1]
+            elif imdb_id.startswith("tt"):
+                try:
+                    found_id, _ = self.tmdb.find_by_imdb_id(imdb_id)
+                    if found_id:
+                        tmdb_id = found_id
+                except Exception as e:
+                    log(f"TMDB resolve error: {e}", level="debug")
+
         seasons = []
         show_info = None
         if tmdb_id:
@@ -515,6 +528,24 @@ class Router:
         imdb_id = self.params.get("imdb_id", "")
         title = self.params.get("title", "")
 
+        # Try TMDB seasons first if enabled to avoid raw stremio video duplicates
+        if Config.tmdb_enabled():
+            try:
+                tmdb_id = self.params.get("tmdb_id", "")
+                if not tmdb_id and imdb_id:
+                    if imdb_id.startswith("tmdb:"):
+                        tmdb_id = imdb_id.split("tmdb:")[1]
+                    elif imdb_id.startswith("tt"):
+                        found_id, _ = self.tmdb.find_by_imdb_id(imdb_id)
+                        if found_id:
+                            tmdb_id = found_id
+                if tmdb_id:
+                    self.params["tmdb_id"] = tmdb_id
+                    self._tmdb_seasons()
+                    return
+            except Exception as e:
+                log(f"Seasons fallback to TMDB error: {e}", level="debug")
+
         meta = self.stremio.get_meta("series", imdb_id)
         if not meta:
             ui.show_notification("No se pudo cargar la serie.")
@@ -522,7 +553,16 @@ class Router:
             return
 
         videos = meta.get("videos", [])
-        seasons = sorted(set(v.get("season", 0) for v in videos if v.get("season")))
+        # Deduplicate videos by season and episode to avoid duplicate counters
+        dedup_videos = {}
+        for v in videos:
+            s_num = v.get("season", 0)
+            ep_num = v.get("episode", 0)
+            if s_num and (s_num, ep_num) not in dedup_videos:
+                dedup_videos[(s_num, ep_num)] = v
+
+        valid_videos = list(dedup_videos.values()) if dedup_videos else videos
+        seasons = sorted(set(v.get("season", 0) for v in valid_videos if v.get("season")))
 
         if not seasons:
             self.params["season"] = "1"
@@ -530,7 +570,7 @@ class Router:
             return
 
         for sn in seasons:
-            ec = sum(1 for v in videos if v.get("season") == sn)
+            ec = sum(1 for v in valid_videos if v.get("season") == sn)
             label = f"Temporada {sn} ({ec} episodios)"
             ui.add_directory_item(
                 handle=self.handle, label=label, action="episodes",
@@ -1197,7 +1237,23 @@ class Router:
             year = fav.get("year", "")
             poster = fav.get("poster", "")
             label = f"{title} ({year})" if year else title
-            click = "streams" if mt == "movie" else "seasons"
+
+            tmdb_id = ""
+            if imdb_id.startswith("tmdb:"):
+                tmdb_id = imdb_id.split("tmdb:")[1]
+            elif imdb_id.startswith("tt") and Config.tmdb_enabled():
+                try:
+                    found_id, _ = self.tmdb.find_by_imdb_id(imdb_id)
+                    if found_id:
+                        tmdb_id = found_id
+                except Exception as e:
+                    log(f"TMDB favorite resolve error: {e}", level="debug")
+
+            if mt == "series":
+                click = "tmdb_seasons" if (tmdb_id or Config.tmdb_enabled()) else "seasons"
+            else:
+                click = "streams"
+
             ctx_url = ui.build_url(
                 self.base_url, action="toggle_favorite",
                 imdb_id=imdb_id, media_type=mt,
@@ -1205,11 +1261,15 @@ class Router:
             )
             ctx = [("Quitar de Favoritos", f"RunPlugin({ctx_url})")]
 
-            ui.add_directory_item(
-                handle=self.handle, label=label, action=click,
-                base_url=self.base_url, poster=poster, year=year,
-                imdb_id=imdb_id, media_type=mt, context_menu=ctx, title=title,
-            )
+            kwargs = {
+                "handle": self.handle, "label": label, "action": click,
+                "base_url": self.base_url, "poster": poster, "year": year,
+                "imdb_id": imdb_id, "media_type": mt, "context_menu": ctx, "title": title,
+            }
+            if tmdb_id:
+                kwargs["tmdb_id"] = tmdb_id
+
+            ui.add_directory_item(**kwargs)
 
         ui.end_directory(self.handle, content_type="videos")
 
@@ -1794,6 +1854,12 @@ class Router:
     #  UTILITIES
     # ══════════════════════════════════════════════════════
     def _render_item_list(self, items, default_media_type="movie"):
+        if Config.rt_enabled() and items:
+            try:
+                self.rt.enrich_items(items)
+            except Exception as e:
+                log(f"RT enrich error: {e}", level="debug")
+
         for item in items:
             imdb_id = item.get("imdb_id") or item.get("id", "")
             tmdb_id = item.get("tmdb_id", "")
@@ -1821,12 +1887,16 @@ class Router:
                 except (ValueError, TypeError):
                     pass
 
+            # Rotten Tomatoes tag
+            rt_score = item.get("rt_score", "")
+            rt_tag = self.rt.format_rt_tag(rt_score) if rt_score else ""
+
             if original_title and original_title.strip().lower() != title.strip().lower():
                 display_title = f"{original_title} [COLOR grey]({title})[/COLOR]"
             else:
                 display_title = title
 
-            label = f"{display_title} ({year}){rating_tag}" if year else f"{display_title}{rating_tag}"
+            label = f"{display_title} ({year}){rating_tag}{rt_tag}" if year else f"{display_title}{rating_tag}{rt_tag}"
             if is_series:
                 click = "tmdb_seasons" if tmdb_id else "seasons"
             else:
@@ -1835,10 +1905,26 @@ class Router:
             fav_id = imdb_id if imdb_id else f"tmdb:{tmdb_id}"
             ctx = self._make_fav_context(fav_id, media_type, title, year, poster)
 
-            if rating and plot:
-                plot = f"Rating: {rating}/10\n{plot}"
-            elif rating:
-                plot = f"Rating: {rating}/10"
+            # Build enriched plot / description
+            meta_header = []
+            if rating:
+                meta_header.append(f"★ {rating}/10")
+            if rt_score:
+                meta_header.append(f"🍅 Rotten Tomatoes: {rt_score}%")
+            if item.get("metascore"):
+                meta_header.append(f"Metacritic: {item.get('metascore')}")
+
+            header_str = " | ".join(meta_header)
+            extra_lines = []
+            if header_str:
+                extra_lines.append(header_str)
+            if item.get("awards"):
+                extra_lines.append(f"🏆 {item.get('awards')}")
+
+            if extra_lines and plot:
+                plot = "\n".join(extra_lines) + "\n\n" + plot
+            elif extra_lines:
+                plot = "\n".join(extra_lines)
 
             kwargs = {
                 "handle": self.handle, "label": label, "action": click,

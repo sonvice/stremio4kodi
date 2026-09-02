@@ -256,6 +256,20 @@ class TMDBClient:
         data = self._get(f"/{media_type}/{tmdb_id}/external_ids", cache_ttl=86400)
         return data.get("imdb_id", "") or ""
 
+    def find_by_imdb_id(self, imdb_id):
+        if not imdb_id or not imdb_id.startswith("tt"):
+            return None, None
+        data = self._get(f"/find/{imdb_id}", {"external_source": "imdb_id"}, cache_ttl=86400 * 7)
+        if not data:
+            return None, None
+        tv_results = data.get("tv_results", [])
+        if tv_results:
+            return str(tv_results[0].get("id")), "series"
+        movie_results = data.get("movie_results", [])
+        if movie_results:
+            return str(movie_results[0].get("id")), "movie"
+        return None, None
+
     def get_details(self, media_type, tmdb_id):
         data = self._get(f"/{media_type}/{tmdb_id}", {"append_to_response": "external_ids"}, cache_ttl=21600)
         if not data:
