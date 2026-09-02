@@ -139,6 +139,85 @@ class TorrentResolver:
         return magnet
 
     # ── Sorting & Filtering ────────────────────────────────
+    def filter_by_title_match(self, streams, title="", original_title="", media_type="movie", season=None, episode=None):
+        """
+        Filters out irrelevant torrents (e.g. DHT search false positives like 'Boston Blue' for 'Bluey').
+        Stremio addon streams (which query exact IMDB IDs) are always trusted.
+        """
+        if not streams or (not title and not original_title):
+            return streams
+
+        candidates = [t for t in [title, original_title] if t]
+
+        filtered = []
+        for s in streams:
+            addon = s.get("_addon", "")
+            # If stream is from Stremio addons with exact IMDB ID, preserve it
+            if addon and addon not in ("Apibay", "Bitsearch", "SolidTorrents", "Apibay Trending", "Unknown"):
+                filtered.append(s)
+                continue
+
+            stream_title = s.get("title", "") or s.get("name", "")
+            if not stream_title:
+                continue
+
+            matched = any(
+                self._is_title_match(stream_title, expected, media_type, season, episode)
+                for expected in candidates
+            )
+            if matched:
+                filtered.append(s)
+
+        # If strict filtering filtered everything out, keep non-DHT streams if available
+        if not filtered:
+            fallback = [s for s in streams if s.get("_addon") not in ("Apibay", "Bitsearch", "SolidTorrents", "Apibay Trending")]
+            return fallback if fallback else streams
+
+        return filtered
+
+    def _is_title_match(self, torrent_title, expected_title, media_type="movie", season=None, episode=None):
+        if not expected_title or not torrent_title:
+            return True
+
+        clean_torrent = re.sub(r"[\._\-\+\[\]\(\)\:\,]+", " ", torrent_title).lower()
+        clean_expected = re.sub(r"[\._\-\+\[\]\(\)\:\,]+", " ", expected_title).lower()
+
+        base_name = re.sub(r"\bs\d+e\d+\b", "", clean_expected, flags=re.IGNORECASE)
+        base_name = re.sub(r"\b\d+x\d+\b", "", base_name, flags=re.IGNORECASE)
+        base_name = re.sub(r"\b\d{4}\b", "", base_name)
+        base_name = re.sub(r"\s+", " ", base_name).strip()
+
+        if not base_name:
+            base_name = clean_expected.strip()
+
+        words = [re.escape(w) for w in base_name.split() if len(w) > 0]
+        if not words:
+            return True
+
+        pattern = r"\b" + r"[\s\._\-]+".join(words) + r"\b"
+        if not re.search(pattern, clean_torrent, re.IGNORECASE):
+            return False
+
+        if media_type == "series" and season is not None and episode is not None:
+            try:
+                s_int = int(season)
+                e_int = int(episode)
+                ep_patterns = [
+                    rf"\bs0*{s_int}\s*e0*{e_int}\b",
+                    rf"\b0*{s_int}x0*{e_int}\b",
+                    rf"\bseason\s*0*{s_int}\s*episode\s*0*{e_int}\b",
+                    rf"\bs0*{s_int}\b(?!\s*e\d+)",
+                    rf"\bseason\s*0*{s_int}\b",
+                    rf"\btemporada\s*0*{s_int}\b"
+                ]
+                has_ep = any(re.search(p, clean_torrent, re.IGNORECASE) for p in ep_patterns)
+                if not has_ep:
+                    return False
+            except (ValueError, TypeError):
+                pass
+
+        return True
+
     def filter_by_quality(self, streams):
         preferred = Config.torrent_quality()
         if preferred == "Any":

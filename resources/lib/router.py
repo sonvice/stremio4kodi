@@ -653,16 +653,32 @@ class Router:
             except Exception as e:
                 log(f"Error resolving TMDB details in _streams: {e}", level="error")
 
+        season = self.params.get("season")
+        episode = self.params.get("episode")
+
         try:
             category = "movies" if media_type == "movie" else "series"
             streams = []
 
-            # 1. Search DHT with Original Title (English/Native)
+            # 1. Query Stremio Addons first if imdb_id is available (exact match by ID)
+            if imdb_id:
+                log(f"Querying Stremio addons for ID: {imdb_id}", level="info")
+                stremio_streams = self.stremio.get_streams(media_type, imdb_id)
+                if stremio_streams:
+                    streams.extend(stremio_streams)
+
+            # 2. Search DHT with Original Title (English/Native)
             if original_title:
                 log(f"DHT resolving stream for original title: {original_title}", level="info")
-                streams = self.bitsearch.search(original_title, category)
+                dht_orig = self.bitsearch.search(original_title, category)
+                if dht_orig:
+                    existing_hashes = {s.get("infoHash", "").lower() for s in streams if s.get("infoHash")}
+                    for s in dht_orig:
+                        h = s.get("infoHash", "").lower()
+                        if not h or h not in existing_hashes:
+                            streams.append(s)
 
-            # 2. Search DHT with Local Title (Spanish) if different
+            # 3. Search DHT with Local Title (Spanish) if different
             if title and title != original_title:
                 log(f"DHT resolving stream for Spanish title: {title}", level="info")
                 es_streams = self.bitsearch.search(title, category)
@@ -673,16 +689,11 @@ class Router:
                         if not h or h not in existing_hashes:
                             streams.append(s)
 
-            # 3. Query Stremio Addons if imdb_id is available
-            if imdb_id:
-                log(f"Querying Stremio addons for ID: {imdb_id}", level="info")
-                stremio_streams = self.stremio.get_streams(media_type, imdb_id)
-                if stremio_streams:
-                    existing_hashes = {s.get("infoHash", "").lower() for s in streams if s.get("infoHash")}
-                    for s in stremio_streams:
-                        h = s.get("infoHash", "").lower()
-                        if not h or h not in existing_hashes:
-                            streams.append(s)
+            # Filter out false positives / mismatched torrent titles
+            streams = self.resolver.filter_by_title_match(
+                streams, title=title, original_title=original_title,
+                media_type=media_type, season=season, episode=episode
+            )
 
             if not streams:
                 ui.show_notification("No se encontraron streams.")
