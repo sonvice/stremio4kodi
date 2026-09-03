@@ -773,7 +773,6 @@ class Router:
                 return
 
             labels = []
-            labels.append("[COLOR deepskyblue]💬  Buscar y descargar subtítulos (OpenSubtitles)[/COLOR]")
             for stream in streams:
                 quality = self.resolver.get_quality_label(stream)
                 seeds = self.resolver.get_seeds_label(stream)
@@ -812,18 +811,7 @@ class Router:
             if choice < 0:
                 return
 
-            if choice == 0:
-                self.params["imdb_id"] = imdb_id
-                self.params["title"] = title
-                self.params["media_type"] = media_type
-                if season:
-                    self.params["season"] = str(season)
-                if episode:
-                    self.params["episode"] = str(episode)
-                self._search_subtitles()
-                return self._streams()
-
-            self._launch_stream(streams[choice - 1], imdb_id, media_type, title)
+            self._launch_stream(streams[choice], imdb_id, media_type, title)
 
         except Exception as e:
             log(f"Stream error: {e}", level="error")
@@ -981,14 +969,23 @@ class Router:
         except Exception:
             pass
 
+        season = self.params.get("season", "")
+        episode = self.params.get("episode", "")
+        series_imdb = self.params.get("series_imdb", "") or imdb_id
+
+        show_title = ""
+        if media_type == "series":
+            show_title = self.params.get("series_title") or re.sub(r"\s+S\d+E\d+.*$", "", title, flags=re.I).strip()
+
         context = {
             "content_id": imdb_id,
             "media_type": media_type,
             "title": title,
-            "poster": "",
-            "imdb_id": self.params.get("series_imdb", "") or imdb_id,
-            "season": self.params.get("season", ""),
-            "episode": self.params.get("episode", ""),
+            "series_title": show_title,
+            "poster": stream.get("_poster", "") or self.params.get("poster", ""),
+            "imdb_id": series_imdb,
+            "season": season,
+            "episode": episode,
         }
         self.cache.set("_playback_context", context, ttl=7200)
 
@@ -1013,18 +1010,63 @@ class Router:
         if imdb_id:
             try:
                 from resources.lib.subtitles import fetch_subtitles
-                sn = self.params.get("season")
-                ep = self.params.get("episode")
-                extra_subs = fetch_subtitles(imdb_id.split(":")[0], media_type, sn, ep)
+                extra_subs = fetch_subtitles(imdb_id.split(":")[0], media_type, season, episode)
                 for su in extra_subs:
                     if su not in sub_list:
                         sub_list.append(su)
             except Exception as e:
                 log(f"Subtitle fallback error: {e}", level="debug")
 
+        # Build complete ListItem with Video metadata so Kodi subtitle downloader has the exact title & season & episode
+        li = xbmcgui.ListItem(label=title, path=playable_url)
+        info = {
+            "title": title,
+            "mediatype": "movie" if media_type == "movie" else "episode",
+        }
+        if media_type == "series":
+            if show_title:
+                info["tvshowtitle"] = show_title
+            if season:
+                try:
+                    info["season"] = int(season)
+                except (ValueError, TypeError):
+                    pass
+            if episode:
+                try:
+                    info["episode"] = int(episode)
+                except (ValueError, TypeError):
+                    pass
+        elif self.params.get("original_title"):
+            info["originaltitle"] = self.params.get("original_title")
+
+        if imdb_id:
+            info["imdbnumber"] = imdb_id.split(":")[0]
+
+        li.setInfo("video", info)
+
+        art = {}
+        poster_url = stream.get("_poster") or self.params.get("poster", "")
+        if poster_url:
+            art["poster"] = poster_url
+            art["thumb"] = poster_url
+            art["icon"] = poster_url
+        if art:
+            li.setArt(art)
+
+        if sub_list:
+            try:
+                li.setSubtitles(sub_list)
+            except Exception:
+                pass
+
         if playable_url.startswith("plugin://"):
             log(f"PlayMedia -> {playable_url[:100]}", level="info")
-            xbmc.executebuiltin(f'PlayMedia("{playable_url}")')
+            try:
+                xbmc.Player().play(playable_url, li)
+            except Exception as e:
+                log(f"Player.play exception: {e}, using PlayMedia", level="warning")
+                xbmc.executebuiltin(f'PlayMedia("{playable_url}")')
+
             if local_custom_sub and os.path.exists(local_custom_sub):
                 def _apply_delayed_sub(path):
                     import time
@@ -1041,13 +1083,8 @@ class Router:
                 threading.Thread(target=_apply_delayed_sub, args=[local_custom_sub]).start()
         else:
             log(f"Player.play -> {playable_url[:100]}", level="info")
-            li = xbmcgui.ListItem(label=title, path=playable_url)
             if sub_list:
-                try:
-                    li.setSubtitles(sub_list)
-                    ui.show_notification("Subtítulos cargados")
-                except Exception:
-                    pass
+                ui.show_notification("Subtítulos cargados")
             xbmc.Player().play(playable_url, li)
 
     # ══════════════════════════════════════════════════════
