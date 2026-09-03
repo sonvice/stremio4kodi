@@ -98,6 +98,7 @@ class Router:
             "tmdb_seasons":        self._tmdb_seasons,
             "tmdb_episodes":       self._tmdb_episodes,
             "catalog_list":        self._catalog_list_route,
+            "search_subtitles":    self._search_subtitles,
         }
 
         handler = routes.get(action, self._main_menu)
@@ -432,6 +433,14 @@ class Router:
 
             ep_imdb_id = f"{imdb_id}:{season}:{ep_num}" if (imdb_id and imdb_id.startswith("tt")) else (f"tmdb:{tmdb_id}:{season}:{ep_num}" if tmdb_id else "")
 
+            sub_url = ui.build_url(
+                self.base_url, action="search_subtitles",
+                imdb_id=ep_imdb_id or imdb_id, tmdb_id=tmdb_id,
+                media_type="series", season=str(season), episode=str(ep_num),
+                title=f"{title} S{season:02d}E{ep_num:02d}",
+            )
+            ep_ctx = [("💬 Buscar Subtítulos (OpenSubtitles)", f"RunPlugin({sub_url})")]
+
             ui.add_directory_item(
                 handle=self.handle, label=label, action="streams",
                 base_url=self.base_url, icon="DefaultTVShows.png",
@@ -441,7 +450,8 @@ class Router:
                 imdb_id=ep_imdb_id, tmdb_id=tmdb_id, media_type="series",
                 title=f"{title} S{season:02d}E{ep_num:02d}",
                 original_title=f"{original_title} S{season:02d}E{ep_num:02d}",
-                series_imdb=imdb_id, season=str(season), episode=str(ep_num)
+                series_imdb=imdb_id, season=str(season), episode=str(ep_num),
+                context_menu=ep_ctx
             )
 
         ui.end_directory(self.handle, content_type="episodes")
@@ -631,6 +641,14 @@ class Router:
 
             label = f"{ep_num}. {ep_title}{resume_info}"
 
+            sub_url = ui.build_url(
+                self.base_url, action="search_subtitles",
+                imdb_id=ep_id or imdb_id, media_type="series",
+                season=str(season), episode=str(ep_num),
+                title=f"{title} S{season:02d}E{ep_num:02d}",
+            )
+            ep_ctx = [("💬 Buscar Subtítulos (OpenSubtitles)", f"RunPlugin({sub_url})")]
+
             ui.add_directory_item(
                 handle=self.handle, label=label, action="streams",
                 base_url=self.base_url, icon="DefaultTVShows.png",
@@ -640,6 +658,7 @@ class Router:
                 imdb_id=ep_id, media_type="series",
                 title=f"{title} S{season:02d}E{ep_num:02d}",
                 series_imdb=imdb_id, season=str(season), episode=str(ep_num),
+                context_menu=ep_ctx
             )
 
         ui.end_directory(self.handle, content_type="episodes")
@@ -754,6 +773,7 @@ class Router:
                 return
 
             labels = []
+            labels.append("[COLOR deepskyblue]💬  Buscar y descargar subtítulos (OpenSubtitles)[/COLOR]")
             for stream in streams:
                 quality = self.resolver.get_quality_label(stream)
                 seeds = self.resolver.get_seeds_label(stream)
@@ -792,11 +812,127 @@ class Router:
             if choice < 0:
                 return
 
-            self._launch_stream(streams[choice], imdb_id, media_type, title)
+            if choice == 0:
+                self.params["imdb_id"] = imdb_id
+                self.params["title"] = title
+                self.params["media_type"] = media_type
+                if season:
+                    self.params["season"] = str(season)
+                if episode:
+                    self.params["episode"] = str(episode)
+                self._search_subtitles()
+                return self._streams()
+
+            self._launch_stream(streams[choice - 1], imdb_id, media_type, title)
 
         except Exception as e:
             log(f"Stream error: {e}", level="error")
             ui.show_notification(str(e), icon=xbmcgui.NOTIFICATION_ERROR)
+
+    # ══════════════════════════════════════════════════════
+    #  SUBTITLES (OpenSubtitles Search & Download)
+    # ══════════════════════════════════════════════════════
+    def _search_subtitles(self):
+        imdb_id = self.params.get("imdb_id", "")
+        tmdb_id = self.params.get("tmdb_id", "")
+        media_type = self.params.get("media_type", "movie")
+        season = self.params.get("season")
+        episode = self.params.get("episode")
+        title = self.params.get("title", "")
+
+        # Resolve canonical tt... IMDb ID if missing or in tmdb: format
+        if not imdb_id or imdb_id.startswith("tmdb:"):
+            if not tmdb_id and imdb_id.startswith("tmdb:"):
+                parts = imdb_id.split(":")
+                if len(parts) >= 2:
+                    tmdb_id = parts[1]
+                if len(parts) >= 4 and not season and not episode:
+                    season = parts[2]
+                    episode = parts[3]
+            if tmdb_id:
+                try:
+                    resolved_tt = self.tmdb.get_external_ids("movie" if media_type == "movie" else "tv", tmdb_id)
+                    if resolved_tt and resolved_tt.startswith("tt"):
+                        imdb_id = resolved_tt
+                except Exception as e:
+                    log(f"Subtitles TMDB resolve error: {e}", level="debug")
+
+        if not imdb_id:
+            ui.show_notification("No se pudo identificar el contenido.")
+            return
+
+        ui.show_notification("Buscando en OpenSubtitles...")
+
+        from resources.lib.subtitles import fetch_subtitles_rich, download_subtitle_file, apply_subtitle_to_player
+
+        subs = fetch_subtitles_rich(imdb_id, media_type, season, episode, timeout=8)
+        if not subs:
+            ui.show_notification("No se encontraron subtítulos en OpenSubtitles.")
+            return
+
+        es_subs = [s for s in subs if s.get("lang") in ("spa", "es", "spl", "lat")]
+        en_subs = [s for s in subs if s.get("lang") in ("eng", "en")]
+        other_subs = [s for s in subs if s not in es_subs and s not in en_subs]
+
+        options = []
+        if es_subs:
+            options.append(f"🇪🇸 Español ({len(es_subs)} disponibles)")
+        if en_subs:
+            options.append(f"🇬🇧 Inglés ({len(en_subs)} disponibles)")
+        if other_subs:
+            options.append(f"🌐 Otros idiomas ({len(other_subs)} disponibles)")
+        options.append(f"📋 Ver todos ({len(subs)} subtítulos)")
+
+        selected_subs = subs
+        if len(options) > 1:
+            idx = xbmcgui.Dialog().select("Filtrar por idioma (OpenSubtitles)", options)
+            if idx == -1:
+                return
+            opt_text = options[idx]
+            if "Español" in opt_text:
+                selected_subs = es_subs
+            elif "Inglés" in opt_text:
+                selected_subs = en_subs
+            elif "Otros" in opt_text:
+                selected_subs = other_subs
+            else:
+                selected_subs = subs
+
+        items = []
+        for s in selected_subs:
+            flag = s.get("flag", "🌐")
+            fn = s.get("filename", "")
+            fmt = s.get("format", "SRT")
+            fps = f"{s['fps']}fps" if s.get("fps") else ""
+            tag = s.get("tag", "")
+
+            meta_parts = [p for p in [tag, fmt, fps] if p]
+            meta_str = f"[{' | '.join(meta_parts)}]" if meta_parts else ""
+            label = f"{flag} {meta_str} {fn}"
+            items.append(label)
+
+        sub_idx = xbmcgui.Dialog().select(f"Subtítulos para: {title or imdb_id}", items)
+        if sub_idx == -1:
+            return
+
+        chosen_sub = selected_subs[sub_idx]
+        sub_url = chosen_sub.get("url")
+        sub_filename = chosen_sub.get("filename", "subtitle.srt")
+
+        ui.show_notification(f"Descargando {chosen_sub.get('lang_name', 'subtítulo')}...")
+
+        local_path = download_subtitle_file(sub_url, sub_filename)
+        if not local_path or not os.path.exists(local_path):
+            ui.show_notification("Error al descargar el subtítulo.", icon=xbmcgui.NOTIFICATION_ERROR)
+            return
+
+        self.cache.set(f"selected_sub_{imdb_id}", local_path, ttl=86400)
+
+        applied = apply_subtitle_to_player(local_path)
+        if applied:
+            ui.show_notification(f"✓ Subtítulo activado: {chosen_sub.get('lang_name')}")
+        else:
+            ui.show_notification("✓ Subtítulo descargado para reproducción.")
 
     # ══════════════════════════════════════════════════════
     #  PLAY
@@ -863,6 +999,10 @@ class Router:
                 pass
 
         sub_list = []
+        local_custom_sub = self.cache.get(f"selected_sub_{imdb_id}")
+        if local_custom_sub and os.path.exists(local_custom_sub):
+            sub_list.append(local_custom_sub)
+
         try:
             subs = self.stremio.get_subtitles(media_type, imdb_id)
             if subs:
@@ -885,13 +1025,27 @@ class Router:
         if playable_url.startswith("plugin://"):
             log(f"PlayMedia -> {playable_url[:100]}", level="info")
             xbmc.executebuiltin(f'PlayMedia("{playable_url}")')
+            if local_custom_sub and os.path.exists(local_custom_sub):
+                def _apply_delayed_sub(path):
+                    import time
+                    for _ in range(30):
+                        time.sleep(1)
+                        if xbmc.Player().isPlaying():
+                            try:
+                                xbmc.Player().setSubtitles(path)
+                                xbmc.Player().showSubtitles(True)
+                                log(f"Injected custom subtitle to Player: {path}", level="info")
+                                break
+                            except Exception:
+                                pass
+                threading.Thread(target=_apply_delayed_sub, args=[local_custom_sub]).start()
         else:
             log(f"Player.play -> {playable_url[:100]}", level="info")
             li = xbmcgui.ListItem(label=title, path=playable_url)
             if sub_list:
                 try:
                     li.setSubtitles(sub_list)
-                    ui.show_notification("Subtítulos (Español e Inglés) cargados")
+                    ui.show_notification("Subtítulos cargados")
                 except Exception:
                     pass
             xbmc.Player().play(playable_url, li)
@@ -1318,6 +1472,14 @@ class Router:
                 title=title, year=year, poster=poster,
             )
             ctx = [("Quitar de Favoritos", f"RunPlugin({ctx_url})")]
+
+            if mt == "movie":
+                sub_url = ui.build_url(
+                    self.base_url, action="search_subtitles",
+                    imdb_id=imdb_id, tmdb_id=tmdb_id,
+                    media_type=mt, title=title,
+                )
+                ctx.append(("💬 Buscar Subtítulos (OpenSubtitles)", f"RunPlugin({sub_url})"))
 
             kwargs = {
                 "handle": self.handle, "label": label, "action": click,
@@ -1997,7 +2159,7 @@ class Router:
 
             ui.add_directory_item(**kwargs)
 
-    def _make_fav_context(self, imdb_id, media_type, title, year, poster):
+    def _make_fav_context(self, imdb_id, media_type, title, year, poster, tmdb_id=""):
         fav_label = "Quitar de Favoritos" if self.cache.is_favorite(imdb_id) \
             else "Agregar a Favoritos"
         fav_url = ui.build_url(
@@ -2006,6 +2168,14 @@ class Router:
             title=title, year=year, poster=poster,
         )
         ctx = [(fav_label, f"RunPlugin({fav_url})")]
+
+        if media_type == "movie":
+            sub_url = ui.build_url(
+                self.base_url, action="search_subtitles",
+                imdb_id=imdb_id, tmdb_id=tmdb_id,
+                media_type=media_type, title=title,
+            )
+            ctx.append(("💬 Buscar Subtítulos (OpenSubtitles)", f"RunPlugin({sub_url})"))
 
         if Config.trakt_enabled():
             trakt_url = ui.build_url(
