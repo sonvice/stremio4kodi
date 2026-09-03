@@ -4,8 +4,11 @@ Router — URL dispatcher v3.2.
 v3.2: AceStream support (replaces Live TV), fixed platform duplication,
       manual acestream hash/URL input.
 """
+import os
 import sys
+import re
 import json
+import threading
 from urllib.parse import parse_qs, urlencode, quote
 
 import xbmc
