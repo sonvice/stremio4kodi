@@ -1003,22 +1003,15 @@ class Router:
         if local_custom_sub and os.path.exists(local_custom_sub):
             sub_list.append(local_custom_sub)
 
-        try:
-            subs = self.stremio.get_subtitles(media_type, imdb_id)
-            if subs:
-                sub_list.extend([s["url"] for s in subs if s.get("url")])
-        except Exception:
-            pass
-
         if imdb_id:
             try:
-                from resources.lib.subtitles import fetch_subtitles
-                extra_subs = fetch_subtitles(imdb_id.split(":")[0], media_type, season, episode)
-                for su in extra_subs:
+                from resources.lib.subtitles import prepare_subtitles_for_playback
+                prepared = prepare_subtitles_for_playback(imdb_id.split(":")[0], media_type, season, episode)
+                for su in prepared:
                     if su not in sub_list:
                         sub_list.append(su)
             except Exception as e:
-                log(f"Subtitle fallback error: {e}", level="debug")
+                log(f"Subtitle prepare error: {e}", level="debug")
 
         # Build complete ListItem with Video metadata so Kodi subtitle downloader has the exact title & season & episode
         li = xbmcgui.ListItem(label=title, path=playable_url)

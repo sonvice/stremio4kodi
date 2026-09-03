@@ -215,3 +215,45 @@ def apply_subtitle_to_player(local_path):
     except Exception as e:
         log(f"Error injecting subtitle to player: {e}", level="error")
         return False
+
+
+def prepare_subtitles_for_playback(imdb_id, media_type="movie", season=None, episode=None, max_per_lang=2):
+    """
+    Fetches rich subtitle listings from OpenSubtitles, downloads the top Spanish and English
+    subtitles in parallel, and saves them with clean, descriptive filenames:
+      e.g. 'Español (Castellano) - Las.Tortugas.Ninja.S01E01.1080p.spa.srt'
+    Returns a list of local absolute file paths ready for Kodi's setSubtitles().
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    rich_subs = fetch_subtitles_rich(imdb_id, media_type, season, episode, timeout=6)
+    if not rich_subs:
+        return []
+
+    es_subs = [s for s in rich_subs if s.get("lang") in ("spa", "es", "spl", "lat")][:max_per_lang]
+    en_subs = [s for s in rich_subs if s.get("lang") in ("eng", "en")][:max_per_lang]
+    selected = es_subs + en_subs
+
+    downloaded_paths = []
+
+    def _worker(s):
+        fn = s.get("filename", "")
+        clean_fn = re.sub(r"\.srt$", "", fn, flags=re.I)
+        clean_fn = re.sub(r"[^\w\.\-\s]", "", clean_fn).strip()
+        clean_fn = clean_fn[:45]
+        lang = s.get("lang", "es")
+        lang_name = s.get("lang_name", "Subtítulo")
+        target_name = f"{lang_name} - {clean_fn}.{lang}.srt"
+        return download_subtitle_file(s.get("url"), target_name)
+
+    try:
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            results = list(executor.map(_worker, selected))
+            for p in results:
+                if p and os.path.exists(p):
+                    downloaded_paths.append(p)
+    except Exception as e:
+        log(f"Error in prepare_subtitles_for_playback: {e}", level="debug")
+
+    return downloaded_paths
+
