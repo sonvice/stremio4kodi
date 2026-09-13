@@ -1799,12 +1799,14 @@ class Router:
                     label="[COLOR yellow]Pegar hash/enlace AceStream[/COLOR]",
                     action="acestream_manual", base_url=self.base_url,
                     icon="DefaultNetwork.png",
+                    is_folder=False,
                 )
                 ui.add_directory_item(
                     handle=self.handle,
                     label="[COLOR cyan]Refrescar lista[/COLOR]",
                     action="acestream_refresh", base_url=self.base_url,
                     icon="DefaultAddonProgram.png",
+                    is_folder=False,
                 )
                 ui.end_directory(self.handle)
                 return
@@ -1840,12 +1842,14 @@ class Router:
                 label="[COLOR yellow]Pegar hash/enlace AceStream[/COLOR]",
                 action="acestream_manual", base_url=self.base_url,
                 icon="DefaultNetwork.png",
+                is_folder=False,
             )
             ui.add_directory_item(
                 handle=self.handle,
                 label="[COLOR cyan]Refrescar lista[/COLOR]",
                 action="acestream_refresh", base_url=self.base_url,
                 icon="DefaultAddonProgram.png",
+                is_folder=False,
             )
 
             # VPN status toggle (CoreELEC / ConnMan)
@@ -1964,7 +1968,7 @@ class Router:
             ui.end_directory(self.handle)
 
     def _play_acestream_hash(self, ace_hash, title="AceStream"):
-        """Resolve and play an AceStream stream with optimized buffer and direct JSON playback."""
+        """Resolve and play an AceStream stream with monitored prebuffering and direct MPEG-TS playback."""
         try:
             from resources.lib.acestream import AceStreamClient
             engine = Config.acestream_engine()
@@ -1999,6 +2003,8 @@ class Router:
                     port = Config.acestream_engine_port()
                     api_url = f"http://127.0.0.1:{port}/ace/getstream?id={ace_hash}&format=json"
                     playback_url = None
+                    stat_url = None
+                    command_url = None
                     try:
                         import urllib.request
                         import json
@@ -2013,8 +2019,57 @@ class Router:
                                     return
                                 resp_obj = data.get("response") or {}
                                 playback_url = resp_obj.get("playback_url")
+                                stat_url = resp_obj.get("stat_url")
+                                command_url = resp_obj.get("command_url")
                     except Exception as ex:
                         log(f"AceStream JSON endpoint failed ({ex}), falling back to direct URL", level="warning")
+
+                    # Monitor prebuffering so Kodi does not connect before stream is ready
+                    if stat_url and playback_url:
+                        dp = xbmcgui.DialogProgress()
+                        dp.create("AceStream P2P", f"Conectando: {title[:28]}...")
+                        import time
+                        start_t = time.time()
+                        ready = False
+                        while not dp.iscanceled() and (time.time() - start_t) < 45:
+                            try:
+                                sreq = urllib.request.Request(stat_url, headers={"User-Agent": "Kodi/Stremio"})
+                                with urllib.request.urlopen(sreq, timeout=3) as sresp:
+                                    sdata = json.loads(sresp.read().decode("utf-8")).get("response", {})
+                                st = sdata.get("status")
+                                prog = int(sdata.get("progress", 0) or 0)
+                                peers = sdata.get("peers", 0)
+                                spd = sdata.get("speed_down", 0)
+
+                                if st == "dl":
+                                    ready = True
+                                    break
+                                elif st == "prebuf":
+                                    dp.update(prog, f"Almacenando búfer P2P: {prog}%", f"Peers conectados: {peers}  |  Descarga: {spd} KB/s")
+                                elif st == "check":
+                                    dp.update(prog, "Verificando fragmentos de vídeo...", f"Peers conectados: {peers}")
+                                else:
+                                    dp.update(prog, f"Estado: {st}...", f"Peers conectados: {peers}  |  Descarga: {spd} KB/s")
+                            except Exception as ex:
+                                log(f"AceStream stat error: {ex}", level="warning")
+                            time.sleep(0.3)
+
+                        is_canceled = dp.iscanceled()
+                        dp.close()
+
+                        if is_canceled:
+                            log("AceStream playback canceled by user", level="info")
+                            if command_url:
+                                try:
+                                    urllib.request.urlopen(f"{command_url}?method=stop", timeout=2)
+                                except Exception:
+                                    pass
+                            return
+
+                        if not ready:
+                            ui.show_notification("Tiempo agotado: pocos peers en la red.")
+                            log("AceStream prebuffering timed out", level="warning")
+                            return
 
                     target_url = playback_url or play_url
                     log(f"AceStream playing target URL: {target_url}", level="info")
@@ -2059,36 +2114,19 @@ class Router:
     def _acestream_manual(self):
         """Manually enter an AceStream hash or URL."""
         try:
-            xbmcplugin.endOfDirectory(self.handle, succeeded=False)
-            xbmc.sleep(200)
-
             text = ui.show_input("Pegar hash AceStream o acestream://")
             if not text:
                 return
 
-            text = text.strip()
+            text = text.strip().strip('"\'')
             import re
 
-            ace_hash = None
-            if text.startswith("acestream://"):
-                cleaned = text.replace("acestream://", "").strip()
-                match = re.search(r'([a-fA-F0-9]{40})', cleaned)
-                if match:
-                    ace_hash = match.group(1)
-            elif "id=" in text or "hash=" in text or "infohash=" in text:
-                match = re.search(r'(?:infohash|id|hash)=([a-fA-F0-9]{40})', text)
-                if match:
-                    ace_hash = match.group(1)
-
-            if not ace_hash:
-                match = re.search(r'([a-fA-F0-9]{40})', text)
-                if match:
-                    ace_hash = match.group(1)
-
-            if not ace_hash:
+            match = re.search(r'([a-fA-F0-9]{40})', text)
+            if not match:
                 ui.show_notification("Formato no valido. Usa un hash de 40 chars o acestream://")
                 return
 
+            ace_hash = match.group(1).lower()
             self._play_acestream_hash(ace_hash, "AceStream Manual")
 
         except Exception as e:
