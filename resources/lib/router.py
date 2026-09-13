@@ -1963,28 +1963,20 @@ class Router:
             ui.show_notification("Error.")
             ui.end_directory(self.handle)
 
-    def _acestream_play(self):
-        """Play an AceStream channel by hash."""
+    def _play_acestream_hash(self, ace_hash, title="AceStream"):
+        """Resolve and play an AceStream stream with optimized buffer and direct JSON playback."""
         try:
             from resources.lib.acestream import AceStreamClient
-
-            ace_hash = self.params.get("ace_hash", "")
-            title = self.params.get("title", "AceStream")
-
-            if not ace_hash:
-                ui.show_notification("Hash no valido.")
-                return
-
-            xbmcplugin.endOfDirectory(self.handle, succeeded=False)
-            xbmc.sleep(200)
+            engine = Config.acestream_engine()
+            log(f"AceStream play requested: hash={ace_hash}, title={title}, engine={engine}", level="info")
 
             play_url = AceStreamClient.build_play_url(ace_hash, title)
-            log(f"AceStream play: {play_url[:100]}", level="info")
 
             if play_url.startswith("plugin://"):
                 xbmc.executebuiltin(f'PlayMedia("{play_url}")')
-            elif play_url.startswith("acestream://"):
-                # On Android: launch AceStream app via intent
+                return
+
+            if play_url.startswith("acestream://"):
                 try:
                     if xbmc.getCondVisibility("System.Platform.Android"):
                         intent_url = (
@@ -1996,68 +1988,70 @@ class Router:
                         return
                 except Exception:
                     pass
-
-                # Fallback: try playing the acestream:// URL directly
                 li = xbmcgui.ListItem(label=title, path=play_url)
+                li.setInfo("video", {"title": title, "mediatype": "video"})
+                li.setProperty("IsPlayable", "true")
                 xbmc.Player().play(play_url, li)
-            elif play_url.startswith("http"):
-                # AceWeb: need to wait for engine to connect to P2P peers
-                # and start buffering before we can play
-                import requests
-                engine = Config.acestream_engine()
+                return
+
+            if play_url.startswith("http"):
                 if engine == "AceWeb":
-                    ui.show_notification("Conectando a peers...", time=5000)
-                    # First check engine is alive
                     port = Config.acestream_engine_port()
+                    api_url = f"http://127.0.0.1:{port}/ace/getstream?id={ace_hash}&format=json"
+                    playback_url = None
                     try:
-                        check = requests.get(
-                            f"http://127.0.0.1:{port}/webui/api/service?method=get_version",
-                            timeout=3
-                        )
-                        log(f"AceWeb engine check: {check.status_code}", level="info")
-                    except Exception as ve:
-                        ui.show_notification(f"Motor AceWeb no responde en puerto {port}")
-                        log(f"AceWeb engine not responding: {ve}", level="error")
-                        return
+                        import urllib.request
+                        import json
+                        req = urllib.request.Request(api_url, headers={"User-Agent": "Kodi/Stremio"})
+                        with urllib.request.urlopen(req, timeout=6) as response:
+                            if response.status == 200:
+                                data = json.loads(response.read().decode("utf-8"))
+                                err = data.get("error")
+                                if err:
+                                    log(f"AceStream engine error: {err}", level="error")
+                                    ui.show_notification(f"AceStream: {err}")
+                                    return
+                                resp_obj = data.get("response") or {}
+                                playback_url = resp_obj.get("playback_url")
+                    except Exception as ex:
+                        log(f"AceStream JSON endpoint failed ({ex}), falling back to direct URL", level="warning")
 
-                    # Use the stat URL to start the stream and wait for it
-                    stat_url = (f"http://127.0.0.1:{port}/ace/getstream"
-                                f"?id={ace_hash}")
-                    stream_url = None
-                    try:
-                        # Request the stream - follow redirects to get final URL
-                        resp = requests.get(stat_url, timeout=60, stream=True,
-                                            allow_redirects=True)
-                        if resp.status_code == 200:
-                            # The final URL after redirects is the actual stream
-                            stream_url = resp.url
-                            resp.close()
-                            log(f"AceWeb stream URL resolved: {stream_url[:100]}", level="info")
-                        else:
-                            log(f"AceWeb stream error: HTTP {resp.status_code}", level="error")
-                            resp.close()
-                    except requests.exceptions.Timeout:
-                        ui.show_notification("Timeout conectando al stream P2P")
-                        return
-                    except Exception as se:
-                        log(f"AceWeb stream request error: {se}", level="error")
-                        # Fall back to direct URL
-                        stream_url = play_url
+                    target_url = playback_url or play_url
+                    log(f"AceStream playing target URL: {target_url}", level="info")
 
-                    if stream_url:
-                        li = xbmcgui.ListItem(label=title, path=stream_url)
-                        li.setInfo("video", {"title": title})
-                        li.setMimeType("video/mp2t")
-                        li.setContentLookup(False)
-                        xbmc.Player().play(stream_url, li)
-                    else:
-                        ui.show_notification("No se pudo obtener el stream")
+                    li = xbmcgui.ListItem(label=title, path=target_url)
+                    li.setInfo("video", {"title": title, "mediatype": "video"})
+                    li.setMimeType("video/mp2t")
+                    li.setContentLookup(False)
+                    li.setProperty("IsPlayable", "true")
+                    xbmc.Player().play(target_url, li)
                 else:
                     li = xbmcgui.ListItem(label=title, path=play_url)
+                    li.setInfo("video", {"title": title, "mediatype": "video"})
+                    li.setMimeType("video/mp2t")
+                    li.setContentLookup(False)
+                    li.setProperty("IsPlayable", "true")
                     xbmc.Player().play(play_url, li)
             else:
                 ui.show_notification("Motor AceStream no reconocido.")
+        except Exception as e:
+            log(f"AceStream play error: {e}", level="error")
+            ui.show_notification(f"Error: {str(e)[:60]}")
 
+    def _acestream_play(self):
+        """Play an AceStream channel by hash."""
+        try:
+            ace_hash = self.params.get("ace_hash", "")
+            title = self.params.get("title", "AceStream")
+
+            if not ace_hash:
+                ui.show_notification("Hash no valido.")
+                return
+
+            xbmcplugin.endOfDirectory(self.handle, succeeded=False)
+            xbmc.sleep(200)
+
+            self._play_acestream_hash(ace_hash, title)
         except Exception as e:
             log(f"AceStream play error: {e}", level="error")
             ui.show_notification(f"Error: {str(e)[:60]}")
@@ -2073,39 +2067,29 @@ class Router:
                 return
 
             text = text.strip()
+            import re
 
-            # Clean up the input
+            ace_hash = None
             if text.startswith("acestream://"):
-                ace_hash = text.replace("acestream://", "").strip()
-            elif text.startswith("http") and "acestream" in text.lower():
-                # Might be a URL with hash parameter
-                import re
+                cleaned = text.replace("acestream://", "").strip()
+                match = re.search(r'([a-fA-F0-9]{40})', cleaned)
+                if match:
+                    ace_hash = match.group(1)
+            elif "id=" in text or "hash=" in text or "infohash=" in text:
                 match = re.search(r'(?:infohash|id|hash)=([a-fA-F0-9]{40})', text)
                 if match:
                     ace_hash = match.group(1)
-                else:
-                    ui.show_notification("No se encontro un hash valido en la URL.")
-                    return
-            elif len(text) == 40 and all(c in '0123456789abcdefABCDEF' for c in text):
-                # Raw 40-char hex hash
-                ace_hash = text
-            else:
+
+            if not ace_hash:
+                match = re.search(r'([a-fA-F0-9]{40})', text)
+                if match:
+                    ace_hash = match.group(1)
+
+            if not ace_hash:
                 ui.show_notification("Formato no valido. Usa un hash de 40 chars o acestream://")
                 return
 
-            from resources.lib.acestream import AceStreamClient
-            play_url = AceStreamClient.build_play_url(ace_hash, "Manual AceStream")
-            log(f"AceStream manual play: {play_url[:100]}", level="info")
-
-            if play_url.startswith("plugin://"):
-                xbmc.executebuiltin(f'PlayMedia("{play_url}")')
-            elif play_url.startswith("http"):
-                li = xbmcgui.ListItem(label="AceStream Manual", path=play_url)
-                xbmc.Player().play(play_url, li)
-            else:
-                # acestream:// or other
-                li = xbmcgui.ListItem(label="AceStream Manual", path=play_url)
-                xbmc.Player().play(play_url, li)
+            self._play_acestream_hash(ace_hash, "AceStream Manual")
 
         except Exception as e:
             log(f"AceStream manual error: {e}", level="error")
