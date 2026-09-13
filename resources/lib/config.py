@@ -231,6 +231,13 @@ class Config:
         except Exception:
             return 1800
 
+    @staticmethod
+    def acestream_check_health():
+        try:
+            return ADDON.getSetting("acestream_check_health") != "false"
+        except Exception:
+            return True
+
     # ── Backward compatibility ──
     @staticmethod
     def livetv_enabled():

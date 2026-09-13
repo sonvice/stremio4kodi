@@ -18,6 +18,7 @@
     </category>
     <category label="AceStream">
         <setting id="acestream_enabled" type="bool" label="Enable AceStream / TV en Directo" default="true"/>
+        <setting id="acestream_check_health" type="bool" label="Verificar estado de canales (Semáforo)" default="true"/>
         <setting id="acestream_urls" type="text" label="AceStream URLs (JSON or M3U, separate with ;;)" default="https://ipfs.io/ipns/k51qzi5uqu5di462t7j4vu4akwfhvtjhy88qbupktvoacqfqe9uforjvhyi4wr/hashes.json"/>
         <setting id="acestream_engine" type="labelenum" label="AceStream engine" values="Plexus|Horus|AceStream|AceWeb|Elementum" default="Plexus"/>
         <setting id="acestream_port" type="slider" label="AceWeb local port" default="6878" range="1024,1,65535" option="int"/>

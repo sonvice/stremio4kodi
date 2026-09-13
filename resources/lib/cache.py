@@ -111,6 +111,13 @@ class CacheDB:
         except Exception:
             pass
 
+    def delete_prefix(self, prefix):
+        try:
+            self._conn().execute("DELETE FROM cache WHERE key LIKE ?", (f"{prefix}%",))
+            self._conn().commit()
+        except Exception:
+            pass
+
     def clear_all(self):
         try:
             self._conn().execute("DELETE FROM cache")

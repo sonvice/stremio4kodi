@@ -1870,13 +1870,23 @@ class Router:
                 ui.end_directory(self.handle)
                 return
 
+            health = ace.check_channels_health(group_channels)
+
             for ch in group_channels:
                 title = ch.get("title", "Canal")
                 ace_hash = ch.get("hash", "")
                 logo = ch.get("logo", "")
 
+                status = health.get(ace_hash)
+                if status == "online":
+                    dot = "[COLOR lightgreen]●[/COLOR] "
+                elif status == "offline":
+                    dot = "[COLOR red]●[/COLOR] "
+                else:
+                    dot = ""
+
                 ui.add_directory_item(
-                    handle=self.handle, label=title, action="acestream_play",
+                    handle=self.handle, label=f"{dot}{title}", action="acestream_play",
                     base_url=self.base_url,
                     poster=logo,
                     ace_hash=ace_hash,
@@ -1903,13 +1913,23 @@ class Router:
                 ui.end_directory(self.handle)
                 return
 
+            health = ace.check_channels_health(channels)
+
             for ch in channels:
                 title = ch.get("title", "Canal")
                 ace_hash = ch.get("hash", "")
                 logo = ch.get("logo", "")
                 group = ch.get("group", "")
 
-                label = f"[{group}] {title}" if group else title
+                status = health.get(ace_hash)
+                if status == "online":
+                    dot = "[COLOR lightgreen]●[/COLOR] "
+                elif status == "offline":
+                    dot = "[COLOR red]●[/COLOR] "
+                else:
+                    dot = ""
+
+                label = f"{dot}[{group}] {title}" if group else f"{dot}{title}"
 
                 ui.add_directory_item(
                     handle=self.handle, label=label, action="acestream_play",
@@ -2086,6 +2106,7 @@ class Router:
 
             # Clear cache
             self.cache.delete("acestream:channels")
+            self.cache.delete_prefix("acestream:health:")
 
             ui.show_notification("Descargando lista actualizada...", time=3000)
 

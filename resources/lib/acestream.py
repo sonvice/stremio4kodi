@@ -95,28 +95,43 @@ class AceStreamClient:
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         def _fetch_one(url):
-            try:
-                raw = self._get_raw(url)
-                if not raw:
-                    log(f"AceStream: empty response from {url[:80]}", level="warning")
-                    return []
+            candidates = [url]
+            import re
+            m = re.search(r"https?://([^.]+)\.ipns\.inbrowser\.link/(.*)", url)
+            if m:
+                ipns_hash, path = m.group(1), m.group(2)
+                candidates = [
+                    f"https://ipfs.filebase.io/ipns/{ipns_hash}/{path}",
+                    f"https://cf-ipfs.com/ipns/{ipns_hash}/{path}",
+                    url
+                ]
+            else:
+                m2 = re.search(r"https?://[^/]+/ipns/([^/]+)/(.*)", url)
+                if m2 and "filebase.io" not in url:
+                    ipns_hash, path = m2.group(1), m2.group(2)
+                    candidates.append(f"https://ipfs.filebase.io/ipns/{ipns_hash}/{path}")
 
-                raw = raw.strip()
-                if raw.startswith("{") or raw.startswith("["):
-                    # JSON format
-                    parsed = self._parse_json(raw)
-                elif raw.startswith("#EXTM3U"):
-                    # M3U format
-                    parsed = self._parse_m3u(raw)
-                else:
-                    log(f"AceStream: unknown format from {url[:80]}", level="warning")
-                    return []
+            for target_url in candidates:
+                try:
+                    raw = self._get_raw(target_url)
+                    if not raw:
+                        continue
 
-                if parsed:
-                    log(f"AceStream: loaded {len(parsed)} channels from {url[:60]}", level="info")
-                    return parsed
-            except Exception as e:
-                log(f"AceStream fetch error [{url[:60]}]: {e}", level="error")
+                    raw = raw.strip()
+                    if raw.startswith("{") or raw.startswith("["):
+                        parsed = self._parse_json(raw)
+                    elif raw.startswith("#EXTM3U"):
+                        parsed = self._parse_m3u(raw)
+                    else:
+                        continue
+
+                    if parsed:
+                        log(f"AceStream: loaded {len(parsed)} channels from {target_url[:60]}", level="info")
+                        return parsed
+                except Exception as e:
+                    log(f"AceStream fetch error [{target_url[:60]}]: {e}", level="debug")
+
+            log(f"AceStream: could not load channels from {url[:80]}", level="warning")
             return []
 
         channels = []
@@ -246,6 +261,76 @@ class AceStreamClient:
         if channels is None:
             channels = self.fetch_channels()
         return [ch for ch in channels if ch.get("group", "Otros") == group_name]
+
+    # ══════════════════════════════════════════════════════
+    #  HEALTH CHECK / SEMÁFORO DE DISPONIBILIDAD
+    # ══════════════════════════════════════════════════════
+    def check_channels_health(self, channels, timeout=1.4):
+        """Probe stream availability via AceStream engine API.
+        Returns dict {hash: 'online' | 'offline'}
+        Caches results for 3 minutes (180s).
+        """
+        if not channels:
+            return {}
+
+        try:
+            if not Config.acestream_check_health():
+                return {}
+        except Exception:
+            pass
+
+        results = {}
+        to_probe = []
+
+        # 1. Check cache first (instant)
+        for ch in channels:
+            h = ch.get("hash", "")
+            if not h:
+                continue
+            cached = self.cache.get(f"acestream:health:{h}")
+            if cached and isinstance(cached, dict) and cached.get("status") in ("online", "offline"):
+                results[h] = cached["status"]
+            else:
+                to_probe.append(ch)
+
+        if not to_probe:
+            return results
+
+        # 2. Probe uncached channels in parallel
+        from concurrent.futures import ThreadPoolExecutor
+        import urllib.request
+
+        port = Config.acestream_engine_port()
+
+        def _probe(ch):
+            h = ch.get("hash", "")
+            check_url = f"http://127.0.0.1:{port}/ace/getstream?id={h}&format=json"
+            try:
+                req = urllib.request.Request(check_url)
+                with urllib.request.urlopen(req, timeout=timeout) as resp:
+                    d = jsonlib.loads(resp.read().decode("utf-8"))
+                    if d.get("response") and d["response"].get("stat_url"):
+                        cmd_url = d["response"].get("command_url")
+                        if cmd_url:
+                            try:
+                                urllib.request.urlopen(f"{cmd_url}?method=stop", timeout=0.8)
+                            except Exception:
+                                pass
+                        return (h, "online")
+            except Exception:
+                pass
+            return (h, "offline")
+
+        try:
+            with ThreadPoolExecutor(max_workers=min(15, len(to_probe))) as executor:
+                probed = executor.map(_probe, to_probe)
+                for h, status in probed:
+                    results[h] = status
+                    self.cache.set(f"acestream:health:{h}", {"status": status}, ttl=180)
+        except Exception as e:
+            log(f"AceStream health check error: {e}", level="warning")
+
+        return results
 
     # ══════════════════════════════════════════════════════
     #  PLAYBACK — Build playable URL for AceStream hash
