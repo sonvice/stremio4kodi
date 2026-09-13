@@ -201,6 +201,11 @@ def show_ok_dialog(heading, message):
     xbmcgui.Dialog().ok(heading, message)
 
 
+def show_yesno(heading, message):
+    """Show a yes/no confirmation dialog. Returns True if Yes."""
+    return xbmcgui.Dialog().yesno(heading, message)
+
+
 def show_input(heading="Search", input_type=xbmcgui.INPUT_ALPHANUM):
     """Show a keyboard input dialog and return the text."""
     return xbmcgui.Dialog().input(heading, type=input_type)

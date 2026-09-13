@@ -93,6 +93,7 @@ class Router:
             "acestream_refresh":   self._acestream_refresh,
             "acestream_all":       self._acestream_all,
             "acestream_manual":    self._acestream_manual,
+            "vpn_toggle":          self._vpn_toggle,
             # v3.3: TMDB Routes
             "tmdb_movies":         self._tmdb_movies,
             "tmdb_series":         self._tmdb_series,
@@ -1847,6 +1848,21 @@ class Router:
                 icon="DefaultAddonProgram.png",
             )
 
+            # VPN status toggle (CoreELEC / ConnMan)
+            if self._is_vpn_supported():
+                vpn_on = self._is_vpn_connected()
+                if vpn_on:
+                    vpn_label = "[COLOR lightgreen]🛡️ VPN Surfshark: CONECTADA (NL)[/COLOR]"
+                else:
+                    vpn_label = "[COLOR red]🛡️ VPN Surfshark: DESCONECTADA (Pulsar para activar)[/COLOR]"
+                ui.add_directory_item(
+                    handle=self.handle,
+                    label=vpn_label,
+                    action="vpn_toggle",
+                    base_url=self.base_url,
+                    icon="DefaultNetwork.png",
+                )
+
             ui.end_directory(self.handle)
         except Exception as e:
             log(f"AceStream error: {e}", level="error")
@@ -2123,6 +2139,70 @@ class Router:
         except Exception as e:
             log(f"AceStream refresh error: {e}", level="error")
             ui.show_notification(f"Error: {str(e)[:60]}")
+
+    @staticmethod
+    def _is_vpn_supported():
+        import os, shutil
+        return shutil.which("connmanctl") is not None and os.path.exists("/storage/.config/wireguard")
+
+    @staticmethod
+    def _is_vpn_connected():
+        import subprocess
+        try:
+            res = subprocess.run(["ip", "link", "show", "wg0"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=1)
+            return res.returncode == 0
+        except Exception:
+            return False
+
+    def _vpn_toggle(self):
+        if not self._is_vpn_supported():
+            ui.show_notification("VPN no disponible en este dispositivo.")
+            return
+
+        import subprocess
+        import os
+
+        vpn_on = self._is_vpn_connected()
+        if vpn_on:
+            confirmed = ui.show_yesno(
+                "Surfshark VPN",
+                "¿Deseas DESCONECTAR la VPN de Surfshark?\n\n(Se usará la conexión directa de tu operadora)"
+            )
+            if confirmed:
+                ui.show_notification("Desconectando VPN...", time=2000)
+                try:
+                    with open("/storage/.config/vpn_manual_off", "w") as f:
+                        f.write("1\n")
+                    subprocess.run(["connmanctl", "disconnect", "vpn_89_46_223_185"], timeout=5)
+                    ui.show_notification("VPN Desconectada (Directo)", time=3000)
+                except Exception as e:
+                    log(f"Error disconnecting VPN: {e}", level="error")
+                    ui.show_notification(f"Error: {e}")
+        else:
+            confirmed = ui.show_yesno(
+                "Surfshark VPN",
+                "¿Deseas ACTIVAR la VPN de Surfshark?\n\n(Conectando a servidor de Ámsterdam, Países Bajos)"
+            )
+            if confirmed:
+                try:
+                    if os.path.exists("/storage/.config/vpn_manual_off"):
+                        try:
+                            os.remove("/storage/.config/vpn_manual_off")
+                        except Exception:
+                            pass
+                    ui.show_notification("Conectando a Surfshark...", time=2500)
+                    subprocess.run(["connmanctl", "connect", "vpn_89_46_223_185"], timeout=8)
+                    xbmc.sleep(1000)
+                    if self._is_vpn_connected():
+                        ui.show_notification("¡VPN Conectada a Países Bajos!", time=3000)
+                    else:
+                        ui.show_notification("No se pudo conectar a la VPN", time=3000)
+                except Exception as e:
+                    log(f"Error connecting VPN: {e}", level="error")
+                    ui.show_notification(f"Error: {e}")
+
+        xbmc.sleep(500)
+        xbmc.executebuiltin("Container.Refresh")
 
     # ══════════════════════════════════════════════════════
     #  UTILITIES
