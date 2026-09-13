@@ -87,13 +87,14 @@ class Router:
             "platform_type":       self._platform_type,
             "platform_catalog":    self._platform_catalog,
             # v3.2: AceStream (replaces livetv)
-            "acestream":           self._acestream,
-            "acestream_group":     self._acestream_group,
-            "acestream_play":      self._acestream_play,
-            "acestream_refresh":   self._acestream_refresh,
-            "acestream_all":       self._acestream_all,
-            "acestream_manual":    self._acestream_manual,
-            "vpn_toggle":          self._vpn_toggle,
+            "acestream":               self._acestream,
+            "acestream_group":         self._acestream_group,
+            "acestream_all":           self._acestream_all,
+            "acestream_play":          self._acestream_play,
+            "acestream_refresh":       self._acestream_refresh,
+            "acestream_manual":        self._acestream_manual,
+            "acestream_clear_history": self._acestream_clear_history,
+            "vpn_toggle":              self._vpn_toggle,
             # v3.3: TMDB Routes
             "tmdb_movies":         self._tmdb_movies,
             "tmdb_series":         self._tmdb_series,
@@ -1801,6 +1802,25 @@ class Router:
                     icon="DefaultNetwork.png",
                     is_folder=False,
                 )
+                for item in self._get_manual_acestream_history():
+                    h_hash = item.get("hash", "")
+                    short_hash = f"{h_hash[:8]}...{h_hash[-6:]}"
+                    context_menu = [
+                        ("Borrar este hash del historial", f"RunPlugin({self.base_url}?action=acestream_clear_history&ace_hash={h_hash})"),
+                        ("Vaciar historial completo", f"RunPlugin({self.base_url}?action=acestream_clear_history)"),
+                    ]
+                    ui.add_directory_item(
+                        handle=self.handle,
+                        label=f"[COLOR orange]🕒 Historial: {short_hash}[/COLOR]",
+                        action="acestream_play",
+                        base_url=self.base_url,
+                        ace_hash=h_hash,
+                        title=f"Historial ({short_hash})",
+                        manual="1",
+                        icon="DefaultVideo.png",
+                        is_folder=False,
+                        context_menu=context_menu,
+                    )
                 ui.add_directory_item(
                     handle=self.handle,
                     label="[COLOR cyan]Refrescar lista[/COLOR]",
@@ -1844,6 +1864,25 @@ class Router:
                 icon="DefaultNetwork.png",
                 is_folder=False,
             )
+            for item in self._get_manual_acestream_history():
+                h_hash = item.get("hash", "")
+                short_hash = f"{h_hash[:8]}...{h_hash[-6:]}"
+                context_menu = [
+                    ("Borrar este hash del historial", f"RunPlugin({self.base_url}?action=acestream_clear_history&ace_hash={h_hash})"),
+                    ("Vaciar historial completo", f"RunPlugin({self.base_url}?action=acestream_clear_history)"),
+                ]
+                ui.add_directory_item(
+                    handle=self.handle,
+                    label=f"[COLOR orange]🕒 Historial: {short_hash}[/COLOR]",
+                    action="acestream_play",
+                    base_url=self.base_url,
+                    ace_hash=h_hash,
+                    title=f"Historial ({short_hash})",
+                    manual="1",
+                    icon="DefaultVideo.png",
+                    is_folder=False,
+                    context_menu=context_menu,
+                )
             ui.add_directory_item(
                 handle=self.handle,
                 label="[COLOR cyan]Refrescar lista[/COLOR]",
@@ -2045,11 +2084,11 @@ class Router:
                                     ready = True
                                     break
                                 elif st == "prebuf":
-                                    dp.update(prog, f"Almacenando búfer P2P: {prog}%", f"Peers conectados: {peers}  |  Descarga: {spd} KB/s")
+                                    dp.update(prog, f"Almacenando búfer P2P: {prog}%\nPeers conectados: {peers}  |  Descarga: {spd} KB/s")
                                 elif st == "check":
-                                    dp.update(prog, "Verificando fragmentos de vídeo...", f"Peers conectados: {peers}")
+                                    dp.update(prog, f"Verificando fragmentos de vídeo...\nPeers conectados: {peers}")
                                 else:
-                                    dp.update(prog, f"Estado: {st}...", f"Peers conectados: {peers}  |  Descarga: {spd} KB/s")
+                                    dp.update(prog, f"Estado: {st}...\nPeers conectados: {peers}  |  Descarga: {spd} KB/s")
                             except Exception as ex:
                                 log(f"AceStream stat error: {ex}", level="warning")
                             time.sleep(0.3)
@@ -2103,6 +2142,10 @@ class Router:
                 ui.show_notification("Hash no valido.")
                 return
 
+            # If playing from manual history, update its recency
+            if self.params.get("manual") == "1":
+                self._add_manual_acestream_history(ace_hash, title)
+
             xbmcplugin.endOfDirectory(self.handle, succeeded=False)
             xbmc.sleep(200)
 
@@ -2127,11 +2170,89 @@ class Router:
                 return
 
             ace_hash = match.group(1).lower()
+            self._add_manual_acestream_history(ace_hash, "AceStream Manual")
             self._play_acestream_hash(ace_hash, "AceStream Manual")
 
         except Exception as e:
             log(f"AceStream manual error: {e}", level="error")
             ui.show_notification(f"Error: {str(e)[:60]}")
+
+    def _get_manual_acestream_history(self):
+        """Get last 2 manual AceStream hashes."""
+        try:
+            import json
+            import os
+            history_file = os.path.join(Config.DATA_PATH, "acestream_history.json")
+            if os.path.exists(history_file):
+                with open(history_file, "r", encoding="utf-8") as f:
+                    items = json.load(f)
+                    if isinstance(items, list):
+                        return items[:2]
+        except Exception as e:
+            log(f"Error reading acestream history: {e}", level="warning")
+        return []
+
+    def _add_manual_acestream_history(self, ace_hash, title=""):
+        """Save manual AceStream hash to history (keeps last 2)."""
+        try:
+            import json
+            import os
+            import time
+            if not os.path.exists(Config.DATA_PATH):
+                os.makedirs(Config.DATA_PATH, exist_ok=True)
+            history_file = os.path.join(Config.DATA_PATH, "acestream_history.json")
+            items = []
+            if os.path.exists(history_file):
+                try:
+                    with open(history_file, "r", encoding="utf-8") as f:
+                        loaded = json.load(f)
+                        if isinstance(loaded, list):
+                            items = loaded
+                except Exception:
+                    items = []
+
+            clean_hash = ace_hash.lower().strip()
+            # Remove existing duplicate
+            items = [it for it in items if it.get("hash", "").lower() != clean_hash]
+
+            # Prepend new item
+            new_item = {
+                "hash": clean_hash,
+                "title": title or f"Hash {clean_hash[:8]}...{clean_hash[-6:]}",
+                "timestamp": time.time(),
+            }
+            items.insert(0, new_item)
+            items = items[:2]
+
+            with open(history_file, "w", encoding="utf-8") as f:
+                json.dump(items, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            log(f"Error saving acestream history: {e}", level="warning")
+
+    def _acestream_clear_history(self):
+        """Clear manual AceStream history or remove a specific item."""
+        try:
+            import json
+            import os
+            history_file = os.path.join(Config.DATA_PATH, "acestream_history.json")
+            target_hash = self.params.get("ace_hash")
+            if target_hash and os.path.exists(history_file):
+                try:
+                    with open(history_file, "r", encoding="utf-8") as f:
+                        items = json.load(f)
+                    items = [it for it in items if it.get("hash", "").lower() != target_hash.lower()]
+                    with open(history_file, "w", encoding="utf-8") as f:
+                        json.dump(items, f, indent=2, ensure_ascii=False)
+                    ui.show_notification("Hash eliminado del historial.")
+                except Exception:
+                    pass
+            else:
+                if os.path.exists(history_file):
+                    os.remove(history_file)
+                ui.show_notification("Historial AceStream borrado.")
+            xbmc.executebuiltin("Container.Refresh")
+        except Exception as e:
+            log(f"Error clearing acestream history: {e}", level="error")
 
     def _acestream_refresh(self):
         """Force refresh AceStream channel list."""
