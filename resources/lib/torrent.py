@@ -264,37 +264,73 @@ class TorrentResolver:
         return streams
 
     def sort_streams(self, streams):
-        """Sort by: Spanish boost > RD cached > user preference."""
+        """
+        Intelligent stream sorting:
+        1. Real-Debrid cached streams always prioritized (+10,000,000)
+        2. Healthy swarms (seeds >= 3) prioritized.
+        3. Dead streams (0 seeds, un-cached) heavily penalized (-500,000).
+        4. Spanish boost applied to healthy streams (seeds >= 3 or RD cached).
+        5. Ties resolved by user preference (Seeds, Quality, Size).
+        """
         sort_by = Config.torrent_sort()
         spanish_on = Config.spanish_boost() and Config.spanish_filter_mode() != "off"
 
         def _sort_key(s):
+            is_rd = bool(s.get("_rd_cached") and Config.rd_priority())
+            seeds = self._extract_seeds(s)
+
+            # Base health score
+            if is_rd:
+                health_score = 10000000
+            elif seeds <= 0:
+                health_score = -500000  # Dead swarm penalty
+            elif seeds < 3:
+                health_score = -100000 + (seeds * 100)  # Unhealthy swarm penalty
+            else:
+                health_score = min(seeds, 500) * 20  # Up to 10,000 points
+
+            # Spanish boost (only granted to healthy streams or RD cached)
             esp_boost = 0
-            if spanish_on:
+            if spanish_on and (is_rd or seeds >= 3):
                 esp_score = get_spanish_boost(s)
                 if esp_score >= 50:
-                    esp_boost = esp_score * 10000
+                    esp_boost = 50000 + (esp_score * 100)
 
-            rd_boost = 1000000 if s.get("_rd_cached") and Config.rd_priority() else 0
-
+            # Preference score
+            pref_score = 0
             if sort_by == "Seeds":
-                return esp_boost + rd_boost + self._extract_seeds(s)
+                pref_score = seeds * 10
             elif sort_by == "Quality":
-                return esp_boost + rd_boost + self._quality_score(s)
+                pref_score = self._quality_score(s) * 500
             elif sort_by == "Size":
-                return esp_boost + rd_boost + self._extract_size_gb(s)
-            return esp_boost + rd_boost
+                pref_score = int(self._extract_size_gb(s) * 100)
+
+            return health_score + esp_boost + pref_score
 
         return sorted(streams, key=_sort_key, reverse=True)
 
     def _extract_seeds(self, s):
-        seeds = s.get("seeds", 0)
-        if not seeds:
-            title = s.get("title", "") or s.get("name", "")
-            match = re.search(r"(?:👤|seeds?[:\s])\s*(\d+)", title, re.IGNORECASE)
-            if match:
-                seeds = int(match.group(1))
-        return seeds
+        seeds = s.get("seeds")
+        if seeds is None:
+            seeds = s.get("seeders") or s.get("seed")
+        if seeds is not None:
+            try:
+                return int(seeds)
+            except (ValueError, TypeError):
+                pass
+
+        text = " ".join([
+            str(s.get("title") or ""),
+            str(s.get("name") or ""),
+            str(s.get("description") or "")
+        ])
+        match = re.search(r"(?:👤|seeds?[:\s]|s[:\s])\s*(\d+)", text, re.IGNORECASE)
+        if match:
+            try:
+                return int(match.group(1))
+            except (ValueError, TypeError):
+                pass
+        return 0
 
     def _quality_score(self, s):
         title = (s.get("title", "") or s.get("name", "")).lower()
@@ -334,12 +370,12 @@ class TorrentResolver:
     def get_seeds_label(self, stream):
         seeds = self._extract_seeds(stream)
         if seeds > 50:
-            return f"[COLOR lime]S:{seeds}[/COLOR]"
+            return f"[COLOR lime]👤 {seeds}[/COLOR]"
         elif seeds > 5:
-            return f"[COLOR yellow]S:{seeds}[/COLOR]"
+            return f"[COLOR yellow]👤 {seeds}[/COLOR]"
         elif seeds > 0:
-            return f"[COLOR red]S:{seeds}[/COLOR]"
-        return ""
+            return f"[COLOR orange]👤 {seeds}[/COLOR]"
+        return "[COLOR red]👤 0[/COLOR]"
 
     def get_size_label(self, stream):
         title = stream.get("title", "") or stream.get("name", "")

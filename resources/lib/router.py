@@ -27,6 +27,7 @@ from resources.lib import ui
 from resources.lib.dht_search import BitsearchClient
 from resources.lib.tmdb import TMDBClient
 from resources.lib.rottentomatoes import RottenTomatoesClient
+from resources.lib.vpn import VPNManager
 
 
 class Router:
@@ -1059,6 +1060,7 @@ class Router:
 
         if playable_url.startswith("plugin://"):
             log(f"PlayMedia -> {playable_url[:100]}", level="info")
+            VPNManager.disconnect_for_p2p()
             try:
                 xbmc.Player().play(playable_url, li)
             except Exception as e:
@@ -1261,6 +1263,7 @@ class Router:
 
         if playable_url.startswith("plugin://"):
             log(f"DHT PlayMedia -> {playable_url[:100]}", level="info")
+            VPNManager.disconnect_for_p2p()
             xbmc.executebuiltin(f'PlayMedia("{playable_url}")')
         else:
             log(f"DHT Player.play -> {playable_url[:100]}", level="info")
@@ -1785,6 +1788,7 @@ class Router:
     def _acestream(self):
         """AceStream main menu: groups + utilities."""
         try:
+            VPNManager.ensure_vpn_for_acestream()
             from resources.lib.acestream import AceStreamClient
             ace = AceStreamClient()
 
@@ -2009,6 +2013,7 @@ class Router:
     def _play_acestream_hash(self, ace_hash, title="AceStream"):
         """Resolve and play an AceStream stream with monitored prebuffering and direct MPEG-TS playback."""
         try:
+            VPNManager.ensure_vpn_for_acestream()
             from resources.lib.acestream import AceStreamClient
             engine = Config.acestream_engine()
             log(f"AceStream play requested: hash={ace_hash}, title={title}, engine={engine}", level="info")

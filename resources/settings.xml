@@ -15,6 +15,7 @@
         <setting id="torrent_sort" type="labelenum" label="Sort streams by" values="Seeds|Quality|Size" default="Seeds"/>
         <setting id="torrent_quality" type="labelenum" label="Preferred quality" values="4K|1080p|720p|480p|Any" default="1080p"/>
         <setting id="torrent_autoplay" type="bool" label="Auto-play best stream" default="false"/>
+        <setting id="vpn_torrent_bypass" type="bool" label="Bypass VPN para Elementum (P2P máxima velocidad)" default="true"/>
     </category>
     <category label="AceStream">
         <setting id="acestream_enabled" type="bool" label="Enable AceStream / TV en Directo" default="true"/>
