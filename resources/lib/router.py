@@ -1061,11 +1061,7 @@ class Router:
         if playable_url.startswith("plugin://"):
             log(f"PlayMedia -> {playable_url[:100]}", level="info")
             VPNManager.disconnect_for_p2p()
-            try:
-                xbmc.Player().play(playable_url, li)
-            except Exception as e:
-                log(f"Player.play exception: {e}, using PlayMedia", level="warning")
-                xbmc.executebuiltin(f'PlayMedia("{playable_url}")')
+            xbmc.executebuiltin(f'PlayMedia("{playable_url}")')
 
             if local_custom_sub and os.path.exists(local_custom_sub):
                 def _apply_delayed_sub(path):
