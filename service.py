@@ -42,11 +42,6 @@ class PlaybackMonitor(xbmc.Player):
         self._playing = False
         log("Playback stopped", level="info")
         self._scrobble("stop")
-        try:
-            from resources.lib.vpn import VPNManager
-            VPNManager.restore_vpn()
-        except Exception as e:
-            log(f"VPN restore error on stop: {e}", level="debug")
 
     def onPlayBackEnded(self):
         """Called when playback reaches the end."""
@@ -54,11 +49,6 @@ class PlaybackMonitor(xbmc.Player):
         self._mark_completed()
         log("Playback ended", level="info")
         self._scrobble("stop", 100.0)
-        try:
-            from resources.lib.vpn import VPNManager
-            VPNManager.restore_vpn()
-        except Exception as e:
-            log(f"VPN restore error on end: {e}", level="debug")
 
         # Auto-next episode
         if Config.auto_next_episode():
@@ -77,11 +67,6 @@ class PlaybackMonitor(xbmc.Player):
             return
         if not self.isPlaying():
             self._playing = False
-            try:
-                from resources.lib.vpn import VPNManager
-                VPNManager.restore_vpn()
-            except Exception:
-                pass
             return
 
         try:

@@ -54,13 +54,6 @@ class Config:
     def torrent_autoplay():
         return ADDON.getSetting("torrent_autoplay") == "true"
 
-    @staticmethod
-    def vpn_torrent_bypass():
-        try:
-            return ADDON.getSetting("vpn_torrent_bypass") != "false"
-        except Exception:
-            return True
-
     # ── Real-Debrid ────────────────────────────────────────
     @staticmethod
     def rd_enabled():
