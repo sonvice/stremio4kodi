@@ -112,16 +112,67 @@ class TorrentResolver:
 
         return engine_url
 
+    def is_engine_alive(self, engine_name):
+        import urllib.request
+        try:
+            if engine_name == "Elementum":
+                req = urllib.request.Request("http://127.0.0.1:65220/", headers={"User-Agent": "Kodi"})
+                with urllib.request.urlopen(req, timeout=1.0) as r:
+                    return True
+            elif engine_name == "Torrest":
+                req = urllib.request.Request("http://127.0.0.1:61235/torrents", headers={"User-Agent": "Kodi"})
+                with urllib.request.urlopen(req, timeout=1.0) as r:
+                    return True
+        except Exception:
+            return False
+        return False
+
+    def get_active_engine(self):
+        engine = Config.torrent_engine()
+        preflight = Config.torrent_preflight_check()
+
+        if engine == "Auto":
+            if self.is_engine_alive("Elementum"):
+                return "Elementum"
+            elif self.is_engine_alive("Torrest"):
+                return "Torrest"
+            return "Elementum"
+
+        if preflight:
+            if engine == "Elementum" and not self.is_engine_alive("Elementum"):
+                if self.is_engine_alive("Torrest"):
+                    log("Elementum unreachable, auto failover to Torrest", level="warning")
+                    import xbmcgui
+                    xbmcgui.Dialog().notification("Motor Torrent", "Elementum no responde; usando Torrest", xbmcgui.NOTIFICATION_WARNING, 3500)
+                    return "Torrest"
+            elif engine == "Torrest" and not self.is_engine_alive("Torrest"):
+                if self.is_engine_alive("Elementum"):
+                    log("Torrest unreachable, auto failover to Elementum", level="warning")
+                    import xbmcgui
+                    xbmcgui.Dialog().notification("Motor Torrent", "Torrest no responde; usando Elementum", xbmcgui.NOTIFICATION_WARNING, 3500)
+                    return "Elementum"
+
+        return engine
+
     def _to_engine_url(self, uri, stream):
         encoded = quote(uri, safe="")
         file_idx = stream.get("fileIdx") if isinstance(stream, dict) else None
+        active = self.get_active_engine()
 
-        if self.engine == "Elementum":
+        if active == "Elementum":
             base = f"plugin://plugin.video.elementum/play?uri={encoded}"
             if file_idx is not None:
                 base += f"&oindex={file_idx}"
             return base
-        elif self.engine == "Quasar":
+        elif active == "Torrest":
+            if uri.startswith("magnet:"):
+                base = f"plugin://plugin.video.torrest/play_magnet?magnet={encoded}"
+            else:
+                base = f"plugin://plugin.video.torrest/play_url?url={encoded}"
+            if file_idx is not None:
+                base += f"&file_id={file_idx}"
+            return base
+        elif active == "Quasar":
             base = f"plugin://plugin.video.quasar/play?uri={encoded}"
             if file_idx is not None:
                 base += f"&index={file_idx}"

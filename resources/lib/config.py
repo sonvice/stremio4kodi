@@ -43,6 +43,10 @@ class Config:
         return ADDON.getSetting("torrent_engine") or "Elementum"
 
     @staticmethod
+    def torrent_preflight_check():
+        return ADDON.getSetting("torrent_preflight_check") != "false"
+
+    @staticmethod
     def torrent_sort():
         return ADDON.getSetting("torrent_sort") or "Seeds"
 
@@ -131,6 +135,10 @@ class Config:
     @staticmethod
     def reopen_streams_on_cancel():
         return ADDON.getSetting("reopen_streams_on_cancel") != "false"
+
+    @staticmethod
+    def stall_recovery_dialog():
+        return ADDON.getSetting("stall_recovery_dialog") != "false"
 
     # ── Cache ──────────────────────────────────────────────
     @staticmethod

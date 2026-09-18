@@ -1061,6 +1061,7 @@ class Router:
             "episode": episode,
         }
         self.cache.set("_playback_context", context, ttl=7200)
+        self.cache.set("_last_played_url", playable_url, ttl=7200)
 
         if Config.trakt_enabled() and media_type == "movie":
             try:

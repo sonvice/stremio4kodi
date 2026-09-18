@@ -11,7 +11,8 @@
         <setting id="spanish_variant" type="labelenum" label="Preferred variant" values="all|castellano|latino|dual" default="all"/>
     </category>
     <category label="Torrents">
-        <setting id="torrent_engine" type="labelenum" label="Torrent engine" values="Elementum|Quasar" default="Elementum"/>
+        <setting id="torrent_engine" type="labelenum" label="Torrent engine" values="Elementum|Torrest|Quasar|Auto" default="Elementum"/>
+        <setting id="torrent_preflight_check" type="bool" label="Verificar salud del motor antes de reproducir" default="true"/>
         <setting id="torrent_sort" type="labelenum" label="Sort streams by" values="Seeds|Quality|Size" default="Seeds"/>
         <setting id="torrent_quality" type="labelenum" label="Preferred quality" values="4K|1080p|720p|480p|Any" default="1080p"/>
         <setting id="torrent_autoplay" type="bool" label="Auto-play best stream" default="false"/>
@@ -49,6 +50,7 @@
         <setting id="auto_next_percent" type="slider" label="Trigger at % watched" default="90" range="70,5,98" option="int"/>
         <setting id="resume_enabled" type="bool" label="Enable resume (Continue Watching)" default="true"/>
         <setting id="reopen_streams_on_cancel" type="bool" label="Permanecer en lista de streams al parar/cancelar" default="true"/>
+        <setting id="stall_recovery_dialog" type="bool" label="Preguntar acción si la reproducción se detiene por buffer" default="true"/>
     </category>
     <category label="Cache">
         <setting id="cache_enabled" type="bool" label="Enable catalog cache" default="true"/>
