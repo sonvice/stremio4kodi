@@ -28,11 +28,21 @@ class PlaybackMonitor(xbmc.Player):
         self._playing = False
         self._subs_searched = False
         self._last_scrobble_time = 0
+        self._last_pos = 0.0
+        self._last_dur = 0.0
+        self._auto_next_lock = False
+        self._auto_next_notified = False
+        self._auto_next_in_progress = False
 
     def onPlayBackStarted(self):
         """Called when playback starts."""
         self._playing = True
         self._subs_searched = False
+        self._auto_next_lock = False
+        self._auto_next_notified = False
+        self._auto_next_in_progress = False
+        self._last_pos = 0.0
+        self._last_dur = 0.0
         log("Playback started", level="info")
         self._scrobble("start", 0.0)
 
@@ -46,13 +56,22 @@ class PlaybackMonitor(xbmc.Player):
     def onPlayBackEnded(self):
         """Called when playback reaches the end."""
         self._playing = False
-        self._mark_completed()
         log("Playback ended", level="info")
-        self._scrobble("stop", 100.0)
 
-        # Auto-next episode
-        if Config.auto_next_episode():
-            self._try_next_episode()
+        ratio = 0.0
+        if self._last_dur > 0:
+            ratio = self._last_pos / self._last_dur
+
+        if ratio >= 0.92:
+            self._mark_completed()
+            self._scrobble("stop", 100.0)
+            if Config.auto_next_episode() and not self._auto_next_lock:
+                self._auto_next_lock = True
+                self._try_next_episode()
+        else:
+            log(f"Playback ended prematurely at {ratio*100:.1f}%, preserving resume position", level="info")
+            self._save_position()
+            self._scrobble("stop", ratio * 100.0)
 
     def onPlayBackPaused(self):
         self._save_position()
@@ -133,14 +152,20 @@ class PlaybackMonitor(xbmc.Player):
         """Save current playback position for resume."""
         if not Config.resume_enabled():
             return
-        if not self.isPlaying():
-            return
 
         try:
-            pos = self.getTime()
-            dur = self.getTotalTime()
-            if dur <= 0:
+            if self.isPlaying():
+                pos = self.getTime()
+                dur = self.getTotalTime()
+            else:
+                pos = self._last_pos
+                dur = self._last_dur
+
+            if not pos or not dur or dur <= 0:
                 return
+
+            self._last_pos = pos
+            self._last_dur = dur
 
             context = self.cache.get("_playback_context")
             if not context:
@@ -171,6 +196,8 @@ class PlaybackMonitor(xbmc.Player):
 
     def _check_auto_next(self):
         """Check if we should trigger auto-next episode."""
+        if self._auto_next_notified:
+            return
         try:
             if not self.isPlaying():
                 return
@@ -183,6 +210,7 @@ class PlaybackMonitor(xbmc.Player):
             threshold = Config.auto_next_percent()
 
             if percent >= threshold:
+                self._auto_next_notified = True
                 context = self.cache.get("_playback_context")
                 if context and context.get("media_type") == "series":
                     ep = int(context.get("episode") or 0)
@@ -200,6 +228,9 @@ class PlaybackMonitor(xbmc.Player):
 
     def _try_next_episode(self):
         """Try to play the next episode after current one ends."""
+        if self._auto_next_in_progress:
+            return
+        self._auto_next_in_progress = True
         try:
             context = self.cache.get("_playback_context")
             if not context or context.get("media_type") != "series":
@@ -262,6 +293,8 @@ class PlaybackMonitor(xbmc.Player):
 
         except Exception as e:
             log(f"Auto-next error: {e}", level="error")
+        finally:
+            self._auto_next_in_progress = False
 
 
 class StremioService(xbmc.Monitor):

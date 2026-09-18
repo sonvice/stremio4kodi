@@ -44,7 +44,7 @@
         <setting id="subs_addon_url" type="text" label="OpenSubtitles URL" default="https://opensubtitles-v3.strem.io"/>
     </category>
     <category label="Playback">
-        <setting id="auto_next_episode" type="bool" label="Auto-play next episode" default="true"/>
+        <setting id="auto_next_episode" type="bool" label="Auto-play next episode" default="false"/>
         <setting id="auto_next_percent" type="slider" label="Trigger at % watched" default="90" range="70,5,98" option="int"/>
         <setting id="resume_enabled" type="bool" label="Enable resume (Continue Watching)" default="true"/>
     </category>
