@@ -128,6 +128,10 @@ class Config:
     def resume_enabled():
         return ADDON.getSetting("resume_enabled") == "true"
 
+    @staticmethod
+    def reopen_streams_on_cancel():
+        return ADDON.getSetting("reopen_streams_on_cancel") != "false"
+
     # ── Cache ──────────────────────────────────────────────
     @staticmethod
     def cache_enabled():

@@ -48,6 +48,7 @@
         <setting id="auto_next_episode" type="bool" label="Auto-play next episode" default="false"/>
         <setting id="auto_next_percent" type="slider" label="Trigger at % watched" default="90" range="70,5,98" option="int"/>
         <setting id="resume_enabled" type="bool" label="Enable resume (Continue Watching)" default="true"/>
+        <setting id="reopen_streams_on_cancel" type="bool" label="Permanecer en lista de streams al parar/cancelar" default="true"/>
     </category>
     <category label="Cache">
         <setting id="cache_enabled" type="bool" label="Enable catalog cache" default="true"/>

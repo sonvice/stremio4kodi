@@ -33,6 +33,7 @@ class PlaybackMonitor(xbmc.Player):
         self._auto_next_lock = False
         self._auto_next_notified = False
         self._auto_next_in_progress = False
+        self._last_reopen_time = 0.0
 
     def onPlayBackStarted(self):
         """Called when playback starts."""
@@ -41,6 +42,7 @@ class PlaybackMonitor(xbmc.Player):
         self._auto_next_lock = False
         self._auto_next_notified = False
         self._auto_next_in_progress = False
+        self._last_reopen_time = 0.0
         self._last_pos = 0.0
         self._last_dur = 0.0
         log("Playback started", level="info")
@@ -52,6 +54,13 @@ class PlaybackMonitor(xbmc.Player):
         self._playing = False
         log("Playback stopped", level="info")
         self._scrobble("stop")
+
+        ratio = 0.0
+        if self._last_dur > 0:
+            ratio = self._last_pos / self._last_dur
+
+        if ratio < 0.92 and Config.reopen_streams_on_cancel():
+            self._reopen_streams()
 
     def onPlayBackEnded(self):
         """Called when playback reaches the end."""
@@ -72,6 +81,8 @@ class PlaybackMonitor(xbmc.Player):
             log(f"Playback ended prematurely at {ratio*100:.1f}%, preserving resume position", level="info")
             self._save_position()
             self._scrobble("stop", ratio * 100.0)
+            if Config.reopen_streams_on_cancel():
+                self._reopen_streams()
 
     def onPlayBackPaused(self):
         self._save_position()
@@ -295,6 +306,53 @@ class PlaybackMonitor(xbmc.Player):
             log(f"Auto-next error: {e}", level="error")
         finally:
             self._auto_next_in_progress = False
+
+    def _reopen_streams(self):
+        """Reopen streams selection dialog after premature stop or cancellation."""
+        import time
+        if time.time() - getattr(self, "_last_reopen_time", 0) < 3.0:
+            return
+        self._last_reopen_time = time.time()
+
+        try:
+            context = self.cache.get("_playback_context")
+            if not context:
+                return
+
+            media_type = context.get("media_type", "movie")
+            if media_type not in ["movie", "series"]:
+                return
+
+            content_id = context.get("content_id", "")
+            title = context.get("title", "")
+            series_imdb = context.get("imdb_id", "")
+            season = context.get("season", "")
+            episode = context.get("episode", "")
+            poster = context.get("poster", "")
+
+            if not content_id and not title:
+                return
+
+            from urllib.parse import quote
+            base = f"plugin://{Config.ADDON_ID}"
+            url = (
+                f"{base}?action=streams"
+                f"&imdb_id={content_id}&media_type={media_type}"
+                f"&title={quote(title)}"
+                f"&series_imdb={series_imdb}"
+                f"&season={season}&episode={episode}"
+                f"&poster={quote(poster)}"
+            )
+
+            log("Reopening streams list after stopped/cancelled playback", level="info")
+            def _delayed_open():
+                xbmc.sleep(600)
+                xbmc.executebuiltin(f"Container.Update({url})")
+
+            import threading
+            threading.Thread(target=_delayed_open, daemon=True).start()
+        except Exception as e:
+            log(f"Reopen streams error: {e}", level="debug")
 
 
 class StremioService(xbmc.Monitor):

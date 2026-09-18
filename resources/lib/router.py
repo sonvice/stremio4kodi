@@ -721,62 +721,82 @@ class Router:
             except Exception as e:
                 log(f"Error resolving TMDB details in _streams: {e}", level="error")
 
-        try:
-            category = "movies" if media_type == "movie" else "series"
-            streams = []
+        refresh = self.params.get("refresh") == "true"
+        cache_key = f"streams_v2_{imdb_id}_{media_type}"
 
-            # 1. Query Stremio Addons first if imdb_id is available (exact match by ID)
-            if imdb_id:
-                log(f"Querying Stremio addons for ID: {imdb_id}", level="info")
-                stremio_streams = self.stremio.get_streams(media_type, imdb_id)
-                if stremio_streams:
-                    streams.extend(stremio_streams)
+        streams = None
+        if not refresh:
+            streams = self.cache.get(cache_key)
+            if streams:
+                log(f"Using cached streams for {imdb_id} ({len(streams)} items)", level="info")
 
-            # 2. Search DHT with Original Title (English/Native)
-            if original_title:
-                log(f"DHT resolving stream for original title: {original_title}", level="info")
-                dht_orig = self.bitsearch.search(original_title, category)
-                if dht_orig:
-                    existing_hashes = {s.get("infoHash", "").lower() for s in streams if s.get("infoHash")}
-                    for s in dht_orig:
-                        h = s.get("infoHash", "").lower()
-                        if not h or h not in existing_hashes:
-                            streams.append(s)
+        if not streams:
+            try:
+                category = "movies" if media_type == "movie" else "series"
+                streams = []
 
-            # 3. Search DHT with Local Title (Spanish) if different
-            if title and title != original_title:
-                log(f"DHT resolving stream for Spanish title: {title}", level="info")
-                es_streams = self.bitsearch.search(title, category)
-                if es_streams:
-                    existing_hashes = {s.get("infoHash", "").lower() for s in streams if s.get("infoHash")}
-                    for s in es_streams:
-                        h = s.get("infoHash", "").lower()
-                        if not h or h not in existing_hashes:
-                            streams.append(s)
+                # 1. Query Stremio Addons first if imdb_id is available (exact match by ID)
+                if imdb_id:
+                    log(f"Querying Stremio addons for ID: {imdb_id}", level="info")
+                    stremio_streams = self.stremio.get_streams(media_type, imdb_id)
+                    if stremio_streams:
+                        streams.extend(stremio_streams)
 
-            # Filter out false positives / mismatched torrent titles
-            streams = self.resolver.filter_by_title_match(
-                streams, title=title, original_title=original_title,
-                media_type=media_type, season=season, episode=episode
-            )
+                # 2. Search DHT with Original Title (English/Native)
+                if original_title:
+                    log(f"DHT resolving stream for original title: {original_title}", level="info")
+                    dht_orig = self.bitsearch.search(original_title, category)
+                    if dht_orig:
+                        existing_hashes = {s.get("infoHash", "").lower() for s in streams if s.get("infoHash")}
+                        for s in dht_orig:
+                            h = s.get("infoHash", "").lower()
+                            if not h or h not in existing_hashes:
+                                streams.append(s)
 
-            if not streams:
-                ui.show_notification("No se encontraron streams.")
+                # 3. Search DHT with Local Title (Spanish) if different
+                if title and title != original_title:
+                    log(f"DHT resolving stream for Spanish title: {title}", level="info")
+                    es_streams = self.bitsearch.search(title, category)
+                    if es_streams:
+                        existing_hashes = {s.get("infoHash", "").lower() for s in streams if s.get("infoHash")}
+                        for s in es_streams:
+                            h = s.get("infoHash", "").lower()
+                            if not h or h not in existing_hashes:
+                                streams.append(s)
+
+                # Filter out false positives / mismatched torrent titles
+                streams = self.resolver.filter_by_title_match(
+                    streams, title=title, original_title=original_title,
+                    media_type=media_type, season=season, episode=episode
+                )
+
+                if self.rd.is_configured():
+                    streams = self.rd.tag_cached_streams(streams)
+
+                streams = self.resolver.filter_by_quality(streams)
+                streams = self.resolver.filter_spanish(streams)
+                streams = self.resolver.sort_streams(streams)
+
+                if streams:
+                    self.cache.set(cache_key, streams, ttl=1800)
+
+            except Exception as e:
+                log(f"Stream error: {e}", level="error")
+                ui.show_notification(str(e), icon=xbmcgui.NOTIFICATION_ERROR)
                 ui.end_directory(self.handle, succeeded=False)
                 return
 
-            if self.rd.is_configured():
-                streams = self.rd.tag_cached_streams(streams)
+        if not streams:
+            ui.show_notification("No se encontraron streams.")
+            ui.end_directory(self.handle, succeeded=False)
+            return
 
-            streams = self.resolver.filter_by_quality(streams)
-            streams = self.resolver.filter_spanish(streams)
-            streams = self.resolver.sort_streams(streams)
+        if Config.torrent_autoplay() and streams:
+            ui.end_directory(self.handle, succeeded=True)
+            self._launch_stream(streams[0], imdb_id, media_type, title)
+            return
 
-            if Config.torrent_autoplay() and streams:
-                ui.end_directory(self.handle, succeeded=True)
-                self._launch_stream(streams[0], imdb_id, media_type, title)
-                return
-
+        try:
             labels = []
             for stream in streams:
                 quality = self.resolver.get_quality_label(stream)
@@ -819,6 +839,9 @@ class Router:
 
                 labels.append("  ".join(parts))
 
+            # Option to force a fresh search
+            labels.append("🔄  [COLOR yellow]Buscar de nuevo (Actualizar fuentes)[/COLOR]")
+
             ui.end_directory(self.handle, succeeded=True)
 
             choice = xbmcgui.Dialog().select(
@@ -828,6 +851,12 @@ class Router:
 
             if choice < 0:
                 return
+
+            if choice == len(labels) - 1:
+                # User chose "Buscar de nuevo"
+                self.cache.delete(cache_key)
+                self.params["refresh"] = "true"
+                return self._streams()
 
             chosen_stream = streams[choice]
             file_idx = chosen_stream.get("fileIdx")
