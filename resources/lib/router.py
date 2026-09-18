@@ -787,7 +787,8 @@ class Router:
                 esp_label = self.resolver.get_spanish_tag(stream)
 
                 stream_title = stream.get("title", "") or stream.get("name", "Unknown")
-                line1 = stream_title.split("\n")[0][:80]
+                lines = [l.strip() for l in stream_title.split("\n") if l.strip()]
+                line1 = lines[0][:80] if lines else ""
 
                 parts = []
                 if esp_label:
@@ -796,7 +797,19 @@ class Router:
                     parts.append(rd_label)
                 if quality:
                     parts.append(quality)
-                parts.append(line1)
+
+                # Check if pack with targeted episode file
+                file_idx = stream.get("fileIdx")
+                if file_idx is not None and len(lines) > 1 and not lines[1].startswith("👤") and not lines[1].startswith("💾"):
+                    matched_file = lines[1]
+                    ep_match = re.search(r"(S\d{1,2}E\d{1,2}|E\d{1,2})", matched_file, re.I)
+                    ep_tag = f"[{ep_match.group(1).upper()}]" if ep_match else "[PACK]"
+                    clean_file = re.sub(r"\.(mkv|mp4|avi)$", "", matched_file, flags=re.I)
+                    clean_file = clean_file.split("/")[-1]
+                    parts.append(f"{ep_tag} {line1} ➔ {clean_file[:40]}")
+                else:
+                    parts.append(line1)
+
                 if seeds:
                     parts.append(seeds)
                 if size:
@@ -816,7 +829,33 @@ class Router:
             if choice < 0:
                 return
 
-            self._launch_stream(streams[choice], imdb_id, media_type, title)
+            chosen_stream = streams[choice]
+            file_idx = chosen_stream.get("fileIdx")
+            mode = Config.pack_select_mode()
+
+            if file_idx is not None and mode != "Reproducir episodio actual":
+                if mode == "Elegir siempre archivo":
+                    chosen_stream = dict(chosen_stream)
+                    chosen_stream["fileIdx"] = None
+                else:
+                    # "Preguntar siempre"
+                    ep_num = episode or self.params.get("episode", "")
+                    ep_text = f"Episodio {ep_num}" if ep_num else "este episodio"
+                    prompt_options = [
+                        f"▶ Reproducir {ep_text} directo",
+                        "📂 Ver todos los episodios del pack (Elegir otro)..."
+                    ]
+                    opt = xbmcgui.Dialog().select(
+                        "Pack de Temporada detectado",
+                        prompt_options
+                    )
+                    if opt < 0:
+                        return
+                    if opt == 1:
+                        chosen_stream = dict(chosen_stream)
+                        chosen_stream["fileIdx"] = None
+
+            self._launch_stream(chosen_stream, imdb_id, media_type, title)
 
         except Exception as e:
             log(f"Stream error: {e}", level="error")

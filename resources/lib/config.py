@@ -54,6 +54,10 @@ class Config:
     def torrent_autoplay():
         return ADDON.getSetting("torrent_autoplay") == "true"
 
+    @staticmethod
+    def pack_select_mode():
+        return ADDON.getSetting("pack_select_mode") or "Preguntar siempre"
+
     # ── Real-Debrid ────────────────────────────────────────
     @staticmethod
     def rd_enabled():
