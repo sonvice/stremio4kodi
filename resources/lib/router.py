@@ -723,14 +723,25 @@ class Router:
 
         refresh = self.params.get("refresh") == "true"
         cache_key = f"streams_v2_{imdb_id}_{media_type}"
+        lock_key = f"searching_{cache_key}"
 
         streams = None
         if not refresh:
             streams = self.cache.get(cache_key)
+            if not streams and self.cache.get(lock_key):
+                # Another thread is already resolving this exact item; wait briefly for cache
+                import time
+                for _ in range(12):
+                    time.sleep(0.5)
+                    streams = self.cache.get(cache_key)
+                    if streams:
+                        break
+
             if streams:
                 log(f"Using cached streams for {imdb_id} ({len(streams)} items)", level="info")
 
         if not streams:
+            self.cache.set(lock_key, True, ttl=25)
             try:
                 category = "movies" if media_type == "movie" else "series"
                 streams = []
@@ -785,6 +796,11 @@ class Router:
                 ui.show_notification(str(e), icon=xbmcgui.NOTIFICATION_ERROR)
                 ui.end_directory(self.handle, succeeded=False)
                 return
+            finally:
+                try:
+                    self.cache.delete(lock_key)
+                except Exception:
+                    pass
 
         if not streams:
             ui.show_notification("No se encontraron streams.")
