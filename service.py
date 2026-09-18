@@ -81,8 +81,6 @@ class PlaybackMonitor(xbmc.Player):
             log(f"Playback ended prematurely at {ratio*100:.1f}%, preserving resume position", level="info")
             self._save_position()
             self._scrobble("stop", ratio * 100.0)
-            if Config.reopen_streams_on_cancel():
-                self._reopen_streams()
 
     def onPlayBackPaused(self):
         self._save_position()
