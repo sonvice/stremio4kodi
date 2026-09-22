@@ -48,12 +48,40 @@ class PlaybackMonitor(xbmc.Player):
         log("Playback started", level="info")
         self._scrobble("start", 0.0)
 
+    def _stop_engine_torrents(self):
+        """Stop background torrent downloads when user stops playback."""
+        import threading
+        def _stop():
+            import urllib.request, json
+            # Stop Torrest active torrents
+            try:
+                req = urllib.request.Request("http://127.0.0.1:61235/torrents", headers={"User-Agent": "Kodi"})
+                with urllib.request.urlopen(req, timeout=1.5) as r:
+                    torrents = json.loads(r.read().decode())
+                    for t in torrents:
+                        ih = t.get("info_hash")
+                        if ih:
+                            del_req = urllib.request.Request(f"http://127.0.0.1:61235/torrents/{ih}?delete=true", method="DELETE")
+                            urllib.request.urlopen(del_req, timeout=1.5)
+                            log(f"Stopped Torrest session: {ih}", level="info")
+            except Exception:
+                pass
+
+            # Pause Elementum active torrents
+            try:
+                urllib.request.urlopen("http://127.0.0.1:65220/torrents/pause", timeout=1.5)
+            except Exception:
+                pass
+
+        threading.Thread(target=_stop, daemon=True).start()
+
     def onPlayBackStopped(self):
         """Called when user stops playback."""
         self._save_position()
         self._playing = False
         log("Playback stopped", level="info")
         self._scrobble("stop")
+        self._stop_engine_torrents()
 
         ratio = 0.0
         if self._last_dur > 0:
@@ -74,6 +102,7 @@ class PlaybackMonitor(xbmc.Player):
         if ratio >= 0.92:
             self._mark_completed()
             self._scrobble("stop", 100.0)
+            self._stop_engine_torrents()
             if Config.auto_next_episode() and not self._auto_next_lock:
                 self._auto_next_lock = True
                 self._try_next_episode()
@@ -402,7 +431,42 @@ class StremioService(xbmc.Monitor):
         self.player = PlaybackMonitor(self.cache)
         log("Service v2 started", level="info")
 
+    def _clean_abandoned_torrents(self):
+        """Clean leftover torrents from previous sessions if Kodi is not currently playing."""
+        if xbmc.Player().isPlaying():
+            return
+        import urllib.request, json
+        # Clean Torrest
+        try:
+            req = urllib.request.Request("http://127.0.0.1:61235/torrents", headers={"User-Agent": "Kodi"})
+            with urllib.request.urlopen(req, timeout=1.5) as r:
+                torrents = json.loads(r.read().decode())
+                for t in torrents:
+                    ih = t.get("info_hash")
+                    if ih:
+                        del_req = urllib.request.Request(f"http://127.0.0.1:61235/torrents/{ih}?delete=true", method="DELETE")
+                        urllib.request.urlopen(del_req, timeout=1.5)
+                        log(f"Auto-cleaned abandoned Torrest session: {ih}", level="info")
+        except Exception:
+            pass
+
+        # Clean Elementum
+        try:
+            req = urllib.request.Request("http://127.0.0.1:65220/torrents", headers={"User-Agent": "Kodi"})
+            with urllib.request.urlopen(req, timeout=1.5) as r:
+                data = json.loads(r.read().decode())
+                items = data.get("items", [])
+                if items:
+                    urllib.request.urlopen("http://127.0.0.1:65220/torrents/pause", timeout=1.5)
+                    log(f"Auto-paused {len(items)} abandoned Elementum torrents", level="info")
+        except Exception:
+            pass
+
     def run(self):
+        # Initial cleanup after 5s wait for engines to initialize
+        if not self.waitForAbort(5):
+            self._clean_abandoned_torrents()
+
         tick_counter = 0
         while not self.abortRequested():
             if self.waitForAbort(MONITOR_INTERVAL):
@@ -414,11 +478,12 @@ class StremioService(xbmc.Monitor):
             except Exception:
                 pass
 
-            # Cache cleanup every hour
+            # Cache cleanup and torrent watchdog every hour
             tick_counter += 1
             if tick_counter >= (CLEANUP_INTERVAL // MONITOR_INTERVAL):
                 tick_counter = 0
                 try:
+                    self._clean_abandoned_torrents()
                     removed = self.cache.cleanup_expired()
                     if removed > 0:
                         log(f"Cache cleanup: {removed} entries removed", level="info")
