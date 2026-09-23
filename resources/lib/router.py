@@ -875,31 +875,6 @@ class Router:
                 return self._streams()
 
             chosen_stream = streams[choice]
-            file_idx = chosen_stream.get("fileIdx")
-            mode = Config.pack_select_mode()
-
-            if file_idx is not None and mode != "Reproducir episodio actual":
-                if mode == "Elegir siempre archivo":
-                    chosen_stream = dict(chosen_stream)
-                    chosen_stream["fileIdx"] = None
-                else:
-                    # "Preguntar siempre"
-                    ep_num = episode or self.params.get("episode", "")
-                    ep_text = f"Episodio {ep_num}" if ep_num else "este episodio"
-                    prompt_options = [
-                        f"▶ Reproducir {ep_text} directo",
-                        "📂 Ver todos los episodios del pack (Elegir otro)..."
-                    ]
-                    opt = xbmcgui.Dialog().select(
-                        "Pack de Temporada detectado",
-                        prompt_options
-                    )
-                    if opt < 0:
-                        return
-                    if opt == 1:
-                        chosen_stream = dict(chosen_stream)
-                        chosen_stream["fileIdx"] = None
-
             self._launch_stream(chosen_stream, imdb_id, media_type, title)
 
         except Exception as e:

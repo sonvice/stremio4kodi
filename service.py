@@ -67,12 +67,6 @@ class PlaybackMonitor(xbmc.Player):
             except Exception:
                 pass
 
-            # Pause Elementum active torrents
-            try:
-                urllib.request.urlopen("http://127.0.0.1:65220/torrents/pause", timeout=1.5)
-            except Exception:
-                pass
-
         threading.Thread(target=_stop, daemon=True).start()
 
     def onPlayBackStopped(self):
@@ -107,11 +101,9 @@ class PlaybackMonitor(xbmc.Player):
                 self._auto_next_lock = True
                 self._try_next_episode()
         else:
-            log(f"Playback ended prematurely at {ratio*100:.1f}%, preserving resume position", level="info")
+            log(f"Playback ended at {ratio*100:.1f}%, preserving resume position", level="info")
             self._save_position()
             self._scrobble("stop", ratio * 100.0)
-            if Config.stall_recovery_dialog():
-                self._handle_playback_stall(ratio)
 
     def onPlayBackPaused(self):
         self._save_position()
@@ -400,44 +392,6 @@ class PlaybackMonitor(xbmc.Player):
         except Exception as e:
             log(f"Reopen streams error: {e}", level="debug")
 
-    def _handle_playback_stall(self, ratio=0.0):
-        """Offer recovery options when playback closes prematurely due to timeout or underrun."""
-        import time
-        if time.time() - getattr(self, "_last_stall_dialog_time", 0) < 5.0:
-            return
-        self._last_stall_dialog_time = time.time()
-
-        def _stall_dialog():
-            import time
-            time.sleep(0.6)
-            context = self.cache.get("_playback_context")
-            if not context:
-                return
-
-            percent_str = f" al {int(ratio * 100)}%" if ratio > 0.01 else ""
-            options = [
-                "🔄 Reanudar reproducción (Misma fuente)",
-                "📂 Elegir otra fuente (Buscar streams)",
-                "❌ Salir"
-            ]
-            choice = xbmcgui.Dialog().select(
-                f"⚠️ Reproducción interrumpida{percent_str}",
-                options
-            )
-            if choice == 0:
-                last_url = self.cache.get("_last_played_url")
-                if last_url:
-                    log(f"Resuming stalled stream: {last_url[:100]}", level="info")
-                    if last_url.startswith("plugin://"):
-                        xbmc.executebuiltin(f'PlayMedia("{last_url}")')
-                    else:
-                        xbmc.Player().play(last_url)
-            elif choice == 1:
-                self._reopen_streams()
-
-        import threading
-        threading.Thread(target=_stall_dialog, daemon=True).start()
-
 
 class StremioService(xbmc.Monitor):
     """Main service: runs cache cleanup and playback monitor."""
@@ -464,18 +418,6 @@ class StremioService(xbmc.Monitor):
                         del_req = urllib.request.Request(f"http://127.0.0.1:61235/torrents/{ih}?delete=true", method="DELETE")
                         urllib.request.urlopen(del_req, timeout=1.5)
                         log(f"Auto-cleaned abandoned Torrest session: {ih}", level="info")
-        except Exception:
-            pass
-
-        # Clean Elementum
-        try:
-            req = urllib.request.Request("http://127.0.0.1:65220/torrents", headers={"User-Agent": "Kodi"})
-            with urllib.request.urlopen(req, timeout=1.5) as r:
-                data = json.loads(r.read().decode())
-                items = data.get("items", [])
-                if items:
-                    urllib.request.urlopen("http://127.0.0.1:65220/torrents/pause", timeout=1.5)
-                    log(f"Auto-paused {len(items)} abandoned Elementum torrents", level="info")
         except Exception:
             pass
 

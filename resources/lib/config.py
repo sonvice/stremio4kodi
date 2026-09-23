@@ -60,7 +60,7 @@ class Config:
 
     @staticmethod
     def pack_select_mode():
-        return ADDON.getSetting("pack_select_mode") or "Preguntar siempre"
+        return "Reproducir episodio actual"
 
     # ── Real-Debrid ────────────────────────────────────────
     @staticmethod
@@ -138,7 +138,7 @@ class Config:
 
     @staticmethod
     def stall_recovery_dialog():
-        return ADDON.getSetting("stall_recovery_dialog") != "false"
+        return False
 
     # ── Cache ──────────────────────────────────────────────
     @staticmethod
