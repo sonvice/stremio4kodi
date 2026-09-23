@@ -19,12 +19,32 @@ QUALITY_PATTERNS = {
 }
 
 TRACKERS = [
+    # Tier-1 High Availability UDP Trackers
     "udp://tracker.opentrackr.org:1337/announce",
     "udp://open.stealth.si:80/announce",
     "udp://tracker.torrent.eu.org:451/announce",
+    "udp://explodie.org:6969/announce",
+    "udp://tracker.bittor.pw:1337/announce",
     "udp://tracker.openbittorrent.com:6969/announce",
-    "udp://exodus.desync.com:6969/announce",
+    "udp://tracker.dler.org:6969/announce",
+    "udp://tracker.moeking.me:6969/announce",
+    "udp://9.rarbg.to:2920/announce",
+    "udp://p4p.arenabg.com:1337/announce",
+    "udp://open.demonii.com:1337/announce",
+    "udp://movies.zsw.ca:6969/announce",
+    "udp://tracker.altrosky.nl:6969/announce",
+    "udp://tracker.tiny-vps.com:6969/announce",
+    "udp://bt1.archive.org:6969/announce",
+    # TV Series / EZTV Trackers
+    "udp://eztv.re:1337/announce",
+    # HTTP and HTTPS Fallback Trackers (Bypasses ISP UDP drop/throttling)
+    "http://tracker.opentrackr.org:1337/announce",
+    "http://tracker.openbittorrent.com:80/announce",
+    "https://tracker.tamersunion.org:443/announce",
+    "https://tracker.renfei.net:443/announce",
+    "http://eztv.re:80/announce",
 ]
+
 
 
 class TorrentResolver:
@@ -61,7 +81,8 @@ class TorrentResolver:
                 rd_url = self.rd.resolve(url, file_idx)
                 if rd_url:
                     return rd_url
-            return self._check_privacy_and_engine(self._to_engine_url(url, stream))
+            enriched = self._enrich_magnet(url, stream)
+            return self._check_privacy_and_engine(self._to_engine_url(enriched, stream))
 
         # ── HTTP .torrent file ─────────────────────────────
         if url.startswith("http") and ".torrent" in url:
@@ -80,7 +101,8 @@ class TorrentResolver:
             rd_url = self.rd.resolve(magnet_uri)
             if rd_url:
                 return rd_url, "direct"
-        engine_url = self._to_engine_url(magnet_uri, {})
+        enriched = self._enrich_magnet(magnet_uri)
+        engine_url = self._to_engine_url(enriched, {})
         checked = self._check_privacy_and_engine(engine_url)
         if not checked:
             return None, "plugin"
@@ -179,15 +201,42 @@ class TorrentResolver:
             return base
         return uri
 
+    def _enrich_magnet(self, magnet_uri, stream=None):
+        if not magnet_uri or not magnet_uri.startswith("magnet:"):
+            return magnet_uri
+
+        lower_mag = magnet_uri.lower()
+        extra_trackers = []
+        if isinstance(stream, dict):
+            sources = stream.get("sources", []) or []
+            for s in sources:
+                if isinstance(s, str):
+                    if s.startswith("tracker:"):
+                        extra_trackers.append(s[len("tracker:"):].strip())
+                    elif s.startswith("http://") or s.startswith("https://") or s.startswith("udp://"):
+                        extra_trackers.append(s.strip())
+            for tr in (stream.get("trackers", []) or []):
+                if isinstance(tr, str) and tr.strip():
+                    extra_trackers.append(tr.strip())
+
+        all_candidates = extra_trackers + TRACKERS
+        for tr in all_candidates:
+            if not tr:
+                continue
+            quoted_tr = quote(tr, safe="")
+            if quoted_tr.lower() not in lower_mag and tr.lower() not in lower_mag:
+                magnet_uri += f"&tr={quoted_tr}"
+                lower_mag += f"&tr={quoted_tr.lower()}"
+
+        return magnet_uri
+
     def _build_magnet(self, info_hash, stream):
-        title = stream.get("title", "") or stream.get("name", "Unknown")
+        title = stream.get("title", "") or stream.get("name", "Unknown") if isinstance(stream, dict) else "Unknown"
         dn = re.sub(r"\[.*?\]", "", title.split("\n")[0]).strip()
         dn = re.sub(r"\s+", ".", dn)[:100]
 
         magnet = f"magnet:?xt=urn:btih:{info_hash}&dn={quote(dn, safe='')}"
-        for tr in TRACKERS:
-            magnet += f"&tr={quote(tr, safe='')}"
-        return magnet
+        return self._enrich_magnet(magnet, stream)
 
     # ── Sorting & Filtering ────────────────────────────────
     def filter_by_title_match(self, streams, title="", original_title="", media_type="movie", season=None, episode=None):

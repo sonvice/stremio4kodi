@@ -120,6 +120,23 @@ class PlaybackMonitor(xbmc.Player):
     def onPlayBackResumed(self):
         self._scrobble("start")
 
+    def onPlayBackError(self):
+        """Called when Kodi encounters an error attempting to start playback."""
+        log("Playback error event detected (metadata timeout or unreachable stream)", level="warning")
+        self._playing = False
+        self._stop_engine_torrents()
+        try:
+            xbmcgui.Dialog().notification(
+                "Fallo de Reproducción",
+                "No se pudieron descargar los metadatos a tiempo.",
+                xbmcgui.NOTIFICATION_WARNING,
+                4500
+            )
+        except Exception:
+            pass
+        if Config.reopen_streams_on_cancel():
+            self._reopen_streams()
+
     def tick(self):
         """Called periodically from the main service loop."""
         if not self._playing:
