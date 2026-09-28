@@ -81,7 +81,8 @@ class PlaybackMonitor(xbmc.Player):
         if self._last_dur > 0:
             ratio = self._last_pos / self._last_dur
 
-        if ratio < 0.92 and Config.reopen_streams_on_cancel():
+        # Only reopen streams list if aborted before playback actually got underway (< 15 seconds)
+        if self._last_pos < 15 and Config.reopen_streams_on_cancel():
             self._reopen_streams()
 
     def onPlayBackEnded(self):
