@@ -67,6 +67,20 @@ class PlaybackMonitor(xbmc.Player):
             except Exception:
                 pass
 
+            # Stop Elementum active torrents
+            try:
+                elem_req = urllib.request.Request("http://127.0.0.1:65220/torrents/list", headers={"User-Agent": "Kodi"})
+                with urllib.request.urlopen(elem_req, timeout=1.5) as r:
+                    elem_torrents = json.loads(r.read().decode())
+                    for t in elem_torrents:
+                        tid = t.get("id")
+                        if tid:
+                            del_req = urllib.request.Request(f"http://127.0.0.1:65220/torrents/delete/{tid}")
+                            urllib.request.urlopen(del_req, timeout=1.5)
+                            log(f"Stopped Elementum torrent on cancel: {tid} ({t.get('name', '')})", level="info")
+            except Exception as e:
+                log(f"Notice: Elementum stop check: {e}", level="debug")
+
         threading.Thread(target=_stop, daemon=True).start()
 
     def onPlayBackStopped(self):
@@ -419,6 +433,20 @@ class StremioService(xbmc.Monitor):
                         del_req = urllib.request.Request(f"http://127.0.0.1:61235/torrents/{ih}?delete=true", method="DELETE")
                         urllib.request.urlopen(del_req, timeout=1.5)
                         log(f"Auto-cleaned abandoned Torrest session: {ih}", level="info")
+        except Exception:
+            pass
+
+        # Clean Elementum abandoned torrents
+        try:
+            elem_req = urllib.request.Request("http://127.0.0.1:65220/torrents/list", headers={"User-Agent": "Kodi"})
+            with urllib.request.urlopen(elem_req, timeout=1.5) as r:
+                elem_torrents = json.loads(r.read().decode())
+                for t in elem_torrents:
+                    tid = t.get("id")
+                    if tid:
+                        del_req = urllib.request.Request(f"http://127.0.0.1:65220/torrents/delete/{tid}")
+                        urllib.request.urlopen(del_req, timeout=1.5)
+                        log(f"Auto-cleaned abandoned Elementum torrent: {tid} ({t.get('name', '')})", level="info")
         except Exception:
             pass
 
