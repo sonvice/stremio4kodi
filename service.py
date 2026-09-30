@@ -422,10 +422,32 @@ class StremioService(xbmc.Monitor):
         except Exception:
             pass
 
+    def _configure_kodi_subtitles_default(self):
+        """Ensure Kodi uses Stremio OpenSubtitles as default subtitle service if unset."""
+        try:
+            res_movie = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "Settings.GetSettingValue", "params": {"setting": "subtitles.movie"}, "id": 1}')
+            data_movie = json.loads(res_movie) if res_movie else {}
+            val_movie = data_movie.get("result", {}).get("value", "")
+
+            res_tv = xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "Settings.GetSettingValue", "params": {"setting": "subtitles.tv"}, "id": 2}')
+            data_tv = json.loads(res_tv) if res_tv else {}
+            val_tv = data_tv.get("result", {}).get("value", "")
+
+            if not val_movie:
+                xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "Settings.SetSettingValue", "params": {"setting": "subtitles.movie", "value": "plugin.video.stremio4kodi"}, "id": 3}')
+                log("Configured Kodi default movie subtitle service to plugin.video.stremio4kodi", level="info")
+
+            if not val_tv:
+                xbmc.executeJSONRPC('{"jsonrpc": "2.0", "method": "Settings.SetSettingValue", "params": {"setting": "subtitles.tv", "value": "plugin.video.stremio4kodi"}, "id": 4}')
+                log("Configured Kodi default TV subtitle service to plugin.video.stremio4kodi", level="info")
+        except Exception as e:
+            log(f"Notice: Kodi subtitle settings config: {e}", level="debug")
+
     def run(self):
         # Initial cleanup after 5s wait for engines to initialize
         if not self.waitForAbort(5):
             self._clean_abandoned_torrents()
+            self._configure_kodi_subtitles_default()
 
         tick_counter = 0
         while not self.abortRequested():

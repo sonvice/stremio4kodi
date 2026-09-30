@@ -104,6 +104,9 @@ class Router:
             "tmdb_episodes":       self._tmdb_episodes,
             "catalog_list":        self._catalog_list_route,
             "search_subtitles":    self._search_subtitles,
+            "search":              self._subtitle_module_route,
+            "manualsearch":        self._subtitle_module_route,
+            "download":            self._subtitle_module_route,
         }
 
         handler = routes.get(action, self._main_menu)
@@ -986,6 +989,11 @@ class Router:
         else:
             ui.show_notification("✓ Subtítulo descargado para reproducción.")
 
+    def _subtitle_module_route(self):
+        """Dispatches Kodi subtitle service module actions (search, manualsearch, download)."""
+        import subtitle_service
+        subtitle_service.handle_action(self.handle, self.params)
+
     # ══════════════════════════════════════════════════════
     #  PLAY
     # ══════════════════════════════════════════════════════
@@ -1117,24 +1125,46 @@ class Router:
             except Exception:
                 pass
 
+        # Store window properties for OpenSubtitles integration
+        try:
+            window = xbmcgui.Window(10000)
+            clean_imdb = imdb_id.split(":")[0] if imdb_id else ""
+            window.setProperty("stremio4kodi.current_imdb", clean_imdb)
+            window.setProperty("stremio4kodi.current_type", media_type or "movie")
+            window.setProperty("stremio4kodi.current_season", str(season or ""))
+            window.setProperty("stremio4kodi.current_episode", str(episode or ""))
+            window.setProperty("stremio4kodi.current_title", title or "")
+        except Exception:
+            pass
+
+        # Automatic background subtitle injector for ALL stream engines (Elementum, Torrest, Direct)
+        subs_to_inject = [s for s in sub_list if os.path.exists(s)]
+        if subs_to_inject:
+            def _apply_delayed_subs(paths):
+                import time
+                for _ in range(45):
+                    time.sleep(1)
+                    player = xbmc.Player()
+                    if player.isPlaying():
+                        time.sleep(1.5)
+                        # Inject subtitles (in reverse so the first one, Spanish, is the active track)
+                        for p in reversed(paths):
+                            try:
+                                player.setSubtitles(p)
+                                log(f"Injected OpenSubtitle to Player: {p}", level="info")
+                            except Exception as ex:
+                                log(f"Error setSubtitles {p}: {ex}", level="debug")
+                        try:
+                            player.showSubtitles(True)
+                        except Exception:
+                            pass
+                        break
+
+            threading.Thread(target=_apply_delayed_subs, args=[subs_to_inject], daemon=True).start()
+
         if playable_url.startswith("plugin://"):
             log(f"PlayMedia -> {playable_url[:100]}", level="info")
             xbmc.executebuiltin(f'PlayMedia("{playable_url}")')
-
-            if local_custom_sub and os.path.exists(local_custom_sub):
-                def _apply_delayed_sub(path):
-                    import time
-                    for _ in range(30):
-                        time.sleep(1)
-                        if xbmc.Player().isPlaying():
-                            try:
-                                xbmc.Player().setSubtitles(path)
-                                xbmc.Player().showSubtitles(True)
-                                log(f"Injected custom subtitle to Player: {path}", level="info")
-                                break
-                            except Exception:
-                                pass
-                threading.Thread(target=_apply_delayed_sub, args=[local_custom_sub]).start()
         else:
             log(f"Player.play -> {playable_url[:100]}", level="info")
             if sub_list:

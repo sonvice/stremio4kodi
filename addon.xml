@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <addon id="plugin.video.stremio4kodi"
        name="Stremio for Kodi"
-       version="3.6.20"
+       version="3.7.0"
        provider-name="stremio4kodi">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
@@ -12,11 +12,12 @@
         <provides>video</provides>
     </extension>
     <extension point="xbmc.service" library="service.py" start="startup"/>
+    <extension point="xbmc.subtitle.module" library="subtitle_service.py"/>
     <extension point="xbmc.addon.metadata">
-        <summary lang="en">Stremio addons on Kodi — Spanish-first streaming</summary>
-        <summary lang="es">Stremio en Kodi — Catálogos TMDB y Búsqueda EN/ES</summary>
-        <description lang="en">Stream movies and series from Stremio addons on Kodi. v3.3.0: Direct TMDB integration (Trending, Popular, Now Playing, Top Rated, Top 100, Genres) with seamless EN/ES search and DHT/Real-Debrid stream resolution.</description>
-        <description lang="es">Películas y series desde addons de Stremio y TMDB en Kodi. v3.3.0: Integración directa de TMDB (Tendencias, Popular, En cartelera, Mejor puntuadas, Top 100 últimos años, Géneros) y búsqueda bilingüe EN/ES sin fallos.</description>
+        <summary lang="en">Stremio addons on Kodi — Integrated OpenSubtitles &amp; Spanish-first streaming</summary>
+        <summary lang="es">Stremio en Kodi — OpenSubtitles Integrado y Catálogos TMDB</summary>
+        <description lang="en">Stream movies and series from Stremio addons on Kodi with built-in OpenSubtitles v3 (zero-configuration, free subtitle downloads without account or API key), TMDB integration, and Torrent/Real-Debrid resolution.</description>
+        <description lang="es">Películas y series desde addons de Stremio en Kodi con OpenSubtitles v3 integrado (sin cuentas, sin registro y gratis directamente en el reproductor de Kodi), integración TMDB y resolución Torrent/Debrid.</description>
         <platform>all</platform>
         <license>MIT</license>
         <assets>
