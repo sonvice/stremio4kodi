@@ -123,12 +123,9 @@ class TorrentResolver:
         # 1. Stop competing background torrents and resume target torrent
         existing_ids = self.pause_elementum_torrents(exclude_hash=info_hash)
 
-        # 2. Build Elementum play URL: if torrent is already known to Elementum, use resume= for instant start
-        if info_hash and info_hash in existing_ids:
-            play_url = f"http://127.0.0.1:65220/play?resume={info_hash}&doresume=true"
-        else:
-            encoded = quote(uri, safe="")
-            play_url = f"http://127.0.0.1:65220/play?uri={encoded}&doresume=false"
+        # 2. Build Elementum play URL
+        encoded = quote(uri, safe="")
+        play_url = f"http://127.0.0.1:65220/play?uri={encoded}&doresume=false"
 
         if file_idx is not None:
             play_url += f"&oindex={file_idx}"
@@ -139,8 +136,8 @@ class TorrentResolver:
         log(f"Resolving stream via Elementum daemon: {play_url[:120]}...", level="info")
 
         try:
-            # 60s timeout matching Elementum buffer timeout
-            res = opener.open(play_url, timeout=60)
+            # 300s timeout so Python doesn't prematurely interrupt Kodi's buffering dialog
+            res = opener.open(play_url, timeout=300)
             if res and res.getcode() in (301, 302, 303, 307):
                 loc = res.geturl()
                 if loc and loc.startswith("http"):

@@ -134,7 +134,7 @@ class Config:
 
     @staticmethod
     def reopen_streams_on_cancel():
-        return ADDON.getSetting("reopen_streams_on_cancel") != "false"
+        return ADDON.getSetting("reopen_streams_on_cancel") == "true"
 
     @staticmethod
     def stall_recovery_dialog():
