@@ -1181,8 +1181,6 @@ class Router:
             xbmc.executebuiltin(f'PlayMedia("{playable_url}")')
         else:
             log(f"Player.play -> {playable_url[:100]}", level="info")
-            if sub_list:
-                ui.show_notification("Subtítulos cargados")
             xbmc.Player().play(playable_url, li)
 
     # ══════════════════════════════════════════════════════

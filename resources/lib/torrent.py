@@ -63,25 +63,42 @@ class TorrentResolver:
         self.engine = Config.torrent_engine()
         self.rd = RealDebrid()
 
-    def pause_elementum_torrents(self):
-        """Pause all currently active/downloading torrents in Elementum to prevent bandwidth and I/O starvation."""
+    def pause_elementum_torrents(self, exclude_hash=None):
+        """
+        Pause competing torrents in Elementum to prevent bandwidth, CPU, and I/O starvation,
+        while ensuring the target torrent is unpaused/resumed.
+        Returns set of existing torrent IDs.
+        """
+        existing_ids = set()
         try:
             elem_req = urllib.request.Request("http://127.0.0.1:65220/torrents/list", headers={"User-Agent": "Kodi"})
             with urllib.request.urlopen(elem_req, timeout=1.5) as r:
                 torrents = json.loads(r.read().decode())
+                target_norm = exclude_hash.lower() if exclude_hash else None
                 for t in torrents:
-                    tid = t.get("id")
-                    if tid and t.get("status") != "Paused":
-                        pause_req = urllib.request.Request(f"http://127.0.0.1:65220/torrents/pause/{tid}")
-                        urllib.request.urlopen(pause_req, timeout=1.5)
-                        log(f"Paused competing Elementum torrent: {tid} ({t.get('name', '')})", level="info")
+                    tid = (t.get("id") or "").lower()
+                    if not tid:
+                        continue
+                    existing_ids.add(tid)
+                    status = t.get("status")
+                    if target_norm and tid == target_norm:
+                        if status == "Paused":
+                            resume_req = urllib.request.Request(f"http://127.0.0.1:65220/torrents/resume/{tid}")
+                            urllib.request.urlopen(resume_req, timeout=1.5)
+                            log(f"Resumed active Elementum target torrent: {tid}", level="info")
+                    else:
+                        if status != "Paused":
+                            pause_req = urllib.request.Request(f"http://127.0.0.1:65220/torrents/pause/{tid}")
+                            urllib.request.urlopen(pause_req, timeout=1.5)
+                            log(f"Paused competing Elementum torrent: {tid} ({t.get('name', '')})", level="info")
         except Exception as e:
-            log(f"Notice: Elementum pause check: {e}", level="debug")
+            log(f"Notice: Elementum pause/resume check: {e}", level="debug")
+        return existing_ids
 
-    def resolve_elementum_stream(self, uri, file_idx=None):
+    def resolve_elementum_stream(self, uri, file_idx=None, info_hash=None):
         """
         Emulates Elementum's native playback architecture:
-        Directly requests http://127.0.0.1:65220/play?uri=...&doresume=true
+        Directly requests http://127.0.0.1:65220/play?uri=... or resume=...&doresume=true
         Elementum Go daemon displays the native Kodi progress dialog while buffering.
         When buffering reaches 100%, Elementum returns a 302 redirect with the direct HTTP stream URL:
         http://127.0.0.1:65220/files/...
@@ -90,11 +107,29 @@ class TorrentResolver:
         if not self.is_engine_alive("Elementum"):
             return None
 
-        # 1. Stop background torrents so they don't starve bandwidth or connections
-        self.pause_elementum_torrents()
+        if not info_hash and uri:
+            match = re.search(r"urn:btih:([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})", uri, re.I)
+            if match:
+                raw_hash = match.group(1)
+                if len(raw_hash) == 40:
+                    info_hash = raw_hash.lower()
+                elif len(raw_hash) == 32:
+                    import base64
+                    try:
+                        info_hash = base64.b32decode(raw_hash.upper()).hex().lower()
+                    except Exception:
+                        info_hash = raw_hash.lower()
 
-        encoded = quote(uri, safe="")
-        play_url = f"http://127.0.0.1:65220/play?uri={encoded}&doresume=true"
+        # 1. Stop competing background torrents and resume target torrent
+        existing_ids = self.pause_elementum_torrents(exclude_hash=info_hash)
+
+        # 2. Build Elementum play URL: if torrent is already known to Elementum, use resume= for instant start
+        if info_hash and info_hash in existing_ids:
+            play_url = f"http://127.0.0.1:65220/play?resume={info_hash}&doresume=true"
+        else:
+            encoded = quote(uri, safe="")
+            play_url = f"http://127.0.0.1:65220/play?uri={encoded}&doresume=true"
+
         if file_idx is not None:
             play_url += f"&oindex={file_idx}"
 
@@ -113,6 +148,14 @@ class TorrentResolver:
                     return loc
         except Exception as e:
             log(f"Elementum daemon resolve ended: {e}", level="info")
+            # If user cancelled or buffering timed out, pause the torrent so it does not keep downloading in background
+            if info_hash:
+                try:
+                    pause_req = urllib.request.Request(f"http://127.0.0.1:65220/torrents/pause/{info_hash}")
+                    urllib.request.urlopen(pause_req, timeout=1.5)
+                    log(f"Paused Elementum torrent after aborted resolution: {info_hash}", level="info")
+                except Exception:
+                    pass
             return None
 
         return None
@@ -142,7 +185,7 @@ class TorrentResolver:
                 checked = self._check_privacy_and_engine("Elementum")
                 if not checked:
                     return None
-                resolved = self.resolve_elementum_stream(magnet, file_idx)
+                resolved = self.resolve_elementum_stream(magnet, file_idx, info_hash=info_hash)
                 if resolved:
                     return resolved
                 return None
