@@ -128,7 +128,7 @@ class TorrentResolver:
             play_url = f"http://127.0.0.1:65220/play?resume={info_hash}&doresume=true"
         else:
             encoded = quote(uri, safe="")
-            play_url = f"http://127.0.0.1:65220/play?uri={encoded}&doresume=true"
+            play_url = f"http://127.0.0.1:65220/play?uri={encoded}&doresume=false"
 
         if file_idx is not None:
             play_url += f"&oindex={file_idx}"
@@ -139,8 +139,8 @@ class TorrentResolver:
         log(f"Resolving stream via Elementum daemon: {play_url[:120]}...", level="info")
 
         try:
-            # 180s timeout matching Elementum's buffer timeout
-            res = opener.open(play_url, timeout=180)
+            # 60s timeout matching Elementum buffer timeout
+            res = opener.open(play_url, timeout=60)
             if res and res.getcode() in (301, 302, 303, 307):
                 loc = res.geturl()
                 if loc and loc.startswith("http"):
@@ -531,7 +531,12 @@ class TorrentResolver:
             elif seeds < 3:
                 health_score = -100000 + (seeds * 100)  # Unhealthy swarm penalty
             else:
-                health_score = min(seeds, 500) * 20  # Up to 10,000 points
+                health_score = min(seeds, 500) * 100  # Up to 50,000 points (healthy swarms prioritize speed & stability)
+
+            # Single-file torrent bonus (far more reliable on P2P engines than multi-file season packs)
+            file_bonus = 0
+            if s.get("fileIdx") is None:
+                file_bonus = 1000
 
             # Spanish boost (only granted to healthy streams or RD cached)
             esp_boost = 0
@@ -543,13 +548,13 @@ class TorrentResolver:
             # Preference score
             pref_score = 0
             if sort_by == "Seeds":
-                pref_score = seeds * 10
+                pref_score = seeds * 50
             elif sort_by == "Quality":
-                pref_score = self._quality_score(s) * 500
+                pref_score = self._quality_score(s) * 300
             elif sort_by == "Size":
                 pref_score = int(self._extract_size_gb(s) * 100)
 
-            return health_score + esp_boost + pref_score
+            return health_score + file_bonus + esp_boost + pref_score
 
         return sorted(streams, key=_sort_key, reverse=True)
 
