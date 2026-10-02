@@ -67,19 +67,19 @@ class PlaybackMonitor(xbmc.Player):
             except Exception:
                 pass
 
-            # Stop Elementum active torrents
+            # Pause Elementum active torrents to halt downloads while preserving resume data & history
             try:
                 elem_req = urllib.request.Request("http://127.0.0.1:65220/torrents/list", headers={"User-Agent": "Kodi"})
                 with urllib.request.urlopen(elem_req, timeout=1.5) as r:
                     elem_torrents = json.loads(r.read().decode())
                     for t in elem_torrents:
                         tid = t.get("id")
-                        if tid:
-                            del_req = urllib.request.Request(f"http://127.0.0.1:65220/torrents/delete/{tid}")
-                            urllib.request.urlopen(del_req, timeout=1.5)
-                            log(f"Stopped Elementum torrent on cancel: {tid} ({t.get('name', '')})", level="info")
+                        if tid and t.get("status") != "Paused":
+                            pause_req = urllib.request.Request(f"http://127.0.0.1:65220/torrents/pause/{tid}")
+                            urllib.request.urlopen(pause_req, timeout=1.5)
+                            log(f"Paused Elementum torrent on stop (preserving resume/history): {tid} ({t.get('name', '')})", level="info")
             except Exception as e:
-                log(f"Notice: Elementum stop check: {e}", level="debug")
+                log(f"Notice: Elementum pause check: {e}", level="debug")
 
         threading.Thread(target=_stop, daemon=True).start()
 
@@ -436,7 +436,7 @@ class StremioService(xbmc.Monitor):
         except Exception:
             pass
 
-        # Clean Elementum abandoned torrents
+        # Pause Elementum background torrents on startup
         try:
             elem_req = urllib.request.Request("http://127.0.0.1:65220/torrents/list", headers={"User-Agent": "Kodi"})
             with urllib.request.urlopen(elem_req, timeout=1.5) as r:
@@ -444,9 +444,9 @@ class StremioService(xbmc.Monitor):
                 for t in elem_torrents:
                     tid = t.get("id")
                     if tid:
-                        del_req = urllib.request.Request(f"http://127.0.0.1:65220/torrents/delete/{tid}")
-                        urllib.request.urlopen(del_req, timeout=1.5)
-                        log(f"Auto-cleaned abandoned Elementum torrent: {tid} ({t.get('name', '')})", level="info")
+                        pause_req = urllib.request.Request(f"http://127.0.0.1:65220/torrents/pause/{tid}")
+                        urllib.request.urlopen(pause_req, timeout=1.5)
+                        log(f"Paused Elementum torrent on startup: {tid} ({t.get('name', '')})", level="info")
         except Exception:
             pass
 

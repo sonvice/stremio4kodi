@@ -1031,7 +1031,7 @@ class Router:
     def _launch_stream(self, stream, imdb_id, media_type, title):
         playable_url = self.resolver.resolve(stream)
         if not playable_url:
-            ui.show_notification("No se pudo resolver el stream.")
+            log("Playback launch aborted (stream resolution returned None or was cancelled by user)", level="info")
             return
 
         try:
@@ -1124,6 +1124,20 @@ class Router:
                 li.setSubtitles(sub_list)
             except Exception:
                 pass
+
+        # Check for saved resume position in cache and inject into ListItem
+        try:
+            resume_data = self.cache.get_resume(imdb_id)
+            if resume_data and resume_data.get("position", 0) > 15:
+                pos = resume_data["position"]
+                dur = resume_data.get("duration", 0)
+                li.setProperty("ResumeTime", str(pos))
+                li.setProperty("StartOffset", str(pos))
+                if dur > 0:
+                    li.setProperty("TotalTime", str(dur))
+                log(f"Injected resume point into ListItem: {pos}s / {dur}s", level="info")
+        except Exception as e:
+            log(f"Resume injection error: {e}", level="debug")
 
         # Store window properties for OpenSubtitles integration
         try:

@@ -5,6 +5,9 @@ v2: Added RD support. RD cached streams become direct HTTP = instant play.
 """
 import re
 from urllib.parse import quote
+import urllib.request
+import urllib.response
+import json
 
 from resources.lib.config import Config
 from resources.lib.debrid import RealDebrid
@@ -46,11 +49,73 @@ TRACKERS = [
 ]
 
 
+class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def http_error_302(self, req, fp, code, msg, headers):
+        infourl = urllib.response.addinfourl(fp, headers, headers.get("Location", ""), code)
+        return infourl
+    http_error_301 = http_error_302
+    http_error_303 = http_error_302
+    http_error_307 = http_error_302
+
 
 class TorrentResolver:
     def __init__(self):
         self.engine = Config.torrent_engine()
         self.rd = RealDebrid()
+
+    def pause_elementum_torrents(self):
+        """Pause all currently active/downloading torrents in Elementum to prevent bandwidth and I/O starvation."""
+        try:
+            elem_req = urllib.request.Request("http://127.0.0.1:65220/torrents/list", headers={"User-Agent": "Kodi"})
+            with urllib.request.urlopen(elem_req, timeout=1.5) as r:
+                torrents = json.loads(r.read().decode())
+                for t in torrents:
+                    tid = t.get("id")
+                    if tid and t.get("status") != "Paused":
+                        pause_req = urllib.request.Request(f"http://127.0.0.1:65220/torrents/pause/{tid}")
+                        urllib.request.urlopen(pause_req, timeout=1.5)
+                        log(f"Paused competing Elementum torrent: {tid} ({t.get('name', '')})", level="info")
+        except Exception as e:
+            log(f"Notice: Elementum pause check: {e}", level="debug")
+
+    def resolve_elementum_stream(self, uri, file_idx=None):
+        """
+        Emulates Elementum's native playback architecture:
+        Directly requests http://127.0.0.1:65220/play?uri=...&doresume=true
+        Elementum Go daemon displays the native Kodi progress dialog while buffering.
+        When buffering reaches 100%, Elementum returns a 302 redirect with the direct HTTP stream URL:
+        http://127.0.0.1:65220/files/...
+        Returns the direct HTTP stream URL, or None if user cancelled or error.
+        """
+        if not self.is_engine_alive("Elementum"):
+            return None
+
+        # 1. Stop background torrents so they don't starve bandwidth or connections
+        self.pause_elementum_torrents()
+
+        encoded = quote(uri, safe="")
+        play_url = f"http://127.0.0.1:65220/play?uri={encoded}&doresume=true"
+        if file_idx is not None:
+            play_url += f"&oindex={file_idx}"
+
+        opener = urllib.request.build_opener(NoRedirectHandler())
+        opener.addheaders = [("User-Agent", "plugin.video.elementum")]
+
+        log(f"Resolving stream via Elementum daemon: {play_url[:120]}...", level="info")
+
+        try:
+            # 180s timeout matching Elementum's buffer timeout
+            res = opener.open(play_url, timeout=180)
+            if res and res.getcode() in (301, 302, 303, 307):
+                loc = res.geturl()
+                if loc and loc.startswith("http"):
+                    log(f"Elementum resolved direct stream: {loc}", level="info")
+                    return loc
+        except Exception as e:
+            log(f"Elementum daemon resolve ended: {e}", level="info")
+            return None
+
+        return None
 
     def resolve(self, stream):
         """
@@ -72,6 +137,15 @@ class TorrentResolver:
         # ── infoHash → magnet → engine ─────────────────────
         if info_hash:
             magnet = self._build_magnet(info_hash, stream)
+            active = self.get_active_engine()
+            if active == "Elementum" and self.is_engine_alive("Elementum"):
+                checked = self._check_privacy_and_engine("Elementum")
+                if not checked:
+                    return None
+                resolved = self.resolve_elementum_stream(magnet, file_idx)
+                if resolved:
+                    return resolved
+                return None
             return self._check_privacy_and_engine(self._to_engine_url(magnet, stream))
 
         # ── magnet: link ───────────────────────────────────
@@ -82,10 +156,28 @@ class TorrentResolver:
                 if rd_url:
                     return rd_url
             enriched = self._enrich_magnet(url, stream)
+            active = self.get_active_engine()
+            if active == "Elementum" and self.is_engine_alive("Elementum"):
+                checked = self._check_privacy_and_engine("Elementum")
+                if not checked:
+                    return None
+                resolved = self.resolve_elementum_stream(enriched, file_idx)
+                if resolved:
+                    return resolved
+                return None
             return self._check_privacy_and_engine(self._to_engine_url(enriched, stream))
 
         # ── HTTP .torrent file ─────────────────────────────
         if url.startswith("http") and ".torrent" in url:
+            active = self.get_active_engine()
+            if active == "Elementum" and self.is_engine_alive("Elementum"):
+                checked = self._check_privacy_and_engine("Elementum")
+                if not checked:
+                    return None
+                resolved = self.resolve_elementum_stream(url, file_idx)
+                if resolved:
+                    return resolved
+                return None
             return self._check_privacy_and_engine(self._to_engine_url(url, stream))
 
         # ── Direct HTTP stream ─────────────────────────────
@@ -102,6 +194,15 @@ class TorrentResolver:
             if rd_url:
                 return rd_url, "direct"
         enriched = self._enrich_magnet(magnet_uri)
+        active = self.get_active_engine()
+        if active == "Elementum" and self.is_engine_alive("Elementum"):
+            checked = self._check_privacy_and_engine("Elementum")
+            if not checked:
+                return None, "plugin"
+            resolved = self.resolve_elementum_stream(enriched, None)
+            if resolved:
+                return resolved, "direct"
+            return None, "plugin"
         engine_url = self._to_engine_url(enriched, {})
         checked = self._check_privacy_and_engine(engine_url)
         if not checked:
