@@ -1029,159 +1029,131 @@ class Router:
         self._launch_stream(streams[0], imdb_id, media_type, title)
 
     def _launch_stream(self, stream, imdb_id, media_type, title):
-        playable_url = self.resolver.resolve(stream)
-        if not playable_url:
-            log("Playback launch aborted (stream resolution returned None or was cancelled by user)", level="info")
-            return
-
+        self.cache.set("_is_launching_playback", True, ttl=60)
         try:
-            base_imdb = imdb_id.split(":")[0] if ":" in imdb_id else imdb_id
-            self.cache.add_history(base_imdb, media_type, title,
-                                   stream.get("_poster", ""))
-        except Exception:
-            pass
+            playable_url = self.resolver.resolve(stream)
+            if not playable_url:
+                log("Playback launch aborted (stream resolution returned None or was cancelled by user)", level="info")
+                self.cache.delete("_is_launching_playback")
+                return
 
-        season = self.params.get("season", "")
-        episode = self.params.get("episode", "")
-        series_imdb = self.params.get("series_imdb", "") or imdb_id
-
-        show_title = ""
-        if media_type == "series":
-            show_title = self.params.get("series_title") or re.sub(r"\s+S\d+E\d+.*$", "", title, flags=re.I).strip()
-
-        context = {
-            "content_id": imdb_id,
-            "media_type": media_type,
-            "title": title,
-            "series_title": show_title,
-            "poster": stream.get("_poster", "") or self.params.get("poster", ""),
-            "imdb_id": series_imdb,
-            "season": season,
-            "episode": episode,
-        }
-        self.cache.set("_playback_context", context, ttl=7200)
-        self.cache.set("_last_played_url", playable_url, ttl=7200)
-
-        if Config.trakt_enabled() and media_type == "movie":
             try:
-                self.trakt.mark_watched(imdb_id.split(":")[0], media_type)
+                base_imdb = imdb_id.split(":")[0] if ":" in imdb_id else imdb_id
+                self.cache.add_history(base_imdb, media_type, title,
+                                       stream.get("_poster", ""))
             except Exception:
                 pass
 
-        sub_list = []
-        local_custom_sub = self.cache.get(f"selected_sub_{imdb_id}")
-        if local_custom_sub and os.path.exists(local_custom_sub):
-            sub_list.append(local_custom_sub)
+            season = self.params.get("season", "")
+            episode = self.params.get("episode", "")
+            series_imdb = self.params.get("series_imdb", "") or imdb_id
 
-        if imdb_id:
+            show_title = ""
+            if media_type == "series":
+                show_title = self.params.get("series_title") or re.sub(r"\s+S\d+E\d+.*$", "", title, flags=re.I).strip()
+
+            context = {
+                "content_id": imdb_id,
+                "media_type": media_type,
+                "title": title,
+                "series_title": show_title,
+                "poster": stream.get("_poster", "") or self.params.get("poster", ""),
+                "imdb_id": series_imdb,
+                "season": season,
+                "episode": episode,
+            }
+            self.cache.set("_playback_context", context, ttl=7200)
+            self.cache.set("_last_played_url", playable_url, ttl=7200)
+
+            if Config.trakt_enabled() and media_type == "movie":
+                try:
+                    self.trakt.mark_watched(imdb_id.split(":")[0], media_type)
+                except Exception:
+                    pass
+
+            # Only attach custom external subtitle if explicitly selected by the user via the context menu
+            sub_list = []
+            local_custom_sub = self.cache.get(f"selected_sub_{imdb_id}")
+            if local_custom_sub and os.path.exists(local_custom_sub):
+                sub_list.append(local_custom_sub)
+
+            # Build complete ListItem with Video metadata so Kodi subtitle downloader has the exact title & season & episode
+            li = xbmcgui.ListItem(label=title, path=playable_url)
+            info = {
+                "title": title,
+                "mediatype": "movie" if media_type == "movie" else "episode",
+            }
+            if media_type == "series":
+                if show_title:
+                    info["tvshowtitle"] = show_title
+                if season:
+                    try:
+                        info["season"] = int(season)
+                    except (ValueError, TypeError):
+                        pass
+                if episode:
+                    try:
+                        info["episode"] = int(episode)
+                    except (ValueError, TypeError):
+                        pass
+            elif self.params.get("original_title"):
+                info["originaltitle"] = self.params.get("original_title")
+
+            if imdb_id:
+                info["imdbnumber"] = imdb_id.split(":")[0]
+
+            li.setInfo("video", info)
+
+            art = {}
+            poster_url = stream.get("_poster") or self.params.get("poster", "")
+            if poster_url:
+                art["poster"] = poster_url
+                art["thumb"] = poster_url
+                art["icon"] = poster_url
+            if art:
+                li.setArt(art)
+
+            if sub_list:
+                try:
+                    li.setSubtitles(sub_list)
+                except Exception:
+                    pass
+
+            # Check for saved resume position in cache and inject into ListItem
             try:
-                from resources.lib.subtitles import prepare_subtitles_for_playback
-                prepared = prepare_subtitles_for_playback(imdb_id.split(":")[0], media_type, season, episode)
-                for su in prepared:
-                    if su not in sub_list:
-                        sub_list.append(su)
+                resume_data = self.cache.get_resume(imdb_id)
+                if resume_data and resume_data.get("position", 0) > 15:
+                    pos = resume_data["position"]
+                    dur = resume_data.get("duration", 0)
+                    li.setProperty("ResumeTime", str(pos))
+                    li.setProperty("StartOffset", str(pos))
+                    if dur > 0:
+                        li.setProperty("TotalTime", str(dur))
+                    log(f"Injected resume point into ListItem: {pos}s / {dur}s", level="info")
             except Exception as e:
-                log(f"Subtitle prepare error: {e}", level="debug")
+                log(f"Resume injection error: {e}", level="debug")
 
-        # Build complete ListItem with Video metadata so Kodi subtitle downloader has the exact title & season & episode
-        li = xbmcgui.ListItem(label=title, path=playable_url)
-        info = {
-            "title": title,
-            "mediatype": "movie" if media_type == "movie" else "episode",
-        }
-        if media_type == "series":
-            if show_title:
-                info["tvshowtitle"] = show_title
-            if season:
-                try:
-                    info["season"] = int(season)
-                except (ValueError, TypeError):
-                    pass
-            if episode:
-                try:
-                    info["episode"] = int(episode)
-                except (ValueError, TypeError):
-                    pass
-        elif self.params.get("original_title"):
-            info["originaltitle"] = self.params.get("original_title")
-
-        if imdb_id:
-            info["imdbnumber"] = imdb_id.split(":")[0]
-
-        li.setInfo("video", info)
-
-        art = {}
-        poster_url = stream.get("_poster") or self.params.get("poster", "")
-        if poster_url:
-            art["poster"] = poster_url
-            art["thumb"] = poster_url
-            art["icon"] = poster_url
-        if art:
-            li.setArt(art)
-
-        if sub_list:
+            # Store window properties for OpenSubtitles integration
             try:
-                li.setSubtitles(sub_list)
+                window = xbmcgui.Window(10000)
+                clean_imdb = imdb_id.split(":")[0] if imdb_id else ""
+                window.setProperty("stremio4kodi.current_imdb", clean_imdb)
+                window.setProperty("stremio4kodi.current_type", media_type or "movie")
+                window.setProperty("stremio4kodi.current_season", str(season or ""))
+                window.setProperty("stremio4kodi.current_episode", str(episode or ""))
+                window.setProperty("stremio4kodi.current_title", title or "")
             except Exception:
                 pass
 
-        # Check for saved resume position in cache and inject into ListItem
-        try:
-            resume_data = self.cache.get_resume(imdb_id)
-            if resume_data and resume_data.get("position", 0) > 15:
-                pos = resume_data["position"]
-                dur = resume_data.get("duration", 0)
-                li.setProperty("ResumeTime", str(pos))
-                li.setProperty("StartOffset", str(pos))
-                if dur > 0:
-                    li.setProperty("TotalTime", str(dur))
-                log(f"Injected resume point into ListItem: {pos}s / {dur}s", level="info")
+            if playable_url.startswith("plugin://"):
+                log(f"PlayMedia -> {playable_url[:100]}", level="info")
+                xbmc.executebuiltin(f'PlayMedia("{playable_url}")')
+            else:
+                log(f"Player.play -> {playable_url[:100]}", level="info")
+                xbmc.Player().play(playable_url, li)
         except Exception as e:
-            log(f"Resume injection error: {e}", level="debug")
-
-        # Store window properties for OpenSubtitles integration
-        try:
-            window = xbmcgui.Window(10000)
-            clean_imdb = imdb_id.split(":")[0] if imdb_id else ""
-            window.setProperty("stremio4kodi.current_imdb", clean_imdb)
-            window.setProperty("stremio4kodi.current_type", media_type or "movie")
-            window.setProperty("stremio4kodi.current_season", str(season or ""))
-            window.setProperty("stremio4kodi.current_episode", str(episode or ""))
-            window.setProperty("stremio4kodi.current_title", title or "")
-        except Exception:
-            pass
-
-        # Automatic background subtitle injector for ALL stream engines (Elementum, Torrest, Direct)
-        subs_to_inject = [s for s in sub_list if os.path.exists(s)]
-        if subs_to_inject:
-            def _apply_delayed_subs(paths):
-                import time
-                for _ in range(45):
-                    time.sleep(1)
-                    player = xbmc.Player()
-                    if player.isPlaying():
-                        time.sleep(1.5)
-                        # Inject subtitles (in reverse so the first one, Spanish, is the active track)
-                        for p in reversed(paths):
-                            try:
-                                player.setSubtitles(p)
-                                log(f"Injected OpenSubtitle to Player: {p}", level="info")
-                            except Exception as ex:
-                                log(f"Error setSubtitles {p}: {ex}", level="debug")
-                        try:
-                            player.showSubtitles(True)
-                        except Exception:
-                            pass
-                        break
-
-            threading.Thread(target=_apply_delayed_subs, args=[subs_to_inject], daemon=True).start()
-
-        if playable_url.startswith("plugin://"):
-            log(f"PlayMedia -> {playable_url[:100]}", level="info")
-            xbmc.executebuiltin(f'PlayMedia("{playable_url}")')
-        else:
-            log(f"Player.play -> {playable_url[:100]}", level="info")
-            xbmc.Player().play(playable_url, li)
+            self.cache.delete("_is_launching_playback")
+            raise
 
     # ══════════════════════════════════════════════════════
     #  MANUAL TORRENT / MAGNET

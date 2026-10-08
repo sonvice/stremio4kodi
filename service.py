@@ -38,6 +38,10 @@ class PlaybackMonitor(xbmc.Player):
     def onPlayBackStarted(self):
         """Called when playback starts."""
         self._playing = True
+        try:
+            self.cache.delete("_is_launching_playback")
+        except Exception:
+            pass
         self._subs_searched = False
         self._auto_next_lock = False
         self._auto_next_notified = False
@@ -50,8 +54,13 @@ class PlaybackMonitor(xbmc.Player):
 
     def _stop_engine_torrents(self):
         """Stop background torrent downloads when user stops playback."""
+        if self.cache.get("_is_launching_playback"):
+            return
+
         import threading
         def _stop():
+            if self.cache.get("_is_launching_playback"):
+                return
             import urllib.request, json
             # Stop Torrest active torrents
             try:
@@ -73,7 +82,7 @@ class PlaybackMonitor(xbmc.Player):
                 with urllib.request.urlopen(elem_req, timeout=1.5) as r:
                     elem_torrents = json.loads(r.read().decode())
                     for t in elem_torrents:
-                        tid = t.get("id")
+                        tid = str(t.get("id") or "").lower()
                         if tid and t.get("status") != "Paused":
                             pause_req = urllib.request.Request(f"http://127.0.0.1:65220/torrents/pause/{tid}")
                             urllib.request.urlopen(pause_req, timeout=1.5)
@@ -85,6 +94,15 @@ class PlaybackMonitor(xbmc.Player):
 
     def onPlayBackStopped(self):
         """Called when user stops playback."""
+        # If currently launching playback of a stream, ignore stop event for previous media
+        if self.cache.get("_is_launching_playback"):
+            log("Ignoring onPlayBackStopped during active stream launch", level="debug")
+            return
+
+        # If Stremio was not playing, ignore stop event from other sources
+        if not self._playing:
+            return
+
         self._save_position()
         self._playing = False
         log("Playback stopped", level="info")
@@ -95,8 +113,8 @@ class PlaybackMonitor(xbmc.Player):
         if self._last_dur > 0:
             ratio = self._last_pos / self._last_dur
 
-        # Only reopen streams list if aborted before playback actually got underway (< 15 seconds)
-        if self._last_pos < 15 and Config.reopen_streams_on_cancel():
+        # Only reopen streams list if aborted before playback actually got underway (0 < pos < 15s) and not launching
+        if 0 < self._last_pos < 15 and Config.reopen_streams_on_cancel() and not self.cache.get("_is_launching_playback"):
             self._reopen_streams()
 
     def onPlayBackEnded(self):
@@ -129,6 +147,9 @@ class PlaybackMonitor(xbmc.Player):
 
     def onPlayBackError(self):
         """Called when Kodi encounters an error attempting to start playback."""
+        if self.cache.get("_is_launching_playback"):
+            log("Ignoring onPlayBackError during active stream launch", level="debug")
+            return
         log("Playback error event detected (metadata timeout or unreachable stream)", level="warning")
         self._playing = False
         self._stop_engine_torrents()
@@ -141,7 +162,7 @@ class PlaybackMonitor(xbmc.Player):
             )
         except Exception:
             pass
-        if Config.reopen_streams_on_cancel():
+        if Config.reopen_streams_on_cancel() and not self.cache.get("_is_launching_playback"):
             self._reopen_streams()
 
     def tick(self):
@@ -362,8 +383,10 @@ class PlaybackMonitor(xbmc.Player):
 
     def _reopen_streams(self):
         """Reopen streams selection dialog after premature stop or cancellation."""
+        if self.cache.get("_is_launching_playback"):
+            return
         import time
-        if time.time() - getattr(self, "_last_reopen_time", 0) < 3.0:
+        if time.time() - getattr(self, "_last_reopen_time", 0) < 5.0:
             return
         self._last_reopen_time = time.time()
 
@@ -399,8 +422,9 @@ class PlaybackMonitor(xbmc.Player):
 
             log("Reopening streams list after stopped/cancelled playback", level="info")
             def _delayed_open():
-                xbmc.sleep(600)
-                xbmc.executebuiltin(f"Container.Update({url})")
+                xbmc.sleep(1000)
+                if not self.cache.get("_is_launching_playback") and not self._playing:
+                    xbmc.executebuiltin(f"Container.Update({url})")
 
             import threading
             threading.Thread(target=_delayed_open, daemon=True).start()

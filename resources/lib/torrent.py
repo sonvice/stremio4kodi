@@ -22,30 +22,14 @@ QUALITY_PATTERNS = {
 }
 
 TRACKERS = [
-    # Tier-1 High Availability UDP Trackers
+    # Tier-1 High Availability Open Trackers (Fast UDP & HTTP fallback)
     "udp://tracker.opentrackr.org:1337/announce",
     "udp://open.stealth.si:80/announce",
     "udp://tracker.torrent.eu.org:451/announce",
     "udp://explodie.org:6969/announce",
-    "udp://tracker.bittor.pw:1337/announce",
     "udp://tracker.openbittorrent.com:6969/announce",
-    "udp://tracker.dler.org:6969/announce",
-    "udp://tracker.moeking.me:6969/announce",
-    "udp://9.rarbg.to:2920/announce",
-    "udp://p4p.arenabg.com:1337/announce",
-    "udp://open.demonii.com:1337/announce",
-    "udp://movies.zsw.ca:6969/announce",
-    "udp://tracker.altrosky.nl:6969/announce",
-    "udp://tracker.tiny-vps.com:6969/announce",
-    "udp://bt1.archive.org:6969/announce",
-    # TV Series / EZTV Trackers
-    "udp://eztv.re:1337/announce",
-    # HTTP and HTTPS Fallback Trackers (Bypasses ISP UDP drop/throttling)
     "http://tracker.opentrackr.org:1337/announce",
-    "http://tracker.openbittorrent.com:80/announce",
     "https://tracker.tamersunion.org:443/announce",
-    "https://tracker.renfei.net:443/announce",
-    "http://eztv.re:80/announce",
 ]
 
 
@@ -76,12 +60,13 @@ class TorrentResolver:
                 torrents = json.loads(r.read().decode())
                 target_norm = exclude_hash.lower() if exclude_hash else None
                 for t in torrents:
-                    tid = (t.get("id") or "").lower()
-                    if not tid:
+                    tid = str(t.get("id") or "").lower()
+                    t_hash = (t.get("info_hash") or tid).lower()
+                    if not tid and not t_hash:
                         continue
-                    existing_ids.add(tid)
+                    existing_ids.add(t_hash)
                     status = t.get("status")
-                    if target_norm and tid == target_norm:
+                    if target_norm and (t_hash == target_norm or tid == target_norm):
                         if status == "Paused":
                             resume_req = urllib.request.Request(f"http://127.0.0.1:65220/torrents/resume/{tid}")
                             urllib.request.urlopen(resume_req, timeout=1.5)
@@ -98,7 +83,7 @@ class TorrentResolver:
     def resolve_elementum_stream(self, uri, file_idx=None, info_hash=None):
         """
         Emulates Elementum's native playback architecture:
-        Directly requests http://127.0.0.1:65220/play?uri=... or resume=...&doresume=true
+        Directly requests http://127.0.0.1:65220/play?uri=...
         Elementum Go daemon displays the native Kodi progress dialog while buffering.
         When buffering reaches 100%, Elementum returns a 302 redirect with the direct HTTP stream URL:
         http://127.0.0.1:65220/files/...
@@ -120,12 +105,9 @@ class TorrentResolver:
                     except Exception:
                         info_hash = raw_hash.lower()
 
-        # 1. Stop competing background torrents and resume target torrent
-        existing_ids = self.pause_elementum_torrents(exclude_hash=info_hash)
-
-        # 2. Build Elementum play URL
+        # Build Elementum play URL (do not force doresume=false so Elementum can reuse fastresume cache)
         encoded = quote(uri, safe="")
-        play_url = f"http://127.0.0.1:65220/play?uri={encoded}&doresume=false"
+        play_url = f"http://127.0.0.1:65220/play?uri={encoded}"
 
         if file_idx is not None:
             play_url += f"&oindex={file_idx}"
@@ -145,7 +127,6 @@ class TorrentResolver:
                     return loc
         except Exception as e:
             log(f"Elementum daemon resolve ended: {e}", level="info")
-            # If user cancelled or buffering timed out, pause the torrent so it does not keep downloading in background
             if info_hash:
                 try:
                     pause_req = urllib.request.Request(f"http://127.0.0.1:65220/torrents/pause/{info_hash}")
