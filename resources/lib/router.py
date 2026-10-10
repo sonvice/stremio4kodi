@@ -154,6 +154,15 @@ class Router:
         if Config.trakt_enabled():
             items.append(("Trakt", "trakt_menu", "DefaultAddonProgram.png"))
 
+        # VPN Status & Quick Toggle for CoreELEC
+        if self._is_vpn_supported():
+            vpn_on = self._is_vpn_connected()
+            if vpn_on:
+                vpn_label = "[COLOR lime]🛡️ VPN Surfshark: CONECTADA (Paises Bajos)[/COLOR]"
+            else:
+                vpn_label = "[COLOR red]⚡ VPN Surfshark: DESCONECTADA (Fibra Directa)[/COLOR]"
+            items.append((vpn_label, "vpn_toggle", "DefaultNetwork.png"))
+
         items.append(("Ajustes", "settings", "DefaultAddonProgram.png"))
 
         for label, action, icon in items:
@@ -2362,8 +2371,8 @@ class Router:
     def _is_vpn_connected():
         import subprocess
         try:
-            res = subprocess.run(["ip", "link", "show", "wg0"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=1)
-            return res.returncode == 0
+            out = subprocess.check_output(["ip", "route"], timeout=1).decode("utf-8")
+            return any(line.startswith("default") and "wg0" in line for line in out.splitlines())
         except Exception:
             return False
 
@@ -2374,12 +2383,13 @@ class Router:
 
         import subprocess
         import os
+        import urllib.request
 
         vpn_on = self._is_vpn_connected()
         if vpn_on:
             confirmed = ui.show_yesno(
-                "Surfshark VPN",
-                "¿Deseas DESCONECTAR la VPN de Surfshark?\n\n(Se usará la conexión directa de tu operadora)"
+                "Control VPN Surfshark",
+                "¿Deseas DESCONECTAR la VPN de Surfshark?\n\n(Se utilizará la conexión directa de tu fibra para máxima velocidad)"
             )
             if confirmed:
                 ui.show_notification("Desconectando VPN...", time=2000)
@@ -2387,14 +2397,31 @@ class Router:
                     with open("/storage/.config/vpn_manual_off", "w") as f:
                         f.write("1\n")
                     subprocess.run(["connmanctl", "disconnect", "vpn_89_46_223_185"], timeout=5)
-                    ui.show_notification("VPN Desconectada (Directo)", time=3000)
+                    try:
+                        subprocess.run(["ip", "route", "add", "default", "via", "192.168.1.1", "dev", "eth0"], timeout=2)
+                    except Exception:
+                        pass
+                    xbmc.sleep(1500)
+                    ip = "Fibra Directa"
+                    try:
+                        with urllib.request.urlopen("https://api.ipify.org", timeout=2) as resp:
+                            ip = resp.read().decode().strip()
+                    except Exception:
+                        pass
+                    xbmcgui.Dialog().ok(
+                        "VPN Desconectada ⚡",
+                        f"La VPN de Surfshark ha sido DESCONECTADA.\n\n"
+                        f"Ahora estás navegando directo con tu operadora.\n"
+                        f"• IP Pública Actual: {ip}\n"
+                        f"• Modo: Máxima velocidad P2P (Puertos abiertos)"
+                    )
                 except Exception as e:
                     log(f"Error disconnecting VPN: {e}", level="error")
                     ui.show_notification(f"Error: {e}")
         else:
             confirmed = ui.show_yesno(
-                "Surfshark VPN",
-                "¿Deseas ACTIVAR la VPN de Surfshark?\n\n(Conectando a servidor de Ámsterdam, Países Bajos)"
+                "Control VPN Surfshark",
+                "¿Deseas CONECTAR la VPN de Surfshark?\n\n(Servidor: Países Bajos WireGuard)"
             )
             if confirmed:
                 try:
@@ -2405,9 +2432,21 @@ class Router:
                             pass
                     ui.show_notification("Conectando a Surfshark...", time=2500)
                     subprocess.run(["connmanctl", "connect", "vpn_89_46_223_185"], timeout=8)
-                    xbmc.sleep(1000)
+                    xbmc.sleep(2000)
                     if self._is_vpn_connected():
-                        ui.show_notification("¡VPN Conectada a Países Bajos!", time=3000)
+                        ip = "Surfshark NL"
+                        try:
+                            with urllib.request.urlopen("https://api.ipify.org", timeout=2) as resp:
+                                ip = resp.read().decode().strip()
+                        except Exception:
+                            pass
+                        xbmcgui.Dialog().ok(
+                            "VPN Conectada 🛡️",
+                            f"La VPN de Surfshark ha sido CONECTADA con éxito.\n\n"
+                            f"Tu tráfico está cifrado y protegido.\n"
+                            f"• IP Pública VPN: {ip}\n"
+                            f"• Servidor: Países Bajos (WireGuard)"
+                        )
                     else:
                         ui.show_notification("No se pudo conectar a la VPN", time=3000)
                 except Exception as e:
