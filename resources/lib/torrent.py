@@ -282,19 +282,13 @@ class TorrentResolver:
                 return "Torrest"
             return "Elementum"
 
-        if preflight:
-            if engine == "Elementum" and not self.is_engine_alive("Elementum"):
-                if self.is_engine_alive("Torrest"):
-                    log("Elementum unreachable, auto failover to Torrest", level="warning")
-                    import xbmcgui
-                    xbmcgui.Dialog().notification("Motor Torrent", "Elementum no responde; usando Torrest", xbmcgui.NOTIFICATION_WARNING, 3500)
-                    return "Torrest"
-            elif engine == "Torrest" and not self.is_engine_alive("Torrest"):
+        if preflight and engine == "Elementum" and not self.is_engine_alive("Elementum"):
+            for _ in range(4):
+                xbmc.sleep(500)
                 if self.is_engine_alive("Elementum"):
-                    log("Torrest unreachable, auto failover to Elementum", level="warning")
-                    import xbmcgui
-                    xbmcgui.Dialog().notification("Motor Torrent", "Torrest no responde; usando Elementum", xbmcgui.NOTIFICATION_WARNING, 3500)
                     return "Elementum"
+            log("Elementum unreachable during preflight", level="warning")
+            return "Elementum"
 
         return engine
 
