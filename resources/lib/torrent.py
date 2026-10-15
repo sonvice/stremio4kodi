@@ -545,7 +545,7 @@ class TorrentResolver:
             str(s.get("name") or ""),
             str(s.get("description") or "")
         ])
-        match = re.search(r"(?:👤|seeds?[:\s]|s[:\s])\s*(\d+)", text, re.IGNORECASE)
+        match = re.search(r"(?:👤|\bseeds?\s*[:=]?\s*|\bseeders?\s*[:=]?\s*|\[s:\s*)\s*(\d+)", text, re.IGNORECASE)
         if match:
             try:
                 return int(match.group(1))
