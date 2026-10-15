@@ -1132,12 +1132,15 @@ class Router:
             try:
                 resume_data = self.cache.get_resume(imdb_id)
                 if resume_data and resume_data.get("position", 0) > 15:
-                    pos = resume_data["position"]
-                    dur = resume_data.get("duration", 0)
-                    li.setProperty("ResumeTime", str(pos))
-                    li.setProperty("StartOffset", str(pos))
-                    if dur > 0:
-                        li.setProperty("TotalTime", str(dur))
+                    pos = float(resume_data["position"])
+                    dur = float(resume_data.get("duration", 0))
+                    try:
+                        info_tag = li.getVideoInfoTag()
+                        info_tag.setResumePoint(pos, dur)
+                    except Exception:
+                        li.setProperty("ResumeTime", str(pos))
+                        if dur > 0:
+                            li.setProperty("TotalTime", str(dur))
                     log(f"Injected resume point into ListItem: {pos}s / {dur}s", level="info")
             except Exception as e:
                 log(f"Resume injection error: {e}", level="debug")
