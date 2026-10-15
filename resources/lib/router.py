@@ -1038,12 +1038,51 @@ class Router:
         self._launch_stream(streams[0], imdb_id, media_type, title)
 
     def _launch_stream(self, stream, imdb_id, media_type, title):
+        # Check if there is a saved resume position and ask user BEFORE resolving/buffering
+        chosen_pos = None
+        saved_dur = 0.0
+        if Config.resume_enabled() and imdb_id:
+            try:
+                resume_data = self.cache.get_resume(imdb_id)
+                if resume_data and float(resume_data.get("position", 0)) > 15:
+                    pos = float(resume_data["position"])
+                    dur = float(resume_data.get("duration", 0))
+                    saved_dur = dur
+                    pos_int = int(pos)
+                    m, s = divmod(pos_int, 60)
+                    h, m = divmod(m, 60)
+                    time_str = f"{h:d}:{m:02d}:{s:02d}" if h > 0 else f"{m:d}:{s:02d}"
+
+                    dialog = xbmcgui.Dialog()
+                    opts = [
+                        f"▶️  Reanudar desde el minuto {time_str}",
+                        "⏮️  Empezar desde el principio"
+                    ]
+                    choice = dialog.select("Reanudar reproducción", opts)
+                    if choice == 0:
+                        chosen_pos = pos
+                        log(f"User chose to resume at {pos:.1f}s ({time_str})", level="info")
+                    elif choice == 1:
+                        chosen_pos = 0.0
+                        log("User chose to start from beginning (0:00)", level="info")
+                    else:
+                        log("User cancelled playback from resume dialog", level="info")
+                        return
+            except Exception as e:
+                log(f"Resume prompt check error: {e}", level="debug")
+
+        if chosen_pos is not None:
+            self.cache.set("_chosen_resume_pos", chosen_pos, ttl=300)
+            self.cache.set("_chosen_resume_id", imdb_id, ttl=300)
+
         self.cache.set("_is_launching_playback", True, ttl=60)
         try:
             playable_url = self.resolver.resolve(stream)
             if not playable_url:
                 log("Playback launch aborted (stream resolution returned None or was cancelled by user)", level="info")
                 self.cache.delete("_is_launching_playback")
+                self.cache.delete("_chosen_resume_pos")
+                self.cache.delete("_chosen_resume_id")
                 return
 
             try:
@@ -1128,22 +1167,28 @@ class Router:
                 except Exception:
                     pass
 
-            # Check for saved resume position in cache and inject into ListItem
-            try:
-                resume_data = self.cache.get_resume(imdb_id)
-                if resume_data and resume_data.get("position", 0) > 15:
-                    pos = float(resume_data["position"])
-                    dur = float(resume_data.get("duration", 0))
+            # Apply chosen resume position or beginning
+            if chosen_pos is not None:
+                if chosen_pos > 15:
                     try:
                         info_tag = li.getVideoInfoTag()
-                        info_tag.setResumePoint(pos, dur)
+                        info_tag.setResumePoint(chosen_pos, saved_dur)
                     except Exception:
-                        li.setProperty("ResumeTime", str(pos))
-                        if dur > 0:
-                            li.setProperty("TotalTime", str(dur))
-                    log(f"Injected resume point into ListItem: {pos}s / {dur}s", level="info")
-            except Exception as e:
-                log(f"Resume injection error: {e}", level="debug")
+                        pass
+                    li.setProperty("ResumeTime", str(chosen_pos))
+                    li.setProperty("StartOffset", str(chosen_pos))
+                    if saved_dur > 0:
+                        li.setProperty("TotalTime", str(saved_dur))
+                    log(f"Injected resume point into ListItem: {chosen_pos:.1f}s / {saved_dur:.1f}s", level="info")
+                else:
+                    try:
+                        info_tag = li.getVideoInfoTag()
+                        info_tag.setResumePoint(0.0, saved_dur)
+                    except Exception:
+                        pass
+                    li.setProperty("ResumeTime", "0")
+                    li.setProperty("StartOffset", "0")
+                    log("Explicitly set ListItem to start from beginning (0:00)", level="info")
 
             # Store window properties for OpenSubtitles integration
             try:
@@ -1165,6 +1210,8 @@ class Router:
                 xbmc.Player().play(playable_url, li)
         except Exception as e:
             self.cache.delete("_is_launching_playback")
+            self.cache.delete("_chosen_resume_pos")
+            self.cache.delete("_chosen_resume_id")
             raise
 
     # ══════════════════════════════════════════════════════

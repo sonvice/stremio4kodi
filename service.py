@@ -52,6 +52,40 @@ class PlaybackMonitor(xbmc.Player):
         log("Playback started", level="info")
         self._scrobble("start", 0.0)
 
+        # Enforce user resume choice (handles Kodi internal bookmark conflicts)
+        chosen_pos = self.cache.get("_chosen_resume_pos")
+        if chosen_pos is not None:
+            self.cache.delete("_chosen_resume_pos")
+            self.cache.delete("_chosen_resume_id")
+            import threading
+            def _enforce_position(target_pos):
+                try:
+                    for _ in range(25):
+                        if not self.isPlaying():
+                            return
+                        xbmc.sleep(200)
+                        if not self.isPlaying():
+                            return
+                        cur = self.getTime()
+                        if target_pos == 0.0:
+                            if cur > 10:
+                                log(f"Kodi jumped to bookmark ({cur:.1f}s), enforcing seek to 0.0s", level="info")
+                                self.seekTime(0.0)
+                                break
+                            elif 0 <= cur <= 5:
+                                break
+                        elif target_pos > 15:
+                            if cur < 5:
+                                log(f"Enforcing seek to chosen resume position: {target_pos:.1f}s", level="info")
+                                self.seekTime(target_pos)
+                                break
+                            elif abs(cur - target_pos) < 15:
+                                break
+                except Exception as e:
+                    log(f"Position enforcement notice: {e}", level="debug")
+
+            threading.Thread(target=_enforce_position, args=(float(chosen_pos),), daemon=True).start()
+
     def _stop_engine_torrents(self):
         """Stop background torrent downloads when user stops playback."""
         if self.cache.get("_is_launching_playback"):
@@ -108,14 +142,6 @@ class PlaybackMonitor(xbmc.Player):
         log("Playback stopped", level="info")
         self._scrobble("stop")
         self._stop_engine_torrents()
-
-        ratio = 0.0
-        if self._last_dur > 0:
-            ratio = self._last_pos / self._last_dur
-
-        # Only reopen streams list if aborted before playback actually got underway (0 < pos < 15s) and not launching
-        if 0 < self._last_pos < 15 and Config.reopen_streams_on_cancel() and not self.cache.get("_is_launching_playback"):
-            self._reopen_streams()
 
     def onPlayBackEnded(self):
         """Called when playback reaches the end."""
@@ -246,7 +272,7 @@ class PlaybackMonitor(xbmc.Player):
                 pos = self._last_pos
                 dur = self._last_dur
 
-            if not pos or not dur or dur <= 0:
+            if not pos or not dur or dur <= 0 or pos < 15:
                 return
 
             self._last_pos = pos
