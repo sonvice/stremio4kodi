@@ -13,6 +13,8 @@ from resources.lib.config import Config
 from resources.lib.debrid import RealDebrid
 from resources.lib.spanish import detect_spanish, get_spanish_label, get_spanish_boost
 from resources.lib.logger import log
+import xbmc
+import xbmcgui
 
 QUALITY_PATTERNS = {
     "4K":    re.compile(r"(2160p|4k|uhd)", re.IGNORECASE),
