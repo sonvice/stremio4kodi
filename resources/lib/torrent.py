@@ -82,6 +82,134 @@ class TorrentResolver:
             log(f"Notice: Elementum pause/resume check: {e}", level="debug")
         return existing_ids
 
+    def try_recover_elementum(self):
+        """
+        Attempts to auto-heal Elementum when the daemon is unresponsive.
+        Restarts Elementum via Kodi JSON-RPC (Addons.SetAddonEnabled toggle).
+        """
+        log("Attempting Elementum auto-heal via Kodi JSON-RPC...", level="info")
+        try:
+            disable_payload = json.dumps({
+                "jsonrpc": "2.0",
+                "method": "Addons.SetAddonEnabled",
+                "params": {"addonid": "plugin.video.elementum", "enabled": False},
+                "id": 1
+            })
+            xbmc.executeJSONRPC(disable_payload)
+            xbmc.sleep(800)
+
+            enable_payload = json.dumps({
+                "jsonrpc": "2.0",
+                "method": "Addons.SetAddonEnabled",
+                "params": {"addonid": "plugin.video.elementum", "enabled": True},
+                "id": 2
+            })
+            xbmc.executeJSONRPC(enable_payload)
+
+            for _ in range(7):
+                xbmc.sleep(500)
+                if self.is_engine_alive("Elementum"):
+                    log("Elementum successfully auto-healed and alive!", level="info")
+                    return True
+        except Exception as e:
+            log(f"Elementum auto-heal attempt error: {e}", level="warning")
+        return False
+
+    def resolve_torrserver_stream(self, uri, file_idx=None, stream_title="", info_hash=None):
+        """
+        Resolves torrent stream via TorrServer MatriX HTTP streaming endpoint.
+        Returns direct HTTP playable URL.
+        """
+        if not self.is_engine_alive("TorrServer"):
+            return None
+
+        host = Config.torrserver_host().strip() or "127.0.0.1"
+        port = str(Config.torrserver_port()).strip() or "8090"
+        auth_required = Config.torrserver_auth()
+        user = Config.torrserver_user().strip()
+        password = Config.torrserver_pass()
+
+        base_api_url = f"http://{host}:{port}"
+        headers = {"User-Agent": "Kodi", "Content-Type": "application/json"}
+        if auth_required and user:
+            import base64
+            cred = base64.b64encode(f"{user}:{password}".encode()).decode()
+            headers["Authorization"] = f"Basic {cred}"
+
+        if not info_hash and uri:
+            match = re.search(r"urn:btih:([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})", uri, re.I)
+            if match:
+                raw_hash = match.group(1)
+                if len(raw_hash) == 40:
+                    info_hash = raw_hash.lower()
+                elif len(raw_hash) == 32:
+                    import base64
+                    try:
+                        info_hash = base64.b32decode(raw_hash.upper()).hex().lower()
+                    except Exception:
+                        info_hash = raw_hash.lower()
+
+        # Add torrent to TorrServer memory session (save_to_db=False)
+        try:
+            add_payload = json.dumps({
+                "action": "add",
+                "link": uri or (f"magnet:?xt=urn:btih:{info_hash}" if info_hash else ""),
+                "title": stream_title or "Stream",
+                "save_to_db": False
+            }).encode("utf-8")
+            req = urllib.request.Request(f"{base_api_url}/torrents", data=add_payload, headers=headers)
+            with urllib.request.urlopen(req, timeout=2.0) as resp:
+                pass
+        except Exception as e:
+            log(f"TorrServer add session notice: {e}", level="debug")
+
+        best_id = None
+        chosen_filename = None
+
+        # Fetch file list from TorrServer
+        if info_hash:
+            get_payload = json.dumps({"action": "get", "hash": info_hash}).encode("utf-8")
+            for _ in range(8):
+                try:
+                    req = urllib.request.Request(f"{base_api_url}/torrents", data=get_payload, headers=headers)
+                    with urllib.request.urlopen(req, timeout=1.0) as resp:
+                        data = json.loads(resp.read().decode())
+                        file_stats = data.get("file_stats") or []
+                        if file_stats:
+                            if file_idx is not None and isinstance(file_idx, int) and 0 <= file_idx < len(file_stats):
+                                best_id = file_stats[file_idx].get("id")
+                                chosen_filename = file_stats[file_idx].get("path", "").replace("\\", "/").split("/")[-1]
+                            elif file_idx is None:
+                                video_exts = ('.mkv', '.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm', '.ts', '.m2ts')
+                                v_files = [f for f in file_stats if any(f.get("path", "").lower().endswith(ext) for ext in video_exts)]
+                                pool = v_files if v_files else file_stats
+                                largest = max(pool, key=lambda x: x.get("length", 0))
+                                best_id = largest.get("id")
+                                chosen_filename = largest.get("path", "").replace("\\", "/").split("/")[-1]
+                            break
+                except Exception:
+                    pass
+                xbmc.sleep(250)
+
+        if best_id is None:
+            if file_idx is not None and isinstance(file_idx, int):
+                best_id = file_idx + 1
+            else:
+                best_id = 1
+
+        if not chosen_filename:
+            safe_name = re.sub(r'[/\\?%*:|"<>]', '.', stream_title or "video").strip()
+            if not any(safe_name.lower().endswith(ext) for ext in ('.mkv', '.mp4', '.avi', '.ts')):
+                safe_name += ".mkv"
+            chosen_filename = safe_name
+
+        auth_str = f"{quote(user)}:{quote(password)}@" if auth_required and user else ""
+        encoded_filename = quote(chosen_filename)
+        encoded_link = quote(uri or f"magnet:?xt=urn:btih:{info_hash}", safe="")
+        stream_url = f"http://{auth_str}{host}:{port}/stream/{encoded_filename}?link={encoded_link}&index={best_id}&play"
+        log(f"TorrServer resolved direct stream: {stream_url[:120]}...", level="info")
+        return stream_url
+
     def resolve_elementum_stream(self, uri, file_idx=None, info_hash=None):
         """
         Emulates Elementum's native playback architecture:
@@ -92,7 +220,11 @@ class TorrentResolver:
         Returns the direct HTTP stream URL, or None if user cancelled or error.
         """
         if not self.is_engine_alive("Elementum"):
-            return None
+            if Config.elementum_auto_heal():
+                if not self.try_recover_elementum():
+                    return None
+            else:
+                return None
 
         if not info_hash and uri:
             match = re.search(r"urn:btih:([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})", uri, re.I)
@@ -143,11 +275,12 @@ class TorrentResolver:
     def resolve(self, stream):
         """
         Resolve a stream dict to a playable URL.
-        Priority: Real-Debrid (always tried first) > Elementum/Quasar > Direct HTTP
+        Priority: Real-Debrid (always tried first) > TorrServer/Elementum > Direct HTTP
         """
         url = stream.get("url", "")
         info_hash = stream.get("infoHash", "")
         file_idx = stream.get("fileIdx")
+        stream_title = (stream.get("title") or stream.get("name") or "").split("\n")[0].strip()
 
         # ── Try Real-Debrid first for ANY hash (cache API is unreliable) ──
         if info_hash and self.rd.is_configured():
@@ -161,7 +294,18 @@ class TorrentResolver:
         if info_hash:
             magnet = self._build_magnet(info_hash, stream)
             active = self.get_active_engine()
-            if active == "Elementum" and self.is_engine_alive("Elementum"):
+            if active == "TorrServer":
+                checked = self._check_privacy_and_engine("TorrServer")
+                if not checked:
+                    return None
+                resolved = self.resolve_torrserver_stream(magnet, file_idx, stream_title, info_hash=info_hash)
+                if resolved:
+                    return resolved
+                log("TorrServer resolution failed, trying Elementum fallback...", level="warning")
+                if self.is_engine_alive("Elementum") or (Config.elementum_auto_heal() and self.try_recover_elementum()):
+                    return self.resolve_elementum_stream(magnet, file_idx, info_hash=info_hash)
+                return None
+            elif active == "Elementum" and (self.is_engine_alive("Elementum") or (Config.elementum_auto_heal() and self.try_recover_elementum())):
                 checked = self._check_privacy_and_engine("Elementum")
                 if not checked:
                     return None
@@ -180,7 +324,18 @@ class TorrentResolver:
                     return rd_url
             enriched = self._enrich_magnet(url, stream)
             active = self.get_active_engine()
-            if active == "Elementum" and self.is_engine_alive("Elementum"):
+            if active == "TorrServer":
+                checked = self._check_privacy_and_engine("TorrServer")
+                if not checked:
+                    return None
+                resolved = self.resolve_torrserver_stream(enriched, file_idx, stream_title)
+                if resolved:
+                    return resolved
+                log("TorrServer resolution failed, trying Elementum fallback...", level="warning")
+                if self.is_engine_alive("Elementum") or (Config.elementum_auto_heal() and self.try_recover_elementum()):
+                    return self.resolve_elementum_stream(enriched, file_idx)
+                return None
+            elif active == "Elementum" and (self.is_engine_alive("Elementum") or (Config.elementum_auto_heal() and self.try_recover_elementum())):
                 checked = self._check_privacy_and_engine("Elementum")
                 if not checked:
                     return None
@@ -193,7 +348,18 @@ class TorrentResolver:
         # ── HTTP .torrent file ─────────────────────────────
         if url.startswith("http") and ".torrent" in url:
             active = self.get_active_engine()
-            if active == "Elementum" and self.is_engine_alive("Elementum"):
+            if active == "TorrServer":
+                checked = self._check_privacy_and_engine("TorrServer")
+                if not checked:
+                    return None
+                resolved = self.resolve_torrserver_stream(url, file_idx, stream_title)
+                if resolved:
+                    return resolved
+                log("TorrServer resolution failed, trying Elementum fallback...", level="warning")
+                if self.is_engine_alive("Elementum") or (Config.elementum_auto_heal() and self.try_recover_elementum()):
+                    return self.resolve_elementum_stream(url, file_idx)
+                return None
+            elif active == "Elementum" and (self.is_engine_alive("Elementum") or (Config.elementum_auto_heal() and self.try_recover_elementum())):
                 checked = self._check_privacy_and_engine("Elementum")
                 if not checked:
                     return None
@@ -218,7 +384,20 @@ class TorrentResolver:
                 return rd_url, "direct"
         enriched = self._enrich_magnet(magnet_uri)
         active = self.get_active_engine()
-        if active == "Elementum" and self.is_engine_alive("Elementum"):
+        if active == "TorrServer":
+            checked = self._check_privacy_and_engine("TorrServer")
+            if not checked:
+                return None, "direct"
+            resolved = self.resolve_torrserver_stream(enriched, None, "Manual Magnet")
+            if resolved:
+                return resolved, "direct"
+            log("TorrServer manual magnet resolve failed, trying Elementum fallback...", level="warning")
+            if self.is_engine_alive("Elementum") or (Config.elementum_auto_heal() and self.try_recover_elementum()):
+                resolved = self.resolve_elementum_stream(enriched, None)
+                if resolved:
+                    return resolved, "direct"
+            return None, "direct"
+        elif active == "Elementum" and (self.is_engine_alive("Elementum") or (Config.elementum_auto_heal() and self.try_recover_elementum())):
             checked = self._check_privacy_and_engine("Elementum")
             if not checked:
                 return None, "plugin"
@@ -248,7 +427,7 @@ class TorrentResolver:
             import xbmcgui
             confirm = xbmcgui.Dialog().yesno(
                 "Advertencia de Privacidad P2P",
-                "Vas a reproducir mediante un motor P2P local (Elementum/Quasar).\n"
+                "Vas a reproducir mediante un motor P2P local (TorrServer/Elementum).\n"
                 "Tu dirección IP será pública en la red Kademlia DHT.\n"
                 "¿Deseas continuar con la reproducción?"
             )
@@ -261,7 +440,17 @@ class TorrentResolver:
     def is_engine_alive(self, engine_name):
         import urllib.request
         try:
-            if engine_name == "Elementum":
+            if engine_name == "TorrServer":
+                host = Config.torrserver_host().strip() or "127.0.0.1"
+                port = str(Config.torrserver_port()).strip() or "8090"
+                req = urllib.request.Request(f"http://{host}:{port}/echo", headers={"User-Agent": "Kodi"})
+                if Config.torrserver_auth() and Config.torrserver_user():
+                    import base64
+                    cred = base64.b64encode(f"{Config.torrserver_user()}:{Config.torrserver_pass()}".encode()).decode()
+                    req.add_header("Authorization", f"Basic {cred}")
+                with urllib.request.urlopen(req, timeout=0.6) as r:
+                    return r.status in (200, 401)
+            elif engine_name == "Elementum":
                 req = urllib.request.Request("http://127.0.0.1:65220/", headers={"User-Agent": "Kodi"})
                 with urllib.request.urlopen(req, timeout=1.0) as r:
                     return True
@@ -278,28 +467,43 @@ class TorrentResolver:
         preflight = Config.torrent_preflight_check()
 
         if engine == "Auto":
+            if self.is_engine_alive("TorrServer"):
+                return "TorrServer"
             if self.is_engine_alive("Elementum"):
                 return "Elementum"
-            elif self.is_engine_alive("Torrest"):
+            if Config.elementum_auto_heal() and self.try_recover_elementum():
+                return "Elementum"
+            if self.is_engine_alive("Torrest"):
                 return "Torrest"
             return "Elementum"
 
-        if preflight and engine == "Elementum" and not self.is_engine_alive("Elementum"):
-            for _ in range(4):
-                xbmc.sleep(500)
+        if preflight:
+            if engine == "TorrServer" and not self.is_engine_alive("TorrServer"):
+                log("TorrServer unreachable during preflight, falling back to Elementum", level="warning")
                 if self.is_engine_alive("Elementum"):
                     return "Elementum"
-            log("Elementum unreachable during preflight", level="warning")
-            return "Elementum"
+                if Config.elementum_auto_heal() and self.try_recover_elementum():
+                    return "Elementum"
+            elif engine == "Elementum" and not self.is_engine_alive("Elementum"):
+                if Config.elementum_auto_heal() and self.try_recover_elementum():
+                    return "Elementum"
+                for _ in range(4):
+                    xbmc.sleep(500)
+                    if self.is_engine_alive("Elementum"):
+                        return "Elementum"
+                log("Elementum unreachable during preflight", level="warning")
 
         return engine
 
     def _to_engine_url(self, uri, stream):
         encoded = quote(uri, safe="")
         file_idx = stream.get("fileIdx") if isinstance(stream, dict) else None
+        stream_title = (stream.get("title") or stream.get("name") or "").split("\n")[0].strip() if isinstance(stream, dict) else ""
         active = self.get_active_engine()
 
-        if active == "Elementum":
+        if active == "TorrServer":
+            return self.resolve_torrserver_stream(uri, file_idx, stream_title)
+        elif active == "Elementum":
             base = f"plugin://plugin.video.elementum/play?uri={encoded}"
             if file_idx is not None:
                 base += f"&oindex={file_idx}"
@@ -311,11 +515,6 @@ class TorrentResolver:
                 base = f"plugin://plugin.video.torrest/play_url?url={encoded}"
             if file_idx is not None:
                 base += f"&file_id={file_idx}"
-            return base
-        elif active == "Quasar":
-            base = f"plugin://plugin.video.quasar/play?uri={encoded}"
-            if file_idx is not None:
-                base += f"&index={file_idx}"
             return base
         return uri
 

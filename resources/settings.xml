@@ -11,7 +11,13 @@
         <setting id="spanish_variant" type="labelenum" label="Preferred variant" values="all|castellano|latino|dual" default="all"/>
     </category>
     <category label="Torrents">
-        <setting id="torrent_engine" type="labelenum" label="Torrent engine" values="Elementum|Torrest|Quasar|Auto" default="Elementum"/>
+        <setting id="torrent_engine" type="labelenum" label="Motor Torrent" values="Auto|TorrServer|Elementum|Torrest" default="Auto"/>
+        <setting id="torrserver_host" type="text" label="TorrServer: Host / IP (127.0.0.1 o IP del PC)" default="127.0.0.1"/>
+        <setting id="torrserver_port" type="text" label="TorrServer: Puerto" default="8090"/>
+        <setting id="torrserver_auth" type="bool" label="TorrServer: Requiere autenticación" default="false"/>
+        <setting id="torrserver_user" type="text" label="TorrServer: Usuario" default="" enable="eq(-1,true)"/>
+        <setting id="torrserver_pass" type="text" label="TorrServer: Contraseña" default="" option="hidden" enable="eq(-2,true)"/>
+        <setting id="elementum_auto_heal" type="bool" label="Elementum: Auto-recuperar si no responde" default="true"/>
         <setting id="torrent_preflight_check" type="bool" label="Verificar salud del motor antes de reproducir" default="true"/>
         <setting id="torrent_sort" type="labelenum" label="Sort streams by" values="Seeds|Quality|Size" default="Seeds"/>
         <setting id="torrent_quality" type="labelenum" label="Preferred quality" values="4K|1080p|720p|480p|Any" default="1080p"/>

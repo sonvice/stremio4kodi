@@ -40,7 +40,31 @@ class Config:
     # ── Torrents ───────────────────────────────────────────
     @staticmethod
     def torrent_engine():
-        return ADDON.getSetting("torrent_engine") or "Elementum"
+        return ADDON.getSetting("torrent_engine") or "Auto"
+
+    @staticmethod
+    def torrserver_host():
+        return ADDON.getSetting("torrserver_host") or "127.0.0.1"
+
+    @staticmethod
+    def torrserver_port():
+        return ADDON.getSetting("torrserver_port") or "8090"
+
+    @staticmethod
+    def torrserver_auth():
+        return ADDON.getSetting("torrserver_auth") == "true"
+
+    @staticmethod
+    def torrserver_user():
+        return ADDON.getSetting("torrserver_user") or ""
+
+    @staticmethod
+    def torrserver_pass():
+        return ADDON.getSetting("torrserver_pass") or ""
+
+    @staticmethod
+    def elementum_auto_heal():
+        return ADDON.getSetting("elementum_auto_heal") != "false"
 
     @staticmethod
     def torrent_preflight_check():
