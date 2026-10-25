@@ -99,15 +99,53 @@ El proyecto está dividido en dos repositorios/carpetas hermanas:
 
 ---
 
-## 6. Pautas para Futuros Cambios
+## 6. Arquitectura de Motores de Reproducción Torrent (v3.7.11 - v3.7.12)
 
-1. **Evitar dependencias pesadas de Python:** Kodi se ejecuta en múltiples arquitecturas y sistemas limitados. Cualquier cliente HTTP debe usar preferiblemente `urllib.request` como motor primario, con fallbacks a `requests` y `curl` (usando `subprocess`).
-2. **Preservar los motores locales:** El plugin debe permitir la resolución de torrents directos mediante magnet links hacia Elementum o Quasar de forma nativa cuando no hay cuentas Debrid configuradas.
-3. **Mantenimiento del Generador:** No modifiques las carpetas empaquetadas dentro de `repository.sonvice/repo/` directamente; siempre modifícalas en la carpeta del addon original y vuelve a correr `generator.py`.
+### 6.1. Integración con TorrServer MatriX (Streaming Desacoplado en RAM)
+* **Objetivo:** Permitir reproducir torrents directamente sin almacenar gigabytes en el almacenamiento flash/SSD del dispositivo cliente (como TVs, CoreELEC o Android TV), evitando el desgaste de memoria interna y optimizando el ancho de banda.
+* **Archivos clave:** [`torrent.py`](file:///home/wilson/Pictures/plugin.video.stremio4kodi_v3.2.3/plugin.video.stremio4kodi/resources/lib/torrent.py), [`config.py`](file:///home/wilson/Pictures/plugin.video.stremio4kodi_v3.2.3/plugin.video.stremio4kodi/resources/lib/config.py), [`settings.xml`](file:///home/wilson/Pictures/plugin.video.stremio4kodi_v3.2.3/plugin.video.stremio4kodi/resources/settings.xml).
+* **Mecanismo de Streaming:**
+  * Endpoint HTTP directo de TorrServer:
+    `http://{host}:{port}/stream/{clean_name}?link={quote(uri)}&index={best_id}&play`
+  * Selección inteligente de archivo: Consulta la API interna `POST /torrents` con `{action: "get", hash: info_hash}` para inspeccionar `file_stats`.
+    * En series: mapea el `file_idx` bencode (0-based) al ID de TorrServer (`id = file_stats[file_idx]["id"]` o `file_idx + 1`).
+    * En películas sin índice: selecciona automáticamente el archivo de vídeo más pesado (`max(length)` excluyendo archivos `.nfo`, `.srt`, `.sample`).
+  * Autenticación HTTP básica opcional (`Authorization: Basic ...` y `http://user:pass@host:port/...`).
+* **Servicio Host en PC:**
+  * Binario: `TorrServer-linux-amd64` (MatriX.147.1) ubicado en `~/.local/bin/torrserver`.
+  * Servicio systemd: Administrado como servicio de usuario en `~/.config/systemd/user/torrserver.service`.
+  * Puerto por defecto: `8090` (escucha en `0.0.0.0`, permitiendo acceso tanto local `127.0.0.1` como por red local LAN `192.168.1.138`).
+  * Interfaz Web de Monitoreo: Accesible opcionalmente en `http://localhost:8090` para consultar velocidad de descarga, peers y buffer en RAM en tiempo real.
+
+### 6.2. Modo Inteligente "Auto" con Failover Silencioso
+* **Jerarquía de Selección en Tiempo Real:**
+  1. **Real-Debrid:** Si está habilitado y el hash/torrent se resuelve vía API debrid.
+  2. **TorrServer:** Comprobación rápida ping vía `GET http://{host}:{port}/echo` con un timeout estricto de **0.6 segundos**.
+  3. **Elementum:** Si el PC o host de TorrServer está apagado, en reposo (suspensión) o inaccesible, conmuta instantáneamente y en silencio a Elementum **sin mostrar ventanas de error ni detener la reproducción**.
+  4. **Torrest:** Fallback adicional si Elementum tampoco estuviese disponible.
+* **Auto-Heal de Elementum:**
+  * Si el demonio Go de Elementum no responde en el puerto `65220` (por ejemplo, tras el arranque en frío de Kodi), la función `try_recover_elementum()` ejecuta un reinicio del addon a través de JSON-RPC de Kodi (`Addons.SetAddonEnabled` desactivando y reactivando `plugin.video.elementum`), esperando hasta 3.5s a que el puerto vuelva a responder antes de declarar el motor no disponible.
+
+### 6.3. Reproducción Nativa Directa
+* Cuando TorrServer o Elementum resuelven una URL HTTP directa (`http://...`), la reproducción se lanza mediante `xbmc.Player().play(playable_url, li)` inyectando un `ListItem` con metadatos completos (`VideoInfoTag`, `ResumePoint`, propiedades de ventana).
+* Esto permite que los descargadores de subtítulos nativos de Kodi (y el módulo integrado OpenSubtitles v3) reconozcan el nombre del vídeo, temporada y capítulo sin depender de esquemas intermediarios `plugin://`.
 
 ---
 
-## 7. Roadmap de Futuras Mejoras Propuestas
+## 7. Pautas para Futuros Cambios
+
+1. **Evitar dependencias pesadas de Python:** Kodi se ejecuta en múltiples arquitecturas y sistemas limitados. Cualquier cliente HTTP debe usar preferiblemente `urllib.request` como motor primario, con fallbacks a `requests` y `curl` (usando `subprocess`).
+2. **Preservar los motores locales y el Failover:** Mantener siempre el orden de prioridad en modo Auto y asegurar que las verificaciones de salud de los motores remotos nunca superen los 600ms para evitar bloqueos en la interfaz de Kodi.
+3. **Mantenimiento del Generador:** No modifiques las carpetas empaquetadas dentro de `repository.sonvice/repo/` directamente; siempre modifícalas en la carpeta del addon original y vuelve a correr `generator.py`.
+4. **Purga de CDN al publicar:** Al hacer `git push` en `repository.sonvice`, purgar siempre la caché de jsDelivr para `addons.xml` y `addons.xml.md5` para que los clientes Kodi reciban las actualizaciones al instante:
+   ```bash
+   curl -s "https://purge.jsdelivr.net/gh/sonvice/repository.sonvice@main/repo/addons.xml"
+   curl -s "https://purge.jsdelivr.net/gh/sonvice/repository.sonvice@main/repo/addons.xml.md5"
+   ```
+
+---
+
+## 8. Roadmap de Futuras Mejoras Propuestas
 
 1. **Filtro Avanzado de Audio (Castellano / Latino / VOSE):** Etiquetar visualmente en la lista de streams con banderas o distintivos `[ES-ES]` (Castellano), `[ES-LA]` (Latino) o `[VOSE]` (Subtitulado).
 2. **Descarga de Subtítulos Automáticos (OpenSubtitles v3 / Subscene):** Descargar automáticamente subtítulos sincronizados en español si el torrent carece de pistas de subtítulos incrustadas.
