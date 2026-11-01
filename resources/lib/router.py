@@ -90,6 +90,7 @@ class Router:
             "acestream":               self._acestream,
             "acestream_trends":        self._acestream_trends,
             "acestream_search":        self._acestream_search,
+            "acestream_traditional":   self._acestream_traditional,
             "acestream_group":         self._acestream_group,
             "acestream_all":           self._acestream_all,
             "acestream_play":          self._acestream_play,
@@ -1914,15 +1915,12 @@ class Router:
     #  v3.2 NEW: ACESTREAM — Replaces Live TV
     # ══════════════════════════════════════════════════════
     def _acestream(self):
-        """AceStream main menu: instant zero-lag rendering."""
+        """AceStream main menu: instant zero-lag rendering without loading heavy IPFS."""
         try:
-            from resources.lib.acestream import AceStreamClient
-            ace = AceStreamClient()
-
             # 1. Trends & Search shortcuts (ALWAYS FIRST, INSTANT)
             ui.add_directory_item(
                 handle=self.handle,
-                label="[B][COLOR lightgreen]⚽ Tendencias Fútbol / Deportes[/COLOR][/B]",
+                label="[B][COLOR lightgreen]⚽ Tendencias Fútbol / Deportes (Hoy)[/COLOR][/B]",
                 action="acestream_trends", base_url=self.base_url,
                 icon="DefaultPVRTVChannels.png",
             )
@@ -1933,42 +1931,10 @@ class Router:
                 icon="DefaultAddonsSearch.png",
             )
 
-            # 2. Check if channels are already in cache for instant display
-            channels = self.cache.get("acestream:channels")
-            if channels:
-                total = len(channels)
-                ui.add_directory_item(
-                    handle=self.handle,
-                    label=f"[B]Todos los canales ({total})[/B]",
-                    action="acestream_all", base_url=self.base_url,
-                    icon="DefaultPVRTVChannels.png",
-                )
-                groups = ace.get_groups(channels)
-                for group in groups:
-                    count = group["count"]
-                    name = group["name"]
-                    logo = group.get("logo", "")
-                    label = f"{name} ({count})"
-                    ui.add_directory_item(
-                        handle=self.handle, label=label, action="acestream_group",
-                        base_url=self.base_url,
-                        poster=logo,
-                        group_name=name,
-                        icon="DefaultPVRTVChannels.png",
-                    )
-            else:
-                # If not cached yet, do not block the menu! Load on demand
-                ui.add_directory_item(
-                    handle=self.handle,
-                    label="[COLOR lightblue]📺 Cargar lista completa de canales (M3U / IPFS)[/COLOR]",
-                    action="acestream_all", base_url=self.base_url,
-                    icon="DefaultPVRTVChannels.png",
-                )
-
-            # 3. Utilities at the bottom
+            # 2. Utilities: Manual input & History
             ui.add_directory_item(
                 handle=self.handle,
-                label="[COLOR yellow]Pegar hash/enlace AceStream[/COLOR]",
+                label="[COLOR yellow]📋 Pegar hash/enlace AceStream[/COLOR]",
                 action="acestream_manual", base_url=self.base_url,
                 icon="DefaultNetwork.png",
                 is_folder=False,
@@ -1992,9 +1958,19 @@ class Router:
                     is_folder=False,
                     context_menu=context_menu,
                 )
+
+            # 3. Traditional IPFS / M3U channel list (DEDICATED SUBFOLDER AT THE BOTTOM)
             ui.add_directory_item(
                 handle=self.handle,
-                label="[COLOR cyan]Refrescar lista[/COLOR]",
+                label="[B][COLOR lightblue]📦 Canales Tradicionales (Lista IPFS / M3U)[/COLOR][/B]",
+                action="acestream_traditional", base_url=self.base_url,
+                icon="DefaultFolder.png",
+            )
+
+            # 4. Refresh & VPN at bottom
+            ui.add_directory_item(
+                handle=self.handle,
+                label="[COLOR cyan]🔄 Refrescar lista y tendencias[/COLOR]",
                 action="acestream_refresh", base_url=self.base_url,
                 icon="DefaultAddonProgram.png",
                 is_folder=False,
@@ -2021,6 +1997,52 @@ class Router:
             import traceback
             log(traceback.format_exc(), level="error")
             ui.show_notification(f"Error AceStream: {str(e)[:60]}")
+            ui.end_directory(self.handle)
+
+    def _acestream_traditional(self):
+        """Traditional channels list (IPFS / M3U): loaded on-demand in its own sub-menu."""
+        try:
+            from resources.lib.acestream import AceStreamClient
+            ace = AceStreamClient()
+
+            channels = self.cache.get("acestream:channels")
+            if not channels:
+                ui.show_notification("Descargando canales IPFS...", time=2500)
+                channels = ace.fetch_channels()
+
+            if not channels:
+                ui.show_notification("No se pudo cargar la lista tradicional.")
+                ui.end_directory(self.handle)
+                return
+
+            total = len(channels)
+            ui.add_directory_item(
+                handle=self.handle,
+                label=f"[B]📺 Todos los canales ({total})[/B]",
+                action="acestream_all", base_url=self.base_url,
+                icon="DefaultPVRTVChannels.png",
+            )
+
+            groups = ace.get_groups(channels)
+            for group in groups:
+                count = group["count"]
+                name = group["name"]
+                logo = group.get("logo", "")
+                label = f"📁 {name} ({count})"
+                ui.add_directory_item(
+                    handle=self.handle, label=label, action="acestream_group",
+                    base_url=self.base_url,
+                    poster=logo,
+                    group_name=name,
+                    icon="DefaultFolder.png",
+                )
+
+            ui.end_directory(self.handle)
+        except Exception as e:
+            log(f"AceStream traditional error: {e}", level="error")
+            import traceback
+            log(traceback.format_exc(), level="error")
+            ui.show_notification(f"Error lista tradicional: {str(e)[:60]}")
             ui.end_directory(self.handle)
 
     def _acestream_group(self):
@@ -2568,9 +2590,9 @@ class Router:
             log(f"Error clearing acestream history: {e}", level="error")
 
     def _acestream_refresh(self):
-        """Force refresh AceStream channel list."""
+        """Force refresh AceStream channel list and trends."""
         try:
-            xbmcplugin.endOfDirectory(self.handle, succeeded=False)
+            xbmcplugin.endOfDirectory(self.handle, succeeded=True)
             xbmc.sleep(200)
 
             from resources.lib.acestream import AceStreamClient
@@ -2578,18 +2600,20 @@ class Router:
 
             # Clear cache
             self.cache.delete("acestream:channels")
+            self.cache.delete("acestream:trends:sports")
             self.cache.delete_prefix("acestream:health:")
+            self.cache.delete_prefix("acestream:search:")
 
             ui.show_notification("Descargando lista actualizada...", time=3000)
 
             channels = ace.fetch_channels(force_refresh=True)
             if channels:
-                ui.show_notification(f"Cargados {len(channels)} canales!", time=3000)
+                ui.show_notification(f"Cargados {len(channels)} canales tradicionales!", time=3000)
             else:
                 ui.show_notification("No se pudieron cargar canales.", time=3000)
 
             # Refresh the container
-            xbmc.sleep(1000)
+            xbmc.sleep(800)
             xbmc.executebuiltin("Container.Refresh")
 
         except Exception as e:

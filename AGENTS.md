@@ -155,7 +155,8 @@ El proyecto está dividido en dos repositorios/carpetas hermanas:
 
 ---
 
-## 9. Características Añadidas en v3.7.13 - v3.7.16 (AceStream Trends, Search, Speed & Zero-Lag UX)
+## 9. Características Añadidas en v3.7.13 - v3.7.17 (AceStream Trends, Search, Speed & Zero-Lag UX)
+* **Aislamiento Total de Lista Tradicional IPFS/M3U (v3.7.17):** La pesada lista IPFS ya no se descarga ni procesa al entrar al menú de AceStream. Se ha trasladado a una opción dedicada al final del menú (`📦 Canales Tradicionales (Lista IPFS / M3U)`), permitiendo una apertura 100% instantánea de las tendencias de fútbol y del buscador.
 * **Módulo Híbrido Multifuente (`acestream_search.py`):** Integración simultánea de `search-ace.stream` (API REST JSON de alta velocidad) y `acestreamid.com` (scraping con reputación/votos comunitarios y fecha activa).
 * **Bypass DNS Anti-Bloqueo (DoH):** Resolución transparente vía DNS-over-HTTPS (Cloudflare / Google) con fallback a Anycast IPs para sortear bloqueos de ISPs españolas a dominios de streaming P2P.
 * **Tendencias de Fútbol y Deportes:** Submenú con canales ordenados por karma positivo (votos a favor vs votos en contra) y actividad reciente. Carga optimizada en paralelo (<1 segundo).
