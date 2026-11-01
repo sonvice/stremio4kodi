@@ -155,11 +155,12 @@ El proyecto está dividido en dos repositorios/carpetas hermanas:
 
 ---
 
-## 9. Características Añadidas en v3.7.13 - v3.7.15 (AceStream Trends, Search, Speed & Zero-Lag UX)
+## 9. Características Añadidas en v3.7.13 - v3.7.16 (AceStream Trends, Search, Speed & Zero-Lag UX)
 * **Módulo Híbrido Multifuente (`acestream_search.py`):** Integración simultánea de `search-ace.stream` (API REST JSON de alta velocidad) y `acestreamid.com` (scraping con reputación/votos comunitarios y fecha activa).
 * **Bypass DNS Anti-Bloqueo (DoH):** Resolución transparente vía DNS-over-HTTPS (Cloudflare / Google) con fallback a Anycast IPs para sortear bloqueos de ISPs españolas a dominios de streaming P2P.
 * **Tendencias de Fútbol y Deportes:** Submenú con canales ordenados por karma positivo (votos a favor vs votos en contra) y actividad reciente. Carga optimizada en paralelo (<1 segundo).
 * **Buscador Interactivo AceStream:** Búsqueda en tiempo real de canales y eventos con limpieza automática de enlaces promocionales y spam.
+* **Corrección de API Python 3 DialogProgress:** Eliminado el error `takes at most 2 arguments` en `DialogProgress.create` y `update`.
 * **Renderizado Instantáneo de Menú:** Eliminado el cuello de botella donde `_acestream` bloqueaba el hilo principal de Kodi esperando la descarga de listas IPFS. Ahora el menú de AceStream abre en <10 ms.
 * **Feedback Visual Inmediato y 60 FPS:** Diálogo de progreso P2P inmediato al pulsar canal (`DialogProgress`) y sustitución de llamadas bloqueantes `time.sleep` por `xbmc.sleep` para no congelar la interfaz ni los controles del mando.
 * **Corrección de Diálogo 'Failed to play':** Eliminado el falso error modal en Kodi (`xbmcplugin.endOfDirectory(succeeded=True)`).

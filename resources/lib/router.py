@@ -2314,7 +2314,7 @@ class Router:
 
                     # Open progress dialog immediately for instant UI feedback
                     dp = xbmcgui.DialogProgress()
-                    dp.create("AceStream P2P", f"Conectando: {title[:28]}...", "Preparando motor AceStream...")
+                    dp.create("AceStream P2P", f"Conectando: {title[:28]}...\nPreparando motor AceStream...")
 
                     # If previous command_url exists, stop previous stream in background
                     prev_cmd = self.cache.get("acestream:last_command_url")
@@ -2330,7 +2330,7 @@ class Router:
                         dp.close()
                         return
 
-                    dp.update(10, f"Conectando: {title[:28]}...", "Solicitando emisión al motor AceStream...")
+                    dp.update(10, f"Conectando: {title[:28]}...\nSolicitando emisión al motor AceStream...")
 
                     try:
                         import urllib.request
