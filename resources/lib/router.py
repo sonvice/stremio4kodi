@@ -173,7 +173,7 @@ class Router:
                 handle=self.handle, label=label, action=action,
                 base_url=self.base_url, icon=icon,
             )
-        ui.end_directory(self.handle, content_type="")
+        ui.end_directory(self.handle, content_type="", cache_to_disc=False)
 
     # ══════════════════════════════════════════════════════
     #  MOVIES / SERIES
@@ -1993,7 +1993,7 @@ class Router:
                     icon="DefaultNetwork.png",
                 )
 
-            ui.end_directory(self.handle)
+            ui.end_directory(self.handle, cache_to_disc=False)
         except Exception as e:
             log(f"AceStream error: {e}", level="error")
             import traceback
@@ -2667,6 +2667,17 @@ class Router:
         import os
         import urllib.request
 
+        def _get_active_vpn_service():
+            try:
+                out = subprocess.check_output(["connmanctl", "services"], timeout=3).decode("utf-8")
+                for line in out.splitlines():
+                    if "vpn_" in line:
+                        parts = line.strip().split()
+                        return parts[-1]
+            except Exception:
+                pass
+            return None
+
         vpn_on = self._is_vpn_connected()
         if vpn_on:
             confirmed = ui.show_yesno(
@@ -2678,9 +2689,11 @@ class Router:
                 try:
                     with open("/storage/.config/vpn_manual_off", "w") as f:
                         f.write("1\n")
-                    subprocess.run(["connmanctl", "disconnect", "vpn_89_46_223_185"], timeout=5)
+                    vpn_svc = _get_active_vpn_service()
+                    if vpn_svc:
+                        subprocess.run(["connmanctl", "disconnect", vpn_svc], timeout=5)
                     try:
-                        subprocess.run(["ip", "route", "add", "default", "via", "192.168.1.1", "dev", "eth0"], timeout=2)
+                        subprocess.run(["ip", "route", "add", "default", "via", "192.168.1.1"], timeout=2)
                     except Exception:
                         pass
                     xbmc.sleep(1500)
@@ -2713,10 +2726,12 @@ class Router:
                         except Exception:
                             pass
                     ui.show_notification("Conectando a Surfshark...", time=2500)
-                    subprocess.run(["connmanctl", "connect", "vpn_89_46_223_185"], timeout=8)
+                    vpn_svc = _get_active_vpn_service()
+                    if vpn_svc:
+                        subprocess.run(["connmanctl", "connect", vpn_svc], timeout=8)
                     xbmc.sleep(2000)
                     if self._is_vpn_connected():
-                        ip = "Surfshark NL"
+                        ip = "Surfshark Protegida"
                         try:
                             with urllib.request.urlopen("https://api.ipify.org", timeout=2) as resp:
                                 ip = resp.read().decode().strip()

@@ -44,11 +44,21 @@ class Config:
 
     @staticmethod
     def torrserver_host():
-        return ADDON.getSetting("torrserver_host") or "127.0.0.1"
+        raw = ADDON.getSetting("torrserver_host") or "127.0.0.1"
+        cleaned = raw.strip().replace("http://", "").replace("https://", "").rstrip("/")
+        if ":" in cleaned:
+            return cleaned.split(":")[0].strip()
+        return cleaned or "127.0.0.1"
 
     @staticmethod
     def torrserver_port():
-        return ADDON.getSetting("torrserver_port") or "8090"
+        raw_host = ADDON.getSetting("torrserver_host") or ""
+        if ":" in raw_host:
+            parts = raw_host.strip().replace("http://", "").replace("https://", "").rstrip("/").split(":")
+            if len(parts) > 1 and parts[1].isdigit():
+                return parts[1].strip()
+        raw = ADDON.getSetting("torrserver_port") or "8090"
+        return raw.strip() or "8090"
 
     @staticmethod
     def torrserver_auth():

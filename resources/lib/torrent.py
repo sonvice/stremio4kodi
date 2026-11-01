@@ -158,7 +158,7 @@ class TorrentResolver:
                 "save_to_db": False
             }).encode("utf-8")
             req = urllib.request.Request(f"{base_api_url}/torrents", data=add_payload, headers=headers)
-            with urllib.request.urlopen(req, timeout=2.0) as resp:
+            with urllib.request.urlopen(req, timeout=3.0) as resp:
                 pass
         except Exception as e:
             log(f"TorrServer add session notice: {e}", level="debug")
@@ -172,7 +172,7 @@ class TorrentResolver:
             for _ in range(8):
                 try:
                     req = urllib.request.Request(f"{base_api_url}/torrents", data=get_payload, headers=headers)
-                    with urllib.request.urlopen(req, timeout=1.0) as resp:
+                    with urllib.request.urlopen(req, timeout=2.0) as resp:
                         data = json.loads(resp.read().decode())
                         file_stats = data.get("file_stats") or []
                         if file_stats:
@@ -208,6 +208,7 @@ class TorrentResolver:
         encoded_link = quote(uri or f"magnet:?xt=urn:btih:{info_hash}", safe="")
         stream_url = f"http://{auth_str}{host}:{port}/stream/{encoded_filename}?link={encoded_link}&index={best_id}&play"
         log(f"TorrServer resolved direct stream: {stream_url[:120]}...", level="info")
+        ui.show_notification(f"Reproduciendo con TorrServer ({host}) 🚀", time=2500)
         return stream_url
 
     def resolve_elementum_stream(self, uri, file_idx=None, info_hash=None):
@@ -437,26 +438,31 @@ class TorrentResolver:
 
         return engine_url
 
-    def is_engine_alive(self, engine_name):
+    def is_engine_alive(self, engine_name, timeout=None):
         import urllib.request
+        import urllib.error
         try:
             if engine_name == "TorrServer":
-                host = Config.torrserver_host().strip() or "127.0.0.1"
-                port = str(Config.torrserver_port()).strip() or "8090"
+                host = Config.torrserver_host()
+                port = Config.torrserver_port()
+                t = timeout or 3.0
                 req = urllib.request.Request(f"http://{host}:{port}/echo", headers={"User-Agent": "Kodi"})
                 if Config.torrserver_auth() and Config.torrserver_user():
                     import base64
                     cred = base64.b64encode(f"{Config.torrserver_user()}:{Config.torrserver_pass()}".encode()).decode()
                     req.add_header("Authorization", f"Basic {cred}")
-                with urllib.request.urlopen(req, timeout=0.6) as r:
-                    return r.status in (200, 401)
+                try:
+                    with urllib.request.urlopen(req, timeout=t) as r:
+                        return r.status in (200, 401)
+                except urllib.error.HTTPError as he:
+                    return he.code in (200, 401)
             elif engine_name == "Elementum":
                 req = urllib.request.Request("http://127.0.0.1:65220/", headers={"User-Agent": "Kodi"})
-                with urllib.request.urlopen(req, timeout=1.0) as r:
+                with urllib.request.urlopen(req, timeout=1.5) as r:
                     return True
             elif engine_name == "Torrest":
                 req = urllib.request.Request("http://127.0.0.1:61235/torrents", headers={"User-Agent": "Kodi"})
-                with urllib.request.urlopen(req, timeout=1.0) as r:
+                with urllib.request.urlopen(req, timeout=1.5) as r:
                     return True
         except Exception:
             return False
@@ -480,6 +486,7 @@ class TorrentResolver:
         if preflight:
             if engine == "TorrServer" and not self.is_engine_alive("TorrServer"):
                 log("TorrServer unreachable during preflight, falling back to Elementum", level="warning")
+                ui.show_notification(f"TorrServer no responde ({Config.torrserver_host()}). Usando Elementum...", time=3500)
                 if self.is_engine_alive("Elementum"):
                     return "Elementum"
                 if Config.elementum_auto_heal() and self.try_recover_elementum():
