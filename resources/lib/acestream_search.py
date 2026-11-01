@@ -17,7 +17,7 @@ from resources.lib.logger import log
 
 # Known Cloudflare Anycast IPs for search-ace.stream (used as DoH fallback)
 CF_FALLBACK_IPS = ["104.21.44.190", "172.67.203.60"]
-DNS_CACHE = {}
+DNS_CACHE = {"search-ace.stream": "104.21.44.190"}
 _dns_patched = False
 
 SPORTS_KEYWORDS = [
@@ -123,7 +123,7 @@ class AceStreamSearchClient:
     # ══════════════════════════════════════════════════════
     #  SOURCE 1: search-ace.stream (JSON API)
     # ══════════════════════════════════════════════════════
-    def fetch_search_ace(self, query, timeout=6):
+    def fetch_search_ace(self, query, timeout=4):
         """Query search-ace.stream JSON API."""
         _init_dns_bypass()
         try:
@@ -164,7 +164,7 @@ class AceStreamSearchClient:
     # ══════════════════════════════════════════════════════
     #  SOURCE 2: acestreamid.com (HTML Scraper)
     # ══════════════════════════════════════════════════════
-    def fetch_acestreamid(self, query="", timeout=6):
+    def fetch_acestreamid(self, query="", timeout=4):
         """Query or scrape acestreamid.com."""
         try:
             if query:
@@ -238,9 +238,9 @@ class AceStreamSearchClient:
                 return cached
 
         all_channels = []
-        queries = ["laliga", "dazn", "movistar", "champions", "premier"]
+        queries = ["sport", "dazn", "laliga"]
 
-        with ThreadPoolExecutor(max_workers=6) as executor:
+        with ThreadPoolExecutor(max_workers=4) as executor:
             future_ace_id = executor.submit(self.fetch_acestreamid, "")
             futures_search = [executor.submit(self.fetch_search_ace, q) for q in queries]
 

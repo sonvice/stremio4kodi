@@ -1914,69 +1914,12 @@ class Router:
     #  v3.2 NEW: ACESTREAM — Replaces Live TV
     # ══════════════════════════════════════════════════════
     def _acestream(self):
-        """AceStream main menu: groups + utilities."""
+        """AceStream main menu: instant zero-lag rendering."""
         try:
             from resources.lib.acestream import AceStreamClient
             ace = AceStreamClient()
 
-            # Show loading notification
-            ui.show_notification("Cargando canales AceStream...", time=2000)
-
-            channels = ace.fetch_channels()
-            if not channels:
-                ui.show_notification("No se pudieron cargar canales AceStream.")
-                # Still show trends, search and utility options
-                ui.add_directory_item(
-                    handle=self.handle,
-                    label="[B][COLOR lightgreen]⚽ Tendencias Fútbol / Deportes[/COLOR][/B]",
-                    action="acestream_trends", base_url=self.base_url,
-                    icon="DefaultPVRTVChannels.png",
-                )
-                ui.add_directory_item(
-                    handle=self.handle,
-                    label="[B][COLOR yellow]🔍 Buscar canal o evento AceStream[/COLOR][/B]",
-                    action="acestream_search", base_url=self.base_url,
-                    icon="DefaultAddonsSearch.png",
-                )
-                ui.add_directory_item(
-                    handle=self.handle,
-                    label="[COLOR yellow]Pegar hash/enlace AceStream[/COLOR]",
-                    action="acestream_manual", base_url=self.base_url,
-                    icon="DefaultNetwork.png",
-                    is_folder=False,
-                )
-                for item in self._get_manual_acestream_history():
-                    h_hash = item.get("hash", "")
-                    short_hash = f"{h_hash[:8]}...{h_hash[-6:]}"
-                    context_menu = [
-                        ("Borrar este hash del historial", f"RunPlugin({self.base_url}?action=acestream_clear_history&ace_hash={h_hash})"),
-                        ("Vaciar historial completo", f"RunPlugin({self.base_url}?action=acestream_clear_history)"),
-                    ]
-                    ui.add_directory_item(
-                        handle=self.handle,
-                        label=f"[COLOR orange]🕒 Historial: {short_hash}[/COLOR]",
-                        action="acestream_play",
-                        base_url=self.base_url,
-                        ace_hash=h_hash,
-                        title=f"Historial ({short_hash})",
-                        manual="1",
-                        icon="DefaultVideo.png",
-                        is_folder=False,
-                        context_menu=context_menu,
-                    )
-                ui.add_directory_item(
-                    handle=self.handle,
-                    label="[COLOR cyan]Refrescar lista[/COLOR]",
-                    action="acestream_refresh", base_url=self.base_url,
-                    icon="DefaultAddonProgram.png",
-                    is_folder=False,
-                )
-                ui.end_directory(self.handle)
-                return
-
-            groups = ace.get_groups(channels)
-
-            # Trends & Search shortcuts
+            # 1. Trends & Search shortcuts (ALWAYS FIRST, INSTANT)
             ui.add_directory_item(
                 handle=self.handle,
                 label="[B][COLOR lightgreen]⚽ Tendencias Fútbol / Deportes[/COLOR][/B]",
@@ -1990,30 +1933,39 @@ class Router:
                 icon="DefaultAddonsSearch.png",
             )
 
-            # Header: show all channels
-            total = len(channels)
-            ui.add_directory_item(
-                handle=self.handle,
-                label=f"[B]Todos los canales ({total})[/B]",
-                action="acestream_all", base_url=self.base_url,
-                icon="DefaultPVRTVChannels.png",
-            )
-
-            # Groups
-            for group in groups:
-                count = group["count"]
-                name = group["name"]
-                logo = group.get("logo", "")
-                label = f"{name} ({count})"
+            # 2. Check if channels are already in cache for instant display
+            channels = self.cache.get("acestream:channels")
+            if channels:
+                total = len(channels)
                 ui.add_directory_item(
-                    handle=self.handle, label=label, action="acestream_group",
-                    base_url=self.base_url,
-                    poster=logo,
-                    group_name=name,
+                    handle=self.handle,
+                    label=f"[B]Todos los canales ({total})[/B]",
+                    action="acestream_all", base_url=self.base_url,
+                    icon="DefaultPVRTVChannels.png",
+                )
+                groups = ace.get_groups(channels)
+                for group in groups:
+                    count = group["count"]
+                    name = group["name"]
+                    logo = group.get("logo", "")
+                    label = f"{name} ({count})"
+                    ui.add_directory_item(
+                        handle=self.handle, label=label, action="acestream_group",
+                        base_url=self.base_url,
+                        poster=logo,
+                        group_name=name,
+                        icon="DefaultPVRTVChannels.png",
+                    )
+            else:
+                # If not cached yet, do not block the menu! Load on demand
+                ui.add_directory_item(
+                    handle=self.handle,
+                    label="[COLOR lightblue]📺 Cargar lista completa de canales (M3U / IPFS)[/COLOR]",
+                    action="acestream_all", base_url=self.base_url,
                     icon="DefaultPVRTVChannels.png",
                 )
 
-            # Utilities at the bottom
+            # 3. Utilities at the bottom
             ui.add_directory_item(
                 handle=self.handle,
                 label="[COLOR yellow]Pegar hash/enlace AceStream[/COLOR]",
@@ -2360,25 +2312,36 @@ class Router:
                     stat_url = None
                     command_url = None
 
-                    # If previous command_url exists, stop previous stream to free engine slots
+                    # Open progress dialog immediately for instant UI feedback
+                    dp = xbmcgui.DialogProgress()
+                    dp.create("AceStream P2P", f"Conectando: {title[:28]}...", "Preparando motor AceStream...")
+
+                    # If previous command_url exists, stop previous stream in background
                     prev_cmd = self.cache.get("acestream:last_command_url")
                     if prev_cmd:
                         try:
                             import urllib.request
-                            urllib.request.urlopen(f"{prev_cmd}?method=stop", timeout=1.5)
+                            urllib.request.urlopen(f"{prev_cmd}?method=stop", timeout=1.0)
                         except Exception:
                             pass
                         self.cache.delete("acestream:last_command_url")
+
+                    if dp.iscanceled():
+                        dp.close()
+                        return
+
+                    dp.update(10, f"Conectando: {title[:28]}...", "Solicitando emisión al motor AceStream...")
 
                     try:
                         import urllib.request
                         import json
                         req = urllib.request.Request(api_url, headers={"User-Agent": "Kodi/Stremio"})
-                        with urllib.request.urlopen(req, timeout=10) as response:
+                        with urllib.request.urlopen(req, timeout=8) as response:
                             if response.status == 200:
                                 data = json.loads(response.read().decode("utf-8"))
                                 err = data.get("error")
                                 if err:
+                                    dp.close()
                                     log(f"AceStream engine error: {err}", level="error")
                                     ui.show_notification(f"AceStream: {err}")
                                     return
@@ -2403,15 +2366,13 @@ class Router:
 
                     # Monitor prebuffering so Kodi does not connect before stream is ready
                     if stat_url and playback_url:
-                        dp = xbmcgui.DialogProgress()
-                        dp.create("AceStream P2P", f"Conectando: {title[:28]}...")
                         import time
                         start_t = time.time()
                         ready = False
                         while not dp.iscanceled() and (time.time() - start_t) < 45:
                             try:
                                 sreq = urllib.request.Request(stat_url, headers={"User-Agent": "Kodi/Stremio"})
-                                with urllib.request.urlopen(sreq, timeout=3) as sresp:
+                                with urllib.request.urlopen(sreq, timeout=2.5) as sresp:
                                     sdata = json.loads(sresp.read().decode("utf-8")).get("response", {})
                                 st = sdata.get("status")
                                 prog = int(sdata.get("progress", 0) or 0)
@@ -2429,7 +2390,7 @@ class Router:
                                     dp.update(prog, f"Buscando peers P2P...\nPeers conectados: {peers}  |  Descarga: {spd} KB/s")
                             except Exception as ex:
                                 log(f"AceStream stat error: {ex}", level="warning")
-                            time.sleep(0.4)
+                            xbmc.sleep(350)
 
                         is_canceled = dp.iscanceled()
                         dp.close()
@@ -2438,7 +2399,7 @@ class Router:
                             log("AceStream playback canceled by user", level="info")
                             if command_url:
                                 try:
-                                    urllib.request.urlopen(f"{command_url}?method=stop", timeout=2)
+                                    urllib.request.urlopen(f"{command_url}?method=stop", timeout=1.5)
                                 except Exception:
                                     pass
                             return
@@ -2447,6 +2408,8 @@ class Router:
                             ui.show_notification("Tiempo agotado: pocos peers en la red.")
                             log("AceStream prebuffering timed out", level="warning")
                             return
+                    else:
+                        dp.close()
 
                     target_url = playback_url or play_url
                     log(f"AceStream playing target URL: {target_url}", level="info")
