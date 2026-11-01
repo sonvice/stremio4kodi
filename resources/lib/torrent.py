@@ -13,6 +13,7 @@ from resources.lib.config import Config
 from resources.lib.debrid import RealDebrid
 from resources.lib.spanish import detect_spanish, get_spanish_label, get_spanish_boost
 from resources.lib.logger import log
+from resources.lib import ui
 import xbmc
 import xbmcgui
 
