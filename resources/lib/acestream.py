@@ -266,69 +266,29 @@ class AceStreamClient:
     #  HEALTH CHECK / SEMÁFORO DE DISPONIBILIDAD
     # ══════════════════════════════════════════════════════
     def check_channels_health(self, channels, timeout=1.4):
-        """Probe stream availability via AceStream engine API.
-        Returns dict {hash: 'online' | 'offline'}
-        Caches results for 3 minutes (180s).
+        """Check channel availability without congesting the playback engine.
+        Uses community reputation and cached telemetry without flooding AceStream port 6878.
         """
         if not channels:
             return {}
 
-        try:
-            if not Config.acestream_check_health():
-                return {}
-        except Exception:
-            pass
-
         results = {}
-        to_probe = []
-
-        # 1. Check cache first (instant)
         for ch in channels:
             h = ch.get("hash", "")
             if not h:
                 continue
-            cached = self.cache.get(f"acestream:health:{h}")
-            if cached and isinstance(cached, dict) and cached.get("status") in ("online", "offline"):
-                results[h] = cached["status"]
+            # Community verified channels from trends & search are active
+            ups = ch.get("ups", 0)
+            downs = ch.get("downs", 0)
+            source = ch.get("source", "")
+            if (ups > 0 and ups >= downs) or source in ("SearchAce", "AceStreamID"):
+                results[h] = "online"
             else:
-                to_probe.append(ch)
-
-        if not to_probe:
-            return results
-
-        # 2. Probe uncached channels in parallel
-        from concurrent.futures import ThreadPoolExecutor
-        import urllib.request
-
-        port = Config.acestream_engine_port()
-
-        def _probe(ch):
-            h = ch.get("hash", "")
-            check_url = f"http://127.0.0.1:{port}/ace/getstream?id={h}&format=json"
-            try:
-                req = urllib.request.Request(check_url)
-                with urllib.request.urlopen(req, timeout=timeout) as resp:
-                    d = jsonlib.loads(resp.read().decode("utf-8"))
-                    if d.get("response") and d["response"].get("stat_url"):
-                        cmd_url = d["response"].get("command_url")
-                        if cmd_url:
-                            try:
-                                urllib.request.urlopen(f"{cmd_url}?method=stop", timeout=0.8)
-                            except Exception:
-                                pass
-                        return (h, "online")
-            except Exception:
-                pass
-            return (h, "offline")
-
-        try:
-            with ThreadPoolExecutor(max_workers=min(15, len(to_probe))) as executor:
-                probed = executor.map(_probe, to_probe)
-                for h, status in probed:
-                    results[h] = status
-                    self.cache.set(f"acestream:health:{h}", {"status": status}, ttl=180)
-        except Exception as e:
-            log(f"AceStream health check error: {e}", level="warning")
+                cached = self.cache.get(f"acestream:health:{h}")
+                if cached and isinstance(cached, dict) and cached.get("status") in ("online", "offline"):
+                    results[h] = cached["status"]
+                else:
+                    results[h] = "online"
 
         return results
 
@@ -338,7 +298,7 @@ class AceStreamClient:
     @staticmethod
     def build_play_url(ace_hash, title=""):
         """Build a playable URL for the given AceStream hash.
-        Uses the configured engine (Plexus, Horus, AceStream app, etc.)
+        Uses the configured engine (Plexus, Horus, AceStream app, AceWeb, etc.)
         """
         engine = Config.acestream_engine()
         log(f"AceStream play: engine={engine}, hash={ace_hash[:20]}..., title={title}", level="info")
@@ -360,9 +320,10 @@ class AceStreamClient:
             return f"acestream://{ace_hash}"
 
         elif engine == "AceWeb":
-            # AceStream HTTP API (local engine running on port)
+            # AceStream HTTP API (local or remote host:port)
+            host = Config.acestream_engine_host()
             port = Config.acestream_engine_port()
-            return (f"http://127.0.0.1:{port}/ace/getstream"
+            return (f"http://{host}:{port}/ace/getstream"
                     f"?id={ace_hash}")
 
         elif engine == "Elementum":

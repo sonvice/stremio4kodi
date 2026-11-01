@@ -256,6 +256,14 @@ class Config:
             return "Plexus"
 
     @staticmethod
+    def acestream_engine_host():
+        try:
+            val = ADDON.getSetting("acestream_host")
+            return val.strip() if val and val.strip() else "127.0.0.1"
+        except Exception:
+            return "127.0.0.1"
+
+    @staticmethod
     def acestream_engine_port():
         try:
             val = ADDON.getSetting("acestream_port")

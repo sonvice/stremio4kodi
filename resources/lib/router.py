@@ -2353,16 +2353,28 @@ class Router:
 
             if play_url.startswith("http"):
                 if engine == "AceWeb":
+                    host = Config.acestream_engine_host()
                     port = Config.acestream_engine_port()
-                    api_url = f"http://127.0.0.1:{port}/ace/getstream?id={ace_hash}&format=json"
+                    api_url = f"http://{host}:{port}/ace/getstream?id={ace_hash}&format=json"
                     playback_url = None
                     stat_url = None
                     command_url = None
+
+                    # If previous command_url exists, stop previous stream to free engine slots
+                    prev_cmd = self.cache.get("acestream:last_command_url")
+                    if prev_cmd:
+                        try:
+                            import urllib.request
+                            urllib.request.urlopen(f"{prev_cmd}?method=stop", timeout=1.5)
+                        except Exception:
+                            pass
+                        self.cache.delete("acestream:last_command_url")
+
                     try:
                         import urllib.request
                         import json
                         req = urllib.request.Request(api_url, headers={"User-Agent": "Kodi/Stremio"})
-                        with urllib.request.urlopen(req, timeout=6) as response:
+                        with urllib.request.urlopen(req, timeout=10) as response:
                             if response.status == 200:
                                 data = json.loads(response.read().decode("utf-8"))
                                 err = data.get("error")
@@ -2374,6 +2386,18 @@ class Router:
                                 playback_url = resp_obj.get("playback_url")
                                 stat_url = resp_obj.get("stat_url")
                                 command_url = resp_obj.get("command_url")
+
+                                # If using a remote PC engine, rewrite 127.0.0.1 to the PC host IP
+                                if host not in ("127.0.0.1", "localhost"):
+                                    if playback_url:
+                                        playback_url = playback_url.replace("127.0.0.1", host).replace("localhost", host)
+                                    if stat_url:
+                                        stat_url = stat_url.replace("127.0.0.1", host).replace("localhost", host)
+                                    if command_url:
+                                        command_url = command_url.replace("127.0.0.1", host).replace("localhost", host)
+
+                                if command_url:
+                                    self.cache.set("acestream:last_command_url", command_url, ttl=3600)
                     except Exception as ex:
                         log(f"AceStream JSON endpoint failed ({ex}), falling back to direct URL", level="warning")
 
@@ -2402,10 +2426,10 @@ class Router:
                                 elif st == "check":
                                     dp.update(prog, f"Verificando fragmentos de vídeo...\nPeers conectados: {peers}")
                                 else:
-                                    dp.update(prog, f"Estado: {st}...\nPeers conectados: {peers}  |  Descarga: {spd} KB/s")
+                                    dp.update(prog, f"Buscando peers P2P...\nPeers conectados: {peers}  |  Descarga: {spd} KB/s")
                             except Exception as ex:
                                 log(f"AceStream stat error: {ex}", level="warning")
-                            time.sleep(0.3)
+                            time.sleep(0.4)
 
                         is_canceled = dp.iscanceled()
                         dp.close()
@@ -2432,6 +2456,15 @@ class Router:
                     li.setMimeType("video/mp2t")
                     li.setContentLookup(False)
                     li.setProperty("IsPlayable", "true")
+                    li.setProperty("IsLive", "true")
+                    li.setProperty("http-reconnect", "true")
+
+                    # Use ffmpegdirect if available for stream recovery and auto-reconnect
+                    if xbmc.getCondVisibility('System.HasAddon("inputstream.ffmpegdirect")'):
+                        li.setProperty("inputstream", "inputstream.ffmpegdirect")
+                        li.setProperty("inputstream.ffmpegdirect.is_realtime_stream", "true")
+                        li.setProperty("inputstream.ffmpegdirect.stream_mode", "timeshift")
+
                     xbmc.Player().play(target_url, li)
                 else:
                     li = xbmcgui.ListItem(label=title, path=play_url)
@@ -2439,6 +2472,8 @@ class Router:
                     li.setMimeType("video/mp2t")
                     li.setContentLookup(False)
                     li.setProperty("IsPlayable", "true")
+                    li.setProperty("IsLive", "true")
+                    li.setProperty("http-reconnect", "true")
                     xbmc.Player().play(play_url, li)
             else:
                 ui.show_notification("Motor AceStream no reconocido.")
@@ -2460,8 +2495,9 @@ class Router:
             if self.params.get("manual") == "1":
                 self._add_manual_acestream_history(ace_hash, title)
 
-            xbmcplugin.endOfDirectory(self.handle, succeeded=False)
-            xbmc.sleep(200)
+            # Signal Kodi that directory item handling was SUCCESSFUL to prevent
+            # "One or more items failed to play" popup dialog
+            xbmcplugin.endOfDirectory(self.handle, succeeded=True, updateListing=False, cacheToDisc=True)
 
             self._play_acestream_hash(ace_hash, title)
         except Exception as e:
