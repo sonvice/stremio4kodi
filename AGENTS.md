@@ -155,7 +155,8 @@ El proyecto está dividido en dos repositorios/carpetas hermanas:
 
 ---
 
-## 9. Características Añadidas en v3.7.13 - v3.7.18 (AceStream Zero-Lag, setResolvedUrl & Anti-Freeze)
+## 9. Características Añadidas en v3.7.13 - v3.7.19 (AceStream Zero-Lag, setResolvedUrl & Silent Cache Navigation)
+* **Restauración Silenciosa de Listas sin Notificaciones Falsas (v3.7.19):** Al cortar o salir de una reproducción, Kodi refresca el contenedor desde la caché local en <10 ms. Se eliminó la notificación fija de "Cargando tendencias..." cuando los datos ya están en caché para evitar la falsa sensación de recarga por red.
 * **Corrección Total del Falso Diálogo 'Failed to play' (v3.7.18):** Eliminado el fallo donde Kodi saltaba el canal como no reproducible (`Playlist Player: skipping unplayable item`) porque el addon terminaba el directorio antes de resolver. Ahora se usa la API oficial `xbmcplugin.setResolvedUrl(handle, True, li)` para una resolución perfecta sin diálogos fantasma de error mientras reproduce.
 * **Eliminación Total de Pantalla Negra y Congelación al Salir (v3.7.18):** Retirado `inputstream.ffmpegdirect` en modo timeshift que bloqueaba el cierre del reproductor hasta 66 segundos en CoreELEC. Kodi ahora usa su reproductor nativo por hardware AMLogic que cierra y retorna al menú en 50 milisegundos.
 * **Retorno a Motor AceStream Local Simple (v3.7.18):** Desactivada la delegación remota al PC para AceStream para mantener la arquitectura sencilla, directa y sin dependencias externas en la TV Box (`127.0.0.1:6878`).

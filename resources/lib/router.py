@@ -2146,7 +2146,9 @@ class Router:
             from resources.lib.acestream import AceStreamClient
 
             force_refresh = bool(self.params.get("refresh") == "1")
-            ui.show_notification("Cargando tendencias deportivas...", time=2500)
+            cached_trends = self.cache.get("acestream:trends:sports")
+            if not cached_trends or force_refresh:
+                ui.show_notification("Cargando tendencias deportivas...", time=2000)
 
             search_client = AceStreamSearchClient()
             channels = search_client.get_trending_sports(force_refresh=force_refresh)
@@ -2229,7 +2231,9 @@ class Router:
                     return
 
             force_refresh = bool(self.params.get("refresh") == "1")
-            ui.show_notification(f"Buscando: {query}...", time=2500)
+            cached_search = self.cache.get(f"acestream:search:{query.lower()}")
+            if not cached_search or force_refresh:
+                ui.show_notification(f"Buscando: {query}...", time=2000)
 
             search_client = AceStreamSearchClient()
             channels = search_client.search(query, force_refresh=force_refresh)
