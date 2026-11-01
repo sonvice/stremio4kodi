@@ -153,3 +153,12 @@ El proyecto está dividido en dos repositorios/carpetas hermanas:
 4. **Reproducción de Trailers Oficiales de YouTube:** Añadir una opción en el menú contextual de cada película ("Ver Tráiler") para reproducir el avance oficial en YouTube antes de abrir los torrents.
 5. **Soporte Multi-Debrid (AllDebrid / Premiumize):** Ampliar los conectores de Debrid para soportar AllDebrid y Premiumize.me junto con Real-Debrid.
 
+---
+
+## 9. Características Añadidas en v3.7.13 (AceStream Trends & Search)
+* **Módulo Híbrido Multifuente (`acestream_search.py`):** Integración simultánea de `search-ace.stream` (API REST JSON de alta velocidad) y `acestreamid.com` (scraping con reputación/votos comunitarios y fecha activa).
+* **Bypass DNS Anti-Bloqueo (DoH):** Resolución transparente vía DNS-over-HTTPS (Cloudflare / Google) con fallback a Anycast IPs para sortear bloqueos de ISPs españolas a dominios de streaming P2P.
+* **Tendencias de Fútbol y Deportes:** Submenú con canales ordenados por karma positivo (votos a favor vs votos en contra) y actividad reciente.
+* **Buscador Interactivo AceStream:** Búsqueda en tiempo real de canales y eventos con limpieza automática de enlaces promocionales y spam.
+
+

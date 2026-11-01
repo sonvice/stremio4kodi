@@ -88,6 +88,8 @@ class Router:
             "platform_catalog":    self._platform_catalog,
             # v3.2: AceStream (replaces livetv)
             "acestream":               self._acestream,
+            "acestream_trends":        self._acestream_trends,
+            "acestream_search":        self._acestream_search,
             "acestream_group":         self._acestream_group,
             "acestream_all":           self._acestream_all,
             "acestream_play":          self._acestream_play,
@@ -1923,7 +1925,19 @@ class Router:
             channels = ace.fetch_channels()
             if not channels:
                 ui.show_notification("No se pudieron cargar canales AceStream.")
-                # Still show utility options
+                # Still show trends, search and utility options
+                ui.add_directory_item(
+                    handle=self.handle,
+                    label="[B][COLOR lightgreen]⚽ Tendencias Fútbol / Deportes[/COLOR][/B]",
+                    action="acestream_trends", base_url=self.base_url,
+                    icon="DefaultPVRTVChannels.png",
+                )
+                ui.add_directory_item(
+                    handle=self.handle,
+                    label="[B][COLOR yellow]🔍 Buscar canal o evento AceStream[/COLOR][/B]",
+                    action="acestream_search", base_url=self.base_url,
+                    icon="DefaultAddonsSearch.png",
+                )
                 ui.add_directory_item(
                     handle=self.handle,
                     label="[COLOR yellow]Pegar hash/enlace AceStream[/COLOR]",
@@ -1961,6 +1975,20 @@ class Router:
                 return
 
             groups = ace.get_groups(channels)
+
+            # Trends & Search shortcuts
+            ui.add_directory_item(
+                handle=self.handle,
+                label="[B][COLOR lightgreen]⚽ Tendencias Fútbol / Deportes[/COLOR][/B]",
+                action="acestream_trends", base_url=self.base_url,
+                icon="DefaultPVRTVChannels.png",
+            )
+            ui.add_directory_item(
+                handle=self.handle,
+                label="[B][COLOR yellow]🔍 Buscar canal o evento AceStream[/COLOR][/B]",
+                action="acestream_search", base_url=self.base_url,
+                icon="DefaultAddonsSearch.png",
+            )
 
             # Header: show all channels
             total = len(channels)
@@ -2133,6 +2161,163 @@ class Router:
         except Exception as e:
             log(f"AceStream all error: {e}", level="error")
             ui.show_notification("Error.")
+            ui.end_directory(self.handle)
+
+    def _acestream_trends(self):
+        """Display trending sports channels from acestreamid.com and search-ace.stream."""
+        try:
+            from resources.lib.acestream_search import AceStreamSearchClient
+            from resources.lib.acestream import AceStreamClient
+
+            force_refresh = bool(self.params.get("refresh") == "1")
+            ui.show_notification("Cargando tendencias deportivas...", time=2500)
+
+            search_client = AceStreamSearchClient()
+            channels = search_client.get_trending_sports(force_refresh=force_refresh)
+
+            if not channels:
+                ui.show_notification("No se encontraron tendencias deportivas activas.")
+                ui.end_directory(self.handle)
+                return
+
+            # Refresh option at the top
+            ui.add_directory_item(
+                handle=self.handle,
+                label="[COLOR cyan]🔄 Actualizar tendencias en directo[/COLOR]",
+                action="acestream_trends",
+                base_url=self.base_url,
+                refresh="1",
+                icon="DefaultAddonProgram.png",
+                is_folder=True,
+            )
+
+            # Health check (semáforo)
+            health = {}
+            try:
+                ace = AceStreamClient()
+                health = ace.check_channels_health(channels)
+            except Exception as e:
+                log(f"Trends health check error: {e}", level="debug")
+
+            for ch in channels:
+                ace_hash = ch.get("hash", "")
+                title = ch.get("title", "Canal")
+                source = ch.get("source", "")
+                ups = ch.get("ups", 0)
+                downs = ch.get("downs", 0)
+
+                # Dot status
+                status = health.get(ace_hash)
+                if status == "online":
+                    dot = "[COLOR lightgreen]● [/COLOR]"
+                elif status == "offline":
+                    dot = "[COLOR red]○ [/COLOR]"
+                else:
+                    dot = ""
+
+                # Karma/votes tag if available
+                karma = ""
+                if ups or downs:
+                    karma = f" [COLOR lightgreen]+{ups}[/COLOR]/[COLOR red]-{downs}[/COLOR]"
+
+                src_tag = f" [COLOR grey][{source}][/COLOR]" if source else ""
+                label = f"{dot}[B]{title}[/B]{karma}{src_tag}"
+
+                ui.add_directory_item(
+                    handle=self.handle,
+                    label=label,
+                    action="acestream_play",
+                    base_url=self.base_url,
+                    ace_hash=ace_hash,
+                    title=title,
+                    is_folder=False,
+                    icon="DefaultPVRTVChannels.png",
+                )
+
+            ui.end_directory(self.handle, content_type="videos")
+        except Exception as e:
+            log(f"AceStream trends error: {e}", level="error")
+            ui.show_notification(f"Error tendencias: {str(e)[:50]}")
+            ui.end_directory(self.handle)
+
+    def _acestream_search(self):
+        """Search channels across search-ace.stream and acestreamid.com."""
+        try:
+            from resources.lib.acestream_search import AceStreamSearchClient
+            from resources.lib.acestream import AceStreamClient
+
+            query = self.params.get("query", "").strip()
+            if not query:
+                query = ui.show_input("Buscar canal o evento (ej: LaLiga, DAZN, F1, Champions...)")
+                if not query:
+                    return
+
+            force_refresh = bool(self.params.get("refresh") == "1")
+            ui.show_notification(f"Buscando: {query}...", time=2500)
+
+            search_client = AceStreamSearchClient()
+            channels = search_client.search(query, force_refresh=force_refresh)
+
+            if not channels:
+                ui.show_notification("No se encontraron emisiones activas para esa búsqueda.")
+                ui.end_directory(self.handle)
+                return
+
+            # Option to search again
+            ui.add_directory_item(
+                handle=self.handle,
+                label=f"[COLOR yellow]🔍 Nueva búsqueda (Actual: {query})[/COLOR]",
+                action="acestream_search",
+                base_url=self.base_url,
+                icon="DefaultAddonsSearch.png",
+                is_folder=True,
+            )
+
+            # Health check (semáforo)
+            health = {}
+            try:
+                ace = AceStreamClient()
+                health = ace.check_channels_health(channels)
+            except Exception as e:
+                log(f"Search health check error: {e}", level="debug")
+
+            for ch in channels:
+                ace_hash = ch.get("hash", "")
+                title = ch.get("title", "Canal")
+                source = ch.get("source", "")
+                ups = ch.get("ups", 0)
+                downs = ch.get("downs", 0)
+
+                status = health.get(ace_hash)
+                if status == "online":
+                    dot = "[COLOR lightgreen]● [/COLOR]"
+                elif status == "offline":
+                    dot = "[COLOR red]○ [/COLOR]"
+                else:
+                    dot = ""
+
+                karma = ""
+                if ups or downs:
+                    karma = f" [COLOR lightgreen]+{ups}[/COLOR]/[COLOR red]-{downs}[/COLOR]"
+
+                src_tag = f" [COLOR grey][{source}][/COLOR]" if source else ""
+                label = f"{dot}[B]{title}[/B]{karma}{src_tag}"
+
+                ui.add_directory_item(
+                    handle=self.handle,
+                    label=label,
+                    action="acestream_play",
+                    base_url=self.base_url,
+                    ace_hash=ace_hash,
+                    title=title,
+                    is_folder=False,
+                    icon="DefaultPVRTVChannels.png",
+                )
+
+            ui.end_directory(self.handle, content_type="videos")
+        except Exception as e:
+            log(f"AceStream search error: {e}", level="error")
+            ui.show_notification(f"Error búsqueda: {str(e)[:50]}")
             ui.end_directory(self.handle)
 
     def _play_acestream_hash(self, ace_hash, title="AceStream"):
