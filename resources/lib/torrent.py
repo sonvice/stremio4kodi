@@ -116,20 +116,41 @@ class TorrentResolver:
             log(f"Elementum auto-heal attempt error: {e}", level="warning")
         return False
 
+    @staticmethod
+    def _ensure_lan_bypass(host):
+        """
+        On CoreELEC/Linux, ensures that local LAN traffic to the TorrServer PC
+        bypasses any active WireGuard VPN tunnel by adding a /32 host route.
+        """
+        if not host or host in ("127.0.0.1", "localhost"):
+            return
+        try:
+            import subprocess, shutil
+            if shutil.which("ip") is not None:
+                parts = host.split(".")
+                if len(parts) == 4 and all(p.isdigit() for p in parts):
+                    if host.startswith("192.168.") or host.startswith("10.") or host.startswith("172."):
+                        subprocess.run(
+                            ["ip", "route", "replace", f"{host}/32", "via", "192.168.1.1"],
+                            timeout=1,
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL
+                        )
+        except Exception:
+            pass
+
     def resolve_torrserver_stream(self, uri, file_idx=None, stream_title="", info_hash=None):
         """
         Resolves torrent stream via TorrServer MatriX HTTP streaming endpoint.
         Returns direct HTTP playable URL.
         """
-        if not self.is_engine_alive("TorrServer"):
-            return None
-
         host = Config.torrserver_host().strip() or "127.0.0.1"
         port = str(Config.torrserver_port()).strip() or "8090"
         auth_required = Config.torrserver_auth()
         user = Config.torrserver_user().strip()
         password = Config.torrserver_pass()
 
+        self._ensure_lan_bypass(host)
         base_api_url = f"http://{host}:{port}"
         headers = {"User-Agent": "Kodi", "Content-Type": "application/json"}
         if auth_required and user:
@@ -159,10 +180,12 @@ class TorrentResolver:
                 "save_to_db": False
             }).encode("utf-8")
             req = urllib.request.Request(f"{base_api_url}/torrents", data=add_payload, headers=headers)
-            with urllib.request.urlopen(req, timeout=3.0) as resp:
+            with urllib.request.urlopen(req, timeout=4.0) as resp:
                 pass
         except Exception as e:
-            log(f"TorrServer add session notice: {e}", level="debug")
+            log(f"TorrServer add session notice: {e}", level="warning")
+            if not self.is_engine_alive("TorrServer", timeout=2.0):
+                return None
 
         best_id = None
         chosen_filename = None
@@ -304,6 +327,7 @@ class TorrentResolver:
                 if resolved:
                     return resolved
                 log("TorrServer resolution failed, trying Elementum fallback...", level="warning")
+                ui.show_notification("TorrServer no respondió. Usando Elementum...", time=3000)
                 if self.is_engine_alive("Elementum") or (Config.elementum_auto_heal() and self.try_recover_elementum()):
                     return self.resolve_elementum_stream(magnet, file_idx, info_hash=info_hash)
                 return None
@@ -334,6 +358,7 @@ class TorrentResolver:
                 if resolved:
                     return resolved
                 log("TorrServer resolution failed, trying Elementum fallback...", level="warning")
+                ui.show_notification("TorrServer no respondió. Usando Elementum...", time=3000)
                 if self.is_engine_alive("Elementum") or (Config.elementum_auto_heal() and self.try_recover_elementum()):
                     return self.resolve_elementum_stream(enriched, file_idx)
                 return None
@@ -358,6 +383,7 @@ class TorrentResolver:
                 if resolved:
                     return resolved
                 log("TorrServer resolution failed, trying Elementum fallback...", level="warning")
+                ui.show_notification("TorrServer no respondió. Usando Elementum...", time=3000)
                 if self.is_engine_alive("Elementum") or (Config.elementum_auto_heal() and self.try_recover_elementum()):
                     return self.resolve_elementum_stream(url, file_idx)
                 return None
@@ -440,38 +466,57 @@ class TorrentResolver:
         return engine_url
 
     def is_engine_alive(self, engine_name, timeout=None):
-        import urllib.request
-        import urllib.error
         try:
             if engine_name == "TorrServer":
                 host = Config.torrserver_host()
-                port = Config.torrserver_port()
-                t = timeout or 3.0
+                port = int(Config.torrserver_port())
+                t = timeout or 3.5
+                self._ensure_lan_bypass(host)
+                import socket
+                for attempt in range(2):
+                    try:
+                        s = socket.create_connection((host, port), timeout=t)
+                        s.sendall(b"GET /echo HTTP/1.1\r\nHost: " + host.encode() + b"\r\nConnection: close\r\n\r\n")
+                        s.settimeout(t)
+                        resp = s.recv(512)
+                        s.close()
+                        if b"200 OK" in resp or b"MatriX" in resp or b"401" in resp:
+                            return True
+                    except Exception as se:
+                        log(f"TorrServer probe attempt {attempt+1} notice: {se}", level="debug")
+                        import xbmc
+                        xbmc.sleep(250)
+                # Fallback to urllib if socket had an unexpected response
+                import urllib.request
+                import urllib.error
                 req = urllib.request.Request(f"http://{host}:{port}/echo", headers={"User-Agent": "Kodi"})
-                if Config.torrserver_auth() and Config.torrserver_user():
-                    import base64
-                    cred = base64.b64encode(f"{Config.torrserver_user()}:{Config.torrserver_pass()}".encode()).decode()
-                    req.add_header("Authorization", f"Basic {cred}")
                 try:
                     with urllib.request.urlopen(req, timeout=t) as r:
                         return r.status in (200, 401)
                 except urllib.error.HTTPError as he:
                     return he.code in (200, 401)
             elif engine_name == "Elementum":
+                import urllib.request
                 req = urllib.request.Request("http://127.0.0.1:65220/", headers={"User-Agent": "Kodi"})
                 with urllib.request.urlopen(req, timeout=1.5) as r:
                     return True
             elif engine_name == "Torrest":
+                import urllib.request
                 req = urllib.request.Request("http://127.0.0.1:61235/torrents", headers={"User-Agent": "Kodi"})
                 with urllib.request.urlopen(req, timeout=1.5) as r:
                     return True
-        except Exception:
+        except Exception as e:
+            log(f"is_engine_alive exception for {engine_name}: {e}", level="warning")
             return False
         return False
 
     def get_active_engine(self):
         engine = Config.torrent_engine()
         preflight = Config.torrent_preflight_check()
+
+        # If user explicitly chose TorrServer, respect it and let resolve() attempt TorrServer directly
+        if engine == "TorrServer":
+            return "TorrServer"
 
         if engine == "Auto":
             if self.is_engine_alive("TorrServer"):
@@ -485,14 +530,7 @@ class TorrentResolver:
             return "Elementum"
 
         if preflight:
-            if engine == "TorrServer" and not self.is_engine_alive("TorrServer"):
-                log("TorrServer unreachable during preflight, falling back to Elementum", level="warning")
-                ui.show_notification(f"TorrServer no responde ({Config.torrserver_host()}). Usando Elementum...", time=3500)
-                if self.is_engine_alive("Elementum"):
-                    return "Elementum"
-                if Config.elementum_auto_heal() and self.try_recover_elementum():
-                    return "Elementum"
-            elif engine == "Elementum" and not self.is_engine_alive("Elementum"):
+            if engine == "Elementum" and not self.is_engine_alive("Elementum"):
                 if Config.elementum_auto_heal() and self.try_recover_elementum():
                     return "Elementum"
                 for _ in range(4):
