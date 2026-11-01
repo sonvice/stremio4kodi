@@ -19,7 +19,7 @@ def build_url(base_url, **params):
 def add_directory_item(handle, label, action, base_url, is_folder=True,
                        icon="DefaultFolder.png", fanart="", poster="",
                        plot="", year="", imdb_id="", media_type="",
-                       context_menu=None, **extra_params):
+                       context_menu=None, is_playable=None, **extra_params):
     """
     Add a navigable directory item (folder or playable).
 
@@ -102,7 +102,9 @@ def add_directory_item(handle, label, action, base_url, is_folder=True,
         li.addContextMenuItems(context_menu)
 
     # Playable flag
-    if not is_folder:
+    if is_playable is None:
+        is_playable = not is_folder
+    if is_playable:
         li.setProperty("IsPlayable", "true")
 
     xbmcplugin.addDirectoryItem(

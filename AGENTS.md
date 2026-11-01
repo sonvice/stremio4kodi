@@ -155,7 +155,10 @@ El proyecto está dividido en dos repositorios/carpetas hermanas:
 
 ---
 
-## 9. Características Añadidas en v3.7.13 - v3.7.17 (AceStream Trends, Search, Speed & Zero-Lag UX)
+## 9. Características Añadidas en v3.7.13 - v3.7.18 (AceStream Zero-Lag, setResolvedUrl & Anti-Freeze)
+* **Corrección Total del Falso Diálogo 'Failed to play' (v3.7.18):** Eliminado el fallo donde Kodi saltaba el canal como no reproducible (`Playlist Player: skipping unplayable item`) porque el addon terminaba el directorio antes de resolver. Ahora se usa la API oficial `xbmcplugin.setResolvedUrl(handle, True, li)` para una resolución perfecta sin diálogos fantasma de error mientras reproduce.
+* **Eliminación Total de Pantalla Negra y Congelación al Salir (v3.7.18):** Retirado `inputstream.ffmpegdirect` en modo timeshift que bloqueaba el cierre del reproductor hasta 66 segundos en CoreELEC. Kodi ahora usa su reproductor nativo por hardware AMLogic que cierra y retorna al menú en 50 milisegundos.
+* **Retorno a Motor AceStream Local Simple (v3.7.18):** Desactivada la delegación remota al PC para AceStream para mantener la arquitectura sencilla, directa y sin dependencias externas en la TV Box (`127.0.0.1:6878`).
 * **Aislamiento Total de Lista Tradicional IPFS/M3U (v3.7.17):** La pesada lista IPFS ya no se descarga ni procesa al entrar al menú de AceStream. Se ha trasladado a una opción dedicada al final del menú (`📦 Canales Tradicionales (Lista IPFS / M3U)`), permitiendo una apertura 100% instantánea de las tendencias de fútbol y del buscador.
 * **Módulo Híbrido Multifuente (`acestream_search.py`):** Integración simultánea de `search-ace.stream` (API REST JSON de alta velocidad) y `acestreamid.com` (scraping con reputación/votos comunitarios y fecha activa).
 * **Bypass DNS Anti-Bloqueo (DoH):** Resolución transparente vía DNS-over-HTTPS (Cloudflare / Google) con fallback a Anycast IPs para sortear bloqueos de ISPs españolas a dominios de streaming P2P.

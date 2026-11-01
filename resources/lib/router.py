@@ -1938,6 +1938,7 @@ class Router:
                 action="acestream_manual", base_url=self.base_url,
                 icon="DefaultNetwork.png",
                 is_folder=False,
+                is_playable=False,
             )
             for item in self._get_manual_acestream_history():
                 h_hash = item.get("hash", "")
@@ -1974,6 +1975,7 @@ class Router:
                 action="acestream_refresh", base_url=self.base_url,
                 icon="DefaultAddonProgram.png",
                 is_folder=False,
+                is_playable=False,
             )
 
             # VPN status toggle (CoreELEC / ConnMan)
@@ -2294,8 +2296,11 @@ class Router:
             ui.show_notification(f"Error búsqueda: {str(e)[:50]}")
             ui.end_directory(self.handle)
 
-    def _play_acestream_hash(self, ace_hash, title="AceStream"):
+    def _play_acestream_hash(self, ace_hash, title="AceStream", handle=None):
         """Resolve and play an AceStream stream with monitored prebuffering and direct MPEG-TS playback."""
+        if handle is None:
+            handle = self.handle
+
         try:
             from resources.lib.acestream import AceStreamClient
             engine = Config.acestream_engine()
@@ -2322,12 +2327,16 @@ class Router:
                 li = xbmcgui.ListItem(label=title, path=play_url)
                 li.setInfo("video", {"title": title, "mediatype": "video"})
                 li.setProperty("IsPlayable", "true")
-                xbmc.Player().play(play_url, li)
+                if handle and handle > 0:
+                    xbmcplugin.setResolvedUrl(handle, True, li)
+                else:
+                    xbmc.Player().play(play_url, li)
                 return
 
             if play_url.startswith("http"):
                 if engine == "AceWeb":
-                    host = Config.acestream_engine_host()
+                    # Keep it strictly local on 127.0.0.1 for simplicity and instant response
+                    host = "127.0.0.1"
                     port = Config.acestream_engine_port()
                     api_url = f"http://{host}:{port}/ace/getstream?id={ace_hash}&format=json"
                     playback_url = None
@@ -2350,6 +2359,8 @@ class Router:
 
                     if dp.iscanceled():
                         dp.close()
+                        if handle and handle > 0:
+                            xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
                         return
 
                     dp.update(10, f"Conectando: {title[:28]}...\nSolicitando emisión al motor AceStream...")
@@ -2366,20 +2377,13 @@ class Router:
                                     dp.close()
                                     log(f"AceStream engine error: {err}", level="error")
                                     ui.show_notification(f"AceStream: {err}")
+                                    if handle and handle > 0:
+                                        xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
                                     return
                                 resp_obj = data.get("response") or {}
                                 playback_url = resp_obj.get("playback_url")
                                 stat_url = resp_obj.get("stat_url")
                                 command_url = resp_obj.get("command_url")
-
-                                # If using a remote PC engine, rewrite 127.0.0.1 to the PC host IP
-                                if host not in ("127.0.0.1", "localhost"):
-                                    if playback_url:
-                                        playback_url = playback_url.replace("127.0.0.1", host).replace("localhost", host)
-                                    if stat_url:
-                                        stat_url = stat_url.replace("127.0.0.1", host).replace("localhost", host)
-                                    if command_url:
-                                        command_url = command_url.replace("127.0.0.1", host).replace("localhost", host)
 
                                 if command_url:
                                     self.cache.set("acestream:last_command_url", command_url, ttl=3600)
@@ -2424,11 +2428,15 @@ class Router:
                                     urllib.request.urlopen(f"{command_url}?method=stop", timeout=1.5)
                                 except Exception:
                                     pass
+                            if handle and handle > 0:
+                                xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
                             return
 
                         if not ready:
                             ui.show_notification("Tiempo agotado: pocos peers en la red.")
                             log("AceStream prebuffering timed out", level="warning")
+                            if handle and handle > 0:
+                                xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
                             return
                     else:
                         dp.close()
@@ -2444,13 +2452,12 @@ class Router:
                     li.setProperty("IsLive", "true")
                     li.setProperty("http-reconnect", "true")
 
-                    # Use ffmpegdirect if available for stream recovery and auto-reconnect
-                    if xbmc.getCondVisibility('System.HasAddon("inputstream.ffmpegdirect")'):
-                        li.setProperty("inputstream", "inputstream.ffmpegdirect")
-                        li.setProperty("inputstream.ffmpegdirect.is_realtime_stream", "true")
-                        li.setProperty("inputstream.ffmpegdirect.stream_mode", "timeshift")
-
-                    xbmc.Player().play(target_url, li)
+                    # Use native VideoPlayer without inputstream.ffmpegdirect timeshift.
+                    # This prevents the 66-second black screen freeze when stopping playback.
+                    if handle and handle > 0:
+                        xbmcplugin.setResolvedUrl(handle, True, li)
+                    else:
+                        xbmc.Player().play(target_url, li)
                 else:
                     li = xbmcgui.ListItem(label=title, path=play_url)
                     li.setInfo("video", {"title": title, "mediatype": "video"})
@@ -2459,12 +2466,19 @@ class Router:
                     li.setProperty("IsPlayable", "true")
                     li.setProperty("IsLive", "true")
                     li.setProperty("http-reconnect", "true")
-                    xbmc.Player().play(play_url, li)
+                    if handle and handle > 0:
+                        xbmcplugin.setResolvedUrl(handle, True, li)
+                    else:
+                        xbmc.Player().play(play_url, li)
             else:
                 ui.show_notification("Motor AceStream no reconocido.")
+                if handle and handle > 0:
+                    xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
         except Exception as e:
             log(f"AceStream play error: {e}", level="error")
             ui.show_notification(f"Error: {str(e)[:60]}")
+            if handle and handle > 0:
+                xbmcplugin.setResolvedUrl(handle, False, xbmcgui.ListItem())
 
     def _acestream_play(self):
         """Play an AceStream channel by hash."""
@@ -2474,20 +2488,21 @@ class Router:
 
             if not ace_hash:
                 ui.show_notification("Hash no valido.")
+                if self.handle and self.handle > 0:
+                    xbmcplugin.setResolvedUrl(self.handle, False, xbmcgui.ListItem())
                 return
 
             # If playing from manual history, update its recency
             if self.params.get("manual") == "1":
                 self._add_manual_acestream_history(ace_hash, title)
 
-            # Signal Kodi that directory item handling was SUCCESSFUL to prevent
-            # "One or more items failed to play" popup dialog
-            xbmcplugin.endOfDirectory(self.handle, succeeded=True, updateListing=False, cacheToDisc=True)
-
-            self._play_acestream_hash(ace_hash, title)
+            # Resolve the playable item directly via setResolvedUrl (prevents "Failed to play" modal dialog)
+            self._play_acestream_hash(ace_hash, title, handle=self.handle)
         except Exception as e:
             log(f"AceStream play error: {e}", level="error")
             ui.show_notification(f"Error: {str(e)[:60]}")
+            if self.handle and self.handle > 0:
+                xbmcplugin.setResolvedUrl(self.handle, False, xbmcgui.ListItem())
 
     def _acestream_manual(self):
         """Manually enter an AceStream hash or URL."""
@@ -2506,7 +2521,12 @@ class Router:
 
             ace_hash = match.group(1).lower()
             self._add_manual_acestream_history(ace_hash, "AceStream Manual")
-            self._play_acestream_hash(ace_hash, "AceStream Manual")
+            # In manual dialog mode, playback is started directly (no directory handle)
+            self._play_acestream_hash(ace_hash, "AceStream Manual", handle=None)
+
+        except Exception as e:
+            log(f"AceStream manual error: {e}", level="error")
+            ui.show_notification(f"Error: {str(e)[:60]}")
 
         except Exception as e:
             log(f"AceStream manual error: {e}", level="error")
