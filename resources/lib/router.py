@@ -7,6 +7,7 @@ v3.2: AceStream support (replaces Live TV), fixed platform duplication,
 import os
 import sys
 import re
+import unicodedata
 import json
 import threading
 from urllib.parse import parse_qs, urlencode, quote
@@ -2756,6 +2757,67 @@ class Router:
     # ══════════════════════════════════════════════════════
     #  UTILITIES
     # ══════════════════════════════════════════════════════
+    @staticmethod
+    def _format_display_title(title, original_title):
+        """
+        Formatea el título visual manteniendo el título original y su traducción en español:
+        Original Title [COLOR grey](Traducción)[/COLOR]
+
+        Mejoras aplicadas:
+        - Si el título original contiene caracteres CJK/asiáticos no soportados por las fuentes de Kodi,
+          descarta los caracteres rotos (□□□□) y usa el título traducido limpio.
+        - Elimina redundancias como 'The Chosen (The Chosen (Los elegidos))' -> 'The Chosen [COLOR grey](Los elegidos)[/COLOR]'.
+        - Descarta diferencias triviales que sólo son tildes ('Narcos: Mexico' vs 'Narcos: México').
+        """
+        t_clean = (title or "").strip()
+        orig_clean = (original_title or "").strip()
+
+        if not t_clean:
+            return orig_clean
+        if not orig_clean or orig_clean.lower() == t_clean.lower():
+            return t_clean
+
+        # Detectar caracteres CJK / asiáticos que la fuente de Kodi (Estuary) renderiza como '□'
+        for ch in orig_clean:
+            cp = ord(ch)
+            if (0x2E80 <= cp <= 0x9FFF or 0xAC00 <= cp <= 0xD7AF or 0xF900 <= cp <= 0xFAFF or 0x0590 <= cp <= 0x0E7F):
+                return t_clean
+
+        # Normalizar tildes para evitar duplicados como 'Narcos: Mexico' vs 'Narcos: México'
+        norm_t = "".join(c for c in unicodedata.normalize('NFD', t_clean.lower()) if unicodedata.category(c) != 'Mn')
+        norm_orig = "".join(c for c in unicodedata.normalize('NFD', orig_clean.lower()) if unicodedata.category(c) != 'Mn')
+        if norm_t == norm_orig:
+            return t_clean
+
+        t_lower = t_clean.lower()
+        orig_lower = orig_clean.lower()
+
+        # Caso: orig está dentro de title entre paréntesis, ej: 'El submarino (Das Boot)'
+        paren_pattern = r'\s*[\(\[]\s*' + re.escape(orig_clean) + r'\s*[\)\]]'
+        m_paren = re.search(paren_pattern, t_clean, re.IGNORECASE)
+        if m_paren:
+            remainder = (t_clean[:m_paren.start()] + t_clean[m_paren.end():]).strip(' :-([').rstrip(' )]')
+            if remainder:
+                return f"{orig_clean} [COLOR grey]({remainder})[/COLOR]"
+            return orig_clean
+
+        # Caso: title empieza con orig, ej: 'The Chosen (Los elegidos)' -> 'The Chosen [COLOR grey](Los elegidos)[/COLOR]'
+        if t_lower.startswith(orig_lower):
+            remainder = t_clean[len(orig_clean):].strip(' :-([').rstrip(' )]')
+            if remainder:
+                return f"{orig_clean} [COLOR grey]({remainder})[/COLOR]"
+            return t_clean
+
+        # Caso: orig empieza con title
+        if orig_lower.startswith(t_lower):
+            remainder = orig_clean[len(t_clean):].strip(' :-([').rstrip(' )]')
+            if remainder:
+                return f"{t_clean} [COLOR grey]({remainder})[/COLOR]"
+            return orig_clean
+
+        # Títulos occidentales distintos: Título Original [COLOR grey](Traducción)[/COLOR]
+        return f"{orig_clean} [COLOR grey]({t_clean})[/COLOR]"
+
     def _render_item_list(self, items, default_media_type="movie"):
         if Config.rt_enabled() and items:
             try:
@@ -2794,10 +2856,7 @@ class Router:
             rt_score = item.get("rt_score", "")
             rt_tag = self.rt.format_rt_tag(rt_score) if rt_score else ""
 
-            if original_title and original_title.strip().lower() != title.strip().lower():
-                display_title = f"{original_title} [COLOR grey]({title})[/COLOR]"
-            else:
-                display_title = title
+            display_title = self._format_display_title(title, original_title)
 
             label = f"{display_title} ({year}){rating_tag}{rt_tag}" if year else f"{display_title}{rating_tag}{rt_tag}"
             if is_series:
