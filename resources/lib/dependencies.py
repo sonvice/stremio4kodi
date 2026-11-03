@@ -57,21 +57,19 @@ def ensure_kodi_settings_for_elementum():
         log(f"Notice startServer JSON-RPC: {e}", level="debug")
 
     try:
-        # Enable remote control settings in Kodi (port 9090 for Elementum)
-        for setting in ["services.esenabled", "services.esallinterfaces"]:
+        # Enable remote control (port 9090 for Elementum) and disable HTTP webserver
+        for setting, val in [
+            ("services.esenabled", True),
+            ("services.esallinterfaces", True),
+            ("services.webserver", False),
+            ("services.webserverauthentication", False),
+        ]:
             xbmc.executeJSONRPC(json.dumps({
                 "jsonrpc": "2.0",
                 "method": "Settings.SetSettingValue",
-                "params": {"setting": setting, "value": True},
+                "params": {"setting": setting, "value": val},
                 "id": 1
             }))
-        # Prevent webserver authentication warning if webserver was touched
-        xbmc.executeJSONRPC(json.dumps({
-            "jsonrpc": "2.0",
-            "method": "Settings.SetSettingValue",
-            "params": {"setting": "services.webserverauthentication", "value": False},
-            "id": 2
-        }))
     except Exception as e:
         log(f"Notice setting JSON-RPC values: {e}", level="debug")
 
