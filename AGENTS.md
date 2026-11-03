@@ -114,7 +114,7 @@ El proyecto está dividido en dos repositorios/carpetas hermanas:
 * **Servicio Host en PC:**
   * Binario: `TorrServer-linux-amd64` (MatriX.147.1) ubicado en `~/.local/bin/torrserver`.
   * Servicio systemd: Administrado como servicio de usuario en `~/.config/systemd/user/torrserver.service`.
-  * Puerto por defecto: `8090` (escucha en `0.0.0.0`, permitiendo acceso tanto local `127.0.0.1` como por red local LAN `192.168.1.138`).
+  * Puerto por defecto: `8090` (escucha en `0.0.0.0`, permitiendo acceso tanto local `127.0.0.1` como por red local LAN `192.168.1.xxx`).
   * Interfaz Web de Monitoreo: Accesible opcionalmente en `http://localhost:8090` para consultar velocidad de descarga, peers y buffer en RAM en tiempo real.
 
 ### 6.2. Modo Inteligente "Auto" con Failover Silencioso
@@ -170,7 +170,7 @@ El proyecto está dividido en dos repositorios/carpetas hermanas:
 * **Feedback Visual Inmediato y 60 FPS:** Diálogo de progreso P2P inmediato al pulsar canal (`DialogProgress`) y sustitución de llamadas bloqueantes `time.sleep` por `xbmc.sleep` para no congelar la interfaz ni los controles del mando.
 * **Corrección de Diálogo 'Failed to play':** Eliminado el falso error modal en Kodi (`xbmcplugin.endOfDirectory(succeeded=True)`).
 * **Conexión Inmediata a Peers (Anti-congestión):** Eliminado el bombardeo de 15 hilos concurrentes que saturaba el motor en segundo plano, permitiendo enganchar peers desde el primer clic.
-* **Soporte de AceStream Host Remoto (Offload a PC):** Nuevo ajuste `acestream_host` que permite a televisores o FireSticks delegar el P2P pesado al PC (`192.168.1.138:6878`).
+* **Soporte de AceStream Host Remoto (Offload a PC):** Nuevo ajuste `acestream_host` que permite a televisores o FireSticks delegar el P2P pesado al PC (`192.168.1.xxx:6878`).
 * **Protección contra Cortes en Vivo:** Inyección de propiedades `IsLive=true`, `http-reconnect=true` y soporte de `inputstream.ffmpegdirect` para evitar cierres repentinos por underflow o pausas en el enjambre P2P.
 
 

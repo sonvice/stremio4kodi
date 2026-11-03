@@ -117,21 +117,53 @@ class TorrentResolver:
         return False
 
     def _ensure_elementum_ready(self):
-        """Ensures Elementum is active, or prompts the user to install it if missing."""
+        """Ensures Elementum is active, or prompts the user to install/repair it if missing."""
         if self.is_engine_alive("Elementum"):
             return True
+
+        from resources.lib import dependencies
+        dependencies.ensure_kodi_settings_for_elementum()
+
         if Config.elementum_auto_heal() and self.try_recover_elementum():
             return True
+
         try:
             import xbmc
+            import xbmcgui
             if not xbmc.getCondVisibility("System.HasAddon(plugin.video.elementum)"):
-                from resources.lib.dependencies import prompt_install_elementum
-                if prompt_install_elementum():
+                if dependencies.prompt_install_elementum():
                     for _ in range(16):
                         xbmc.sleep(500)
                         if self.is_engine_alive("Elementum"):
                             return True
                     return True
+            else:
+                # Elementum is installed, but daemon is not responding
+                if not dependencies.check_jsonrpc_port():
+                    xbmcgui.Dialog().ok(
+                        "Elementum: Control Remoto Requerido",
+                        "Elementum no puede comunicarse con Kodi porque el control remoto está desactivado.\n\n"
+                        "Por favor, ve a:\n"
+                        "Ajustes (Rueda) > Servicios > Control\n"
+                        "Y ACTIVA:\n"
+                        "• Permitir control remoto desde aplicaciones en este sistema\n"
+                        "• Permitir control remoto desde aplicaciones en otros sistemas"
+                    )
+                else:
+                    confirm = xbmcgui.Dialog().yesno(
+                        "Elementum no responde",
+                        "El motor Elementum está instalado pero su proceso interno no responde.\n\n"
+                        "¿Deseas reparar y reinstalar Elementum automáticamente con los permisos correctos?",
+                        yeslabel="Reparar Elementum",
+                        nolabel="Cancelar"
+                    )
+                    if confirm:
+                        if dependencies.install_elementum():
+                            for _ in range(16):
+                                xbmc.sleep(500)
+                                if self.is_engine_alive("Elementum"):
+                                    return True
+                            return True
         except Exception as e:
             log(f"Error ensuring elementum ready: {e}", level="warning")
         return False

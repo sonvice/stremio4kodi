@@ -161,7 +161,7 @@ Una vez activo TorrServer, configúralo en el plugin dentro de Kodi:
    * **Motor Torrent:** Selecciona `TorrServer`.
    * **TorrServer Host / IP:**
      * Si está en el mismo dispositivo (Android TV / PC): `127.0.0.1`
-     * Si está en tu PC o servidor doméstico: La IP local del PC (ejemplo: `192.168.1.138`).
+     * Si está en tu PC o servidor doméstico: La IP local del PC (ejemplo: `192.168.1.xxx`).
    * **TorrServer Puerto:** `8090` (por defecto).
    * **Autenticación:** Desactivada (salvo que hayas configurado usuario y contraseña en el panel web).
 3. Pulsa **OK** para guardar.

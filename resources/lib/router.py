@@ -111,8 +111,10 @@ class Router:
             "search":              self._subtitle_module_route,
             "manualsearch":        self._subtitle_module_route,
             "download":            self._subtitle_module_route,
-            "manage_engines":      self._manage_engines,
-            "install_engine":      self._install_engine_route,
+            "manage_engines":          self._manage_engines,
+            "install_elementum":       self._install_elementum_route,
+            "install_horus":           self._install_horus_route,
+            "install_both_engines":    self._install_both_engines_route,
         }
 
         handler = routes.get(action, self._main_menu)
@@ -2786,19 +2788,19 @@ class Router:
 
         # Elementum status & action
         if el_installed:
-            status = "[COLOR lime]✅ Instalado y Activo[/COLOR]" if el_alive else "[COLOR yellow]⚠️ Instalado (Dormido)[/COLOR]"
-            items.append((f"Elementum: {status} — Reinstalar / Actualizar", "install_engine&target=elementum", "DefaultAddonProgram.png"))
+            status = "[COLOR lime]✅ Instalado y Activo[/COLOR]" if el_alive else "[COLOR yellow]⚠️ Instalado (Inactivo)[/COLOR]"
+            items.append((f"Elementum: {status} — Reinstalar / Reparar", "install_elementum", "DefaultAddonProgram.png"))
         else:
-            items.append(("Elementum: [COLOR red]❌ No Instalado[/COLOR] — Click para Instalar", "install_engine&target=elementum", "DefaultAddonProgram.png"))
+            items.append(("Elementum: [COLOR red]❌ No Instalado[/COLOR] — Click para Instalar", "install_elementum", "DefaultAddonProgram.png"))
 
         # Horus status & action
         if ho_installed:
-            items.append(("Horus (AceStream): [COLOR lime]✅ Instalado[/COLOR] — Reinstalar / Actualizar", "install_engine&target=horus", "DefaultAddonProgram.png"))
+            items.append(("Horus (AceStream): [COLOR lime]✅ Instalado[/COLOR] — Reinstalar / Actualizar", "install_horus", "DefaultAddonProgram.png"))
         else:
-            items.append(("Horus (AceStream): [COLOR red]❌ No Instalado[/COLOR] — Click para Instalar", "install_engine&target=horus", "DefaultAddonProgram.png"))
+            items.append(("Horus (AceStream): [COLOR red]❌ No Instalado[/COLOR] — Click para Instalar", "install_horus", "DefaultAddonProgram.png"))
 
         # Option to install both
-        items.append(("🚀 Instalar / Reparar Ambos Motores", "install_engine&target=both", "DefaultAddonProgram.png"))
+        items.append(("🚀 Instalar / Reparar Ambos Motores", "install_both_engines", "DefaultAddonProgram.png"))
 
         # Current configuration info & link to settings
         items.append((f"ℹ️ Motor Torrent actual: [COLOR cyan]{torr_engine}[/COLOR]", "settings", "DefaultAddonProgram.png"))
@@ -2811,16 +2813,22 @@ class Router:
             )
         ui.end_directory(self.handle, content_type="", cache_to_disc=False)
 
-    def _install_engine_route(self):
-        target = self.params.get("target", "both")
+    def _install_elementum_route(self):
         from resources.lib import dependencies
-        if target == "elementum":
-            dependencies.install_elementum()
-        elif target == "horus":
-            dependencies.install_horus()
-        elif target == "both":
-            dependencies.install_elementum()
-            dependencies.install_horus()
+        dependencies.install_elementum()
+        xbmc.sleep(500)
+        xbmc.executebuiltin("Container.Refresh")
+
+    def _install_horus_route(self):
+        from resources.lib import dependencies
+        dependencies.install_horus()
+        xbmc.sleep(500)
+        xbmc.executebuiltin("Container.Refresh")
+
+    def _install_both_engines_route(self):
+        from resources.lib import dependencies
+        dependencies.install_elementum()
+        dependencies.install_horus()
         xbmc.sleep(500)
         xbmc.executebuiltin("Container.Refresh")
 

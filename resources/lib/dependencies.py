@@ -8,6 +8,7 @@ import io
 import json
 import os
 import platform
+import socket
 import struct
 import sys
 import urllib.request
@@ -44,21 +45,57 @@ def is_horus_installed():
         return False
 
 
+def ensure_kodi_settings_for_elementum():
+    """
+    Enables Kodi's internal JSON-RPC TCP server (port 9090) and remote control.
+    Elementum requires this service to communicate with Kodi.
+    """
+    try:
+        # Start Kodi's built-in JSON-RPC server directly
+        xbmc.startServer(xbmc.SERVER_JSONRPCSERVER, True)
+    except Exception as e:
+        log(f"Notice startServer JSON-RPC: {e}", level="debug")
+
+    try:
+        # Enable remote control settings in Kodi
+        for setting in ["services.esenabled", "services.esallinterfaces", "services.webserver"]:
+            xbmc.executeJSONRPC(json.dumps({
+                "jsonrpc": "2.0",
+                "method": "Settings.SetSettingValue",
+                "params": {"setting": setting, "value": True},
+                "id": 1
+            }))
+    except Exception as e:
+        log(f"Notice setting JSON-RPC values: {e}", level="debug")
+
+
+def check_jsonrpc_port():
+    """Checks if Kodi's JSON-RPC server is reachable on port 9090."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(1.5)
+        res = s.connect_ex(("127.0.0.1", 9090))
+        s.close()
+        return res == 0
+    except Exception:
+        return False
+
+
 def get_system_arch():
-    """Detects Kodi platform and processor architecture to pick the matching Elementum binary package."""
+    """
+    Detects Kodi platform and bitness to pick the matching Elementum binary package.
+    Important: checks process pointer size to distinguish 32-bit vs 64-bit Kodi
+    on Android and Windows.
+    """
     is_64 = (struct.calcsize("P") * 8 == 64)
 
     # 1. Android (Mobiles, Tablets, Android TV, Fire TV)
     if xbmc.getCondVisibility("System.Platform.Android"):
         m = platform.machine().lower()
-        if "aarch64" in m or "arm64" in m or (is_64 and "arm" in m):
-            return "android_arm64"
-        elif "x86_64" in m or (is_64 and "86" in m):
-            return "android_x64"
-        elif "x86" in m:
-            return "android_x86"
-        else:
-            return "android_arm64" if is_64 else "android_arm"
+        if "x86" in m or "i686" in m:
+            return "android_x64" if is_64 else "android_x86"
+        # On ARM, use the exact bitness of the Kodi process
+        return "android_arm64" if is_64 else "android_arm"
 
     # 2. Windows
     if xbmc.getCondVisibility("System.Platform.Windows"):
@@ -86,7 +123,7 @@ def get_system_arch():
         elif "armv7" in m or ("arm" in m and not is_64):
             return "linux_armv7"
         elif "x86_64" in m or "amd64" in m:
-            return "linux_x64"
+            return "linux_x64" if is_64 else "linux_x86"
         elif "x86" in m or "i686" in m:
             return "linux_x86"
         return "linux_arm64" if is_64 else "linux_x64"
@@ -97,6 +134,7 @@ def get_system_arch():
 def download_and_extract(url, target_dir, dialog_title="Descargando...", fallback_urls=None):
     """
     Downloads a zip file with progress reporting and extracts it into target_dir.
+    Restores POSIX execution permissions (0755) on binaries and shared libraries.
     """
     dp = xbmcgui.DialogProgress()
     dp.create("Stremio for Kodi", dialog_title)
@@ -143,12 +181,25 @@ def download_and_extract(url, target_dir, dialog_title="Descargando...", fallbac
 
                 data = b"".join(chunks)
 
-            dp.update(95, "Extrayendo archivos e instalando en Kodi...")
+            dp.update(95, "Extrayendo archivos y configurando permisos...")
             z = zipfile.ZipFile(io.BytesIO(data))
-            for member in z.namelist():
-                if member.startswith("/") or ".." in member:
+            for info in z.infolist():
+                if info.filename.startswith("/") or ".." in info.filename:
                     continue
-                z.extract(member, target_dir)
+                extracted_path = z.extract(info, target_dir)
+
+                # Ensure execution bit (0o755) is preserved for binaries and libraries
+                perm = (info.external_attr >> 16) & 0o777
+                if perm:
+                    try:
+                        os.chmod(extracted_path, perm)
+                    except Exception:
+                        pass
+                elif "/bin/" in info.filename or info.filename.endswith((".so", ".sh", "elementum")):
+                    try:
+                        os.chmod(extracted_path, 0o755)
+                    except Exception:
+                        pass
 
             dp.update(100, "¡Instalación completada!")
             xbmc.sleep(400)
@@ -184,10 +235,26 @@ def activate_addon(addon_id):
 
 
 def install_elementum():
-    """Installs Elementum matching the system architecture and installs its official repository."""
+    """
+    Installs Elementum matching the system architecture, configures Kodi remote control,
+    and installs the ElementumOrg repository for automatic updates.
+    """
     addons_path = xbmcvfs.translatePath("special://home/addons/")
     arch = get_system_arch()
     log(f"Installing Elementum v{ELEMENTUM_VERSION} for architecture: {arch}", level="info")
+
+    # 1. Enable Kodi JSON-RPC server and remote control permissions
+    ensure_kodi_settings_for_elementum()
+
+    # 2. Clean up any stale lockfile from previous failed daemon runs
+    try:
+        profile_dir = xbmcvfs.translatePath("special://profile/addon_data/plugin.video.elementum/")
+        if profile_dir:
+            lockfile = os.path.join(profile_dir, ".lockfile")
+            if os.path.exists(lockfile):
+                os.remove(lockfile)
+    except Exception:
+        pass
 
     url = (
         f"https://github.com/elgatito/plugin.video.elementum/releases/download/"
@@ -207,7 +274,7 @@ def install_elementum():
     if not ok:
         return False
 
-    # Also install repository.elementumorg so user gets automatic updates
+    # Also install repository.elementumorg so user gets future updates automatically
     try:
         download_and_extract(
             ELEMENTUM_REPO_URL,
@@ -220,6 +287,21 @@ def install_elementum():
         log(f"ElementumOrg repo install notice: {e}", level="debug")
 
     activate_addon("plugin.video.elementum")
+
+    # Ensure remote control is active
+    ensure_kodi_settings_for_elementum()
+
+    # Check if JSON-RPC port is open
+    if not check_jsonrpc_port():
+        # Inform the user how to enable control in Kodi settings if Android blocked it
+        xbmcgui.Dialog().ok(
+            "Ajuste Necesario en Kodi",
+            "Elementum se ha instalado, pero necesita que actives el control remoto:\n\n"
+            "Ve a: Ajustes (Rueda) > Servicios > Control\n"
+            "Y activa:\n"
+            "• 'Permitir control remoto desde aplicaciones en este sistema'\n"
+            "• 'Permitir control remoto desde aplicaciones en otros sistemas'"
+        )
 
     xbmcgui.Dialog().notification(
         "Stremio for Kodi",
