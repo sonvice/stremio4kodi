@@ -111,6 +111,8 @@ class Router:
             "search":              self._subtitle_module_route,
             "manualsearch":        self._subtitle_module_route,
             "download":            self._subtitle_module_route,
+            "manage_engines":      self._manage_engines,
+            "install_engine":      self._install_engine_route,
         }
 
         handler = routes.get(action, self._main_menu)
@@ -126,6 +128,13 @@ class Router:
     #  MAIN MENU
     # ══════════════════════════════════════════════════════
     def _main_menu(self):
+        # Prompt user once on startup if playback engines are missing (fresh mobile/TV install)
+        try:
+            from resources.lib.dependencies import check_engines_prompt
+            check_engines_prompt()
+        except Exception as e:
+            log(f"Engines startup check notice: {e}", level="debug")
+
         items = [
             ("Peliculas",           "movies",             "DefaultMovies.png"),
             ("Series",              "series",             "DefaultTVShows.png"),
@@ -167,6 +176,7 @@ class Router:
                 vpn_label = "[COLOR red]⚡ VPN Surfshark: DESCONECTADA (Fibra Directa)[/COLOR]"
             items.append((vpn_label, "vpn_toggle", "DefaultNetwork.png"))
 
+        items.append(("🛠️ Gestor de Motores (Elementum / AceStream)", "manage_engines", "DefaultAddonProgram.png"))
         items.append(("Ajustes", "settings", "DefaultAddonProgram.png"))
 
         for label, action, icon in items:
@@ -2311,6 +2321,15 @@ class Router:
             engine = Config.acestream_engine()
             log(f"AceStream play requested: hash={ace_hash}, title={title}, engine={engine}", level="info")
 
+            if engine == "Horus" and not xbmc.getCondVisibility("System.HasAddon(script.module.horus)"):
+                from resources.lib.dependencies import prompt_install_horus
+                if not prompt_install_horus():
+                    return
+            elif engine == "Elementum" and not xbmc.getCondVisibility("System.HasAddon(plugin.video.elementum)"):
+                from resources.lib.dependencies import prompt_install_elementum
+                if not prompt_install_elementum():
+                    return
+
             play_url = AceStreamClient.build_play_url(ace_hash, title)
 
             if play_url.startswith("plugin://"):
@@ -2751,6 +2770,57 @@ class Router:
                     log(f"Error connecting VPN: {e}", level="error")
                     ui.show_notification(f"Error: {e}")
 
+        xbmc.sleep(500)
+        xbmc.executebuiltin("Container.Refresh")
+
+    def _manage_engines(self):
+        """Displays engine status and allows user to install/repair Elementum and Horus."""
+        from resources.lib import dependencies
+        el_installed = dependencies.is_elementum_installed()
+        ho_installed = dependencies.is_horus_installed()
+        el_alive = self.resolver.is_engine_alive("Elementum")
+        torr_engine = Config.torrent_engine()
+        ace_engine = Config.acestream_engine()
+
+        items = []
+
+        # Elementum status & action
+        if el_installed:
+            status = "[COLOR lime]✅ Instalado y Activo[/COLOR]" if el_alive else "[COLOR yellow]⚠️ Instalado (Dormido)[/COLOR]"
+            items.append((f"Elementum: {status} — Reinstalar / Actualizar", "install_engine&target=elementum", "DefaultAddonProgram.png"))
+        else:
+            items.append(("Elementum: [COLOR red]❌ No Instalado[/COLOR] — Click para Instalar", "install_engine&target=elementum", "DefaultAddonProgram.png"))
+
+        # Horus status & action
+        if ho_installed:
+            items.append(("Horus (AceStream): [COLOR lime]✅ Instalado[/COLOR] — Reinstalar / Actualizar", "install_engine&target=horus", "DefaultAddonProgram.png"))
+        else:
+            items.append(("Horus (AceStream): [COLOR red]❌ No Instalado[/COLOR] — Click para Instalar", "install_engine&target=horus", "DefaultAddonProgram.png"))
+
+        # Option to install both
+        items.append(("🚀 Instalar / Reparar Ambos Motores", "install_engine&target=both", "DefaultAddonProgram.png"))
+
+        # Current configuration info & link to settings
+        items.append((f"ℹ️ Motor Torrent actual: [COLOR cyan]{torr_engine}[/COLOR]", "settings", "DefaultAddonProgram.png"))
+        items.append((f"ℹ️ Motor AceStream actual: [COLOR cyan]{ace_engine}[/COLOR]", "settings", "DefaultAddonProgram.png"))
+
+        for label, action, icon in items:
+            ui.add_directory_item(
+                handle=self.handle, label=label, action=action,
+                base_url=self.base_url, icon=icon,
+            )
+        ui.end_directory(self.handle, content_type="", cache_to_disc=False)
+
+    def _install_engine_route(self):
+        target = self.params.get("target", "both")
+        from resources.lib import dependencies
+        if target == "elementum":
+            dependencies.install_elementum()
+        elif target == "horus":
+            dependencies.install_horus()
+        elif target == "both":
+            dependencies.install_elementum()
+            dependencies.install_horus()
         xbmc.sleep(500)
         xbmc.executebuiltin("Container.Refresh")
 
