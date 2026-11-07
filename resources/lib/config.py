@@ -16,16 +16,32 @@ class Config:
     DATA_PATH = xbmcvfs.translatePath(ADDON.getAddonInfo("profile"))
     os.makedirs(DATA_PATH, exist_ok=True)
 
+    DEFAULT_ADDON_URLS = [
+        "https://v3-cinemeta.strem.io",
+        "https://94c8cb9f702d-tmdb-addon.baby-beamup.club",
+        "https://torrentio.strem.fun",
+        "https://cometa.stremx.net",
+        "https://peerflix.mov",
+        "https://mediafusion.elfhosted.com",
+    ]
+
     # ── Stremio ────────────────────────────────────────────
     @staticmethod
     def stremio_addon_urls():
         raw = ADDON.getSetting("stremio_addons") or ""
         if ";;" in raw:
             urls = [u.strip().rstrip("/") for u in raw.split(";;") if u.strip()]
-        else:
+        elif raw:
             import re
             parts = re.split(r'\|(?=https?://)', raw)
             urls = [u.strip().rstrip("/") for u in parts if u.strip()]
+        else:
+            urls = list(Config.DEFAULT_ADDON_URLS)
+
+        # Ensure Comet instance is available even if an older default string was cached in Kodi settings
+        if urls and not any("comet" in u.lower() for u in urls):
+            urls.append("https://cometa.stremx.net")
+
         return urls
 
     @staticmethod

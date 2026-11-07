@@ -818,7 +818,8 @@ class TorrentResolver:
             if sort_by == "Seeds":
                 pref_score = seeds * 50
             elif sort_by == "Quality":
-                pref_score = self._quality_score(s) * 300
+                from resources.lib.rtn import RTN
+                pref_score = RTN.get_quality_score(s) * 10
             elif sort_by == "Size":
                 pref_score = int(self._extract_size_gb(s) * 100)
 
@@ -827,82 +828,74 @@ class TorrentResolver:
         return sorted(streams, key=_sort_key, reverse=True)
 
     def _extract_seeds(self, s):
-        seeds = s.get("seeds")
-        if seeds is None:
-            seeds = s.get("seeders") or s.get("seed")
-        if seeds is not None:
-            try:
-                return int(seeds)
-            except (ValueError, TypeError):
-                pass
-
-        text = " ".join([
-            str(s.get("title") or ""),
-            str(s.get("name") or ""),
-            str(s.get("description") or "")
-        ])
-        match = re.search(r"(?:👤|\bseeds?\s*[:=]?\s*|\bseeders?\s*[:=]?\s*|\[s:\s*)\s*(\d+)", text, re.IGNORECASE)
-        if match:
-            try:
-                return int(match.group(1))
-            except (ValueError, TypeError):
-                pass
-        return 0
+        from resources.lib.rtn import RTN
+        return RTN.parse(s).get("seeds", 0)
 
     def _quality_score(self, s):
-        title = (s.get("title", "") or s.get("name", "")).lower()
-        if "2160p" in title or "4k" in title:
-            return 4
-        if "1080p" in title:
-            return 3
-        if "720p" in title:
-            return 2
-        if "480p" in title:
-            return 1
-        return 0
+        from resources.lib.rtn import RTN
+        return RTN.get_quality_score(s)
 
     def _extract_size_gb(self, s):
-        title = s.get("title", "") or s.get("name", "")
-        match = re.search(r"([\d.]+)\s*GB", title, re.IGNORECASE)
-        if match:
-            return float(match.group(1))
-        match = re.search(r"([\d.]+)\s*MB", title, re.IGNORECASE)
-        if match:
-            return float(match.group(1)) / 1024
+        from resources.lib.rtn import RTN
+        sz_str = RTN.parse(s).get("size", "")
+        if "gb" in sz_str.lower():
+            m = re.search(r"([\d.]+)", sz_str)
+            if m:
+                return float(m.group(1))
+        elif "mb" in sz_str.lower():
+            m = re.search(r"([\d.]+)", sz_str)
+            if m:
+                return float(m.group(1)) / 1024
         return 0
 
     # ── Display labels ─────────────────────────────────────
     def get_quality_label(self, stream):
-        title = (stream.get("title", "") or stream.get("name", "")).lower()
-        if "2160p" in title or "4k" in title:
-            return "[COLOR gold]4K[/COLOR]"
-        if "1080p" in title:
+        from resources.lib.rtn import RTN
+        meta = RTN.parse(stream)
+        res = meta["resolution"]
+        if res == "4K":
+            return "[COLOR gold][B]4K[/B][/COLOR]"
+        if res == "1080p":
             return "[COLOR lime]1080p[/COLOR]"
-        if "720p" in title:
+        if res == "720p":
             return "[COLOR cyan]720p[/COLOR]"
-        if "480p" in title:
+        if res == "480p":
             return "[COLOR grey]480p[/COLOR]"
         return ""
 
     def get_seeds_label(self, stream):
-        seeds = self._extract_seeds(stream)
-        if seeds > 50:
+        from resources.lib.rtn import RTN
+        seeds = RTN.parse(stream).get("seeds", 0)
+        if seeds >= 50:
             return f"[COLOR lime]👤 {seeds}[/COLOR]"
-        elif seeds > 5:
+        elif seeds >= 10:
             return f"[COLOR yellow]👤 {seeds}[/COLOR]"
         elif seeds > 0:
             return f"[COLOR orange]👤 {seeds}[/COLOR]"
         return "[COLOR red]👤 0[/COLOR]"
 
     def get_size_label(self, stream):
-        title = stream.get("title", "") or stream.get("name", "")
-        match = re.search(r"([\d.]+\s*(?:GB|MB))", title, re.IGNORECASE)
-        return match.group(1) if match else ""
+        from resources.lib.rtn import RTN
+        sz = RTN.parse(stream).get("size", "")
+        return f"💾 {sz}" if sz else ""
 
     def get_rd_label(self, stream):
         if stream.get("_rd_cached"):
-            return "[COLOR magenta][RD+][/COLOR]"
+            return "[COLOR magenta][B][RD+][/B][/COLOR]"
         return ""
 
     def get_spanish_tag(self, stream):
-        return get_spanish_label(stream)
+        from resources.lib.rtn import RTN
+        meta = RTN.parse(stream)
+        lang = meta["language"]
+        if lang == "CAST":
+            return "[COLOR orange][B]Castellano[/B][/COLOR]"
+        elif lang == "LAT":
+            return "[COLOR deepskyblue][B]Latino[/B][/COLOR]"
+        elif lang == "DUAL":
+            return "[COLOR gold][B]Dual Audio[/B][/COLOR]"
+        elif lang == "MULTI":
+            return "[COLOR mediumpurple][B]Multi Audio[/B][/COLOR]"
+        elif lang == "VOSE":
+            return "[COLOR lightgreen][B]VOSE[/B][/COLOR]"
+        return "[COLOR white][V.O.][/COLOR]"

@@ -841,47 +841,26 @@ class Router:
             return
 
         try:
+            from resources.lib.rtn import RTN
             labels = []
             for stream in streams:
-                quality = self.resolver.get_quality_label(stream)
-                seeds = self.resolver.get_seeds_label(stream)
-                size = self.resolver.get_size_label(stream)
-                addon_name = stream.get("_addon", "")
-                rd_label = self.resolver.get_rd_label(stream)
-                esp_label = self.resolver.get_spanish_tag(stream)
-
-                stream_title = stream.get("title", "") or stream.get("name", "Unknown")
-                lines = [l.strip() for l in stream_title.split("\n") if l.strip()]
-                line1 = lines[0][:80] if lines else ""
-
-                parts = []
-                if esp_label:
-                    parts.append(esp_label)
-                if rd_label:
-                    parts.append(rd_label)
-                if quality:
-                    parts.append(quality)
-
                 # Check if pack with targeted episode file
                 file_idx = stream.get("fileIdx")
-                if file_idx is not None and len(lines) > 1 and not lines[1].startswith("👤") and not lines[1].startswith("💾"):
+                file_target = ""
+                stream_title = stream.get("title", "") or stream.get("name", "Unknown")
+                lines = [l.strip() for l in str(stream_title).split("\n") if l.strip()]
+                line1 = lines[0][:50] if lines else ""
+
+                if file_idx is not None and len(lines) > 1 and not lines[1].startswith("👤") and not lines[1].startswith("💾") and not lines[1].startswith("📹"):
                     matched_file = lines[1]
                     ep_match = re.search(r"(S\d{1,2}E\d{1,2}|E\d{1,2})", matched_file, re.I)
                     ep_tag = f"[{ep_match.group(1).upper()}]" if ep_match else "[PACK]"
                     clean_file = re.sub(r"\.(mkv|mp4|avi)$", "", matched_file, flags=re.I)
                     clean_file = clean_file.split("/")[-1]
-                    parts.append(f"{ep_tag} {line1} ➔ {clean_file[:40]}")
-                else:
-                    parts.append(line1)
+                    file_target = f"{ep_tag} {line1[:30]} ➔ {clean_file[:35]}"
 
-                if seeds:
-                    parts.append(seeds)
-                if size:
-                    parts.append(size)
-                if addon_name:
-                    parts.append(f"[{addon_name}]")
-
-                labels.append("  ".join(parts))
+                lbl = RTN.format_label(stream, file_target=file_target)
+                labels.append(lbl)
 
             # Option to force a fresh search
             labels.append("🔄  [COLOR yellow]Buscar de nuevo (Actualizar fuentes)[/COLOR]")

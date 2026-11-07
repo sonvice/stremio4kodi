@@ -3,7 +3,7 @@
 # 🎬 Stremio for Kodi (`plugin.video.stremio4kodi`)
 
 [![Kodi Compatibility](https://img.shields.io/badge/Kodi-19%20|%2020%20|%2021%20(Matrix%20/%20Nexus%20/%20Omega)-blue.svg)](https://kodi.tv)
-[![Version](https://img.shields.io/badge/version-v3.7.28-brightgreen.svg)](https://github.com/sonvice/stremio4kodi/releases)
+[![Version](https://img.shields.io/badge/version-v3.7.29-brightgreen.svg)](https://github.com/sonvice/stremio4kodi/releases)
 [![Python Version](https://img.shields.io/badge/Python-3.0%2B-yellow.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-orange.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Android%20|%20CoreELEC%20|%20Linux%20|%20Windows%20|%20macOS-lightgrey.svg)](https://github.com/sonvice/stremio4kodi)
@@ -64,7 +64,7 @@ Installing via the repository ensures you automatically receive all future updat
 
 #### Option 2: Direct ZIP Download
 1. Download the latest release package:  
-   👉 [**Download plugin.video.stremio4kodi-3.7.28.zip**](https://cdn.jsdelivr.net/gh/sonvice/repository.sonvice@main/repo/plugin.video.stremio4kodi/plugin.video.stremio4kodi-3.7.28.zip)
+   👉 [**Download plugin.video.stremio4kodi-3.7.29.zip**](https://cdn.jsdelivr.net/gh/sonvice/repository.sonvice@main/repo/plugin.video.stremio4kodi/plugin.video.stremio4kodi-3.7.29.zip)
 2. In Kodi, go to **Add-ons** ➔ **Add-on Browser** ➔ **Install from zip file** and select the downloaded file.
 
 ---
@@ -170,7 +170,7 @@ Instalar desde el repositorio garantiza que recibirás todas las actualizaciones
 
 #### Opción 2: Descarga Directa del archivo ZIP
 1. Descarga el paquete de la última versión:  
-   👉 [**Descargar plugin.video.stremio4kodi-3.7.28.zip**](https://cdn.jsdelivr.net/gh/sonvice/repository.sonvice@main/repo/plugin.video.stremio4kodi/plugin.video.stremio4kodi-3.7.28.zip)
+   👉 [**Descargar plugin.video.stremio4kodi-3.7.29.zip**](https://cdn.jsdelivr.net/gh/sonvice/repository.sonvice@main/repo/plugin.video.stremio4kodi/plugin.video.stremio4kodi-3.7.29.zip)
 2. En Kodi, ve a **Add-ons** ➔ **Explorador de complementos** ➔ **Instalar desde un archivo .zip** y selecciona el archivo descargado.
 
 ---

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <settings>
     <category label="Stremio Addons">
-        <setting id="stremio_addons" type="text" label="Addon URLs (separate with ;;)" default="https://v3-cinemeta.strem.io;;https://94c8cb9f702d-tmdb-addon.baby-beamup.club;;https://torrentio.strem.fun;;https://peerflix.mov;;https://mediafusion.elfhosted.com"/>
+        <setting id="stremio_addons" type="text" label="Addon URLs (separate with ;;)" default="https://v3-cinemeta.strem.io;;https://94c8cb9f702d-tmdb-addon.baby-beamup.club;;https://torrentio.strem.fun;;https://cometa.stremx.net;;https://peerflix.mov;;https://mediafusion.elfhosted.com"/>
         <setting id="stremio_timeout" type="slider" label="Request timeout (seconds)" default="10" range="3,1,30" option="int"/>
         <setting id="stremio_parallel" type="bool" label="Parallel addon queries" default="true"/>
     </category>

@@ -338,8 +338,10 @@ class StremioClient:
             if data:
                 streams = data.get("streams", [])
                 name = manifest.get("name", "Unknown")
+                from resources.lib.rtn import RTN
                 for s in streams:
                     s["_addon"] = name
+                    RTN.normalize_stream(s)
                 return streams
             return []
 

@@ -9,12 +9,15 @@ from resources.lib.logger import log
 
 # Each tuple: (compiled regex, language variant label, confidence boost)
 _PATTERNS = [
-    # Explicit Spanish tags (highest confidence)
-    (re.compile(r"\b(?:ESPANOL|SPANISH)\b", re.IGNORECASE), "ESP", 100),
+    # Subtitled variants / VOSE (explicit marker)
+    (re.compile(r"\b(?:SUB[\s._-]*(?:ESP|SPA|SPANISH|ESPANOL)|VOSE|V\.?O\.?S\.?E\.?|SUBTITULADO)\b", re.IGNORECASE), "VOSE", 95),
+
+    # Explicit Spanish audio tags (highest confidence)
     (re.compile(r"\b(?:CASTELLANO|CASTELL)\b", re.IGNORECASE), "CAST", 100),
     (re.compile(r"\bCAST\b"), "CAST", 90),
     (re.compile(r"\bLATINO\b", re.IGNORECASE), "LAT", 100),
     (re.compile(r"\bLAT\b"), "LAT", 85),
+    (re.compile(r"(?<!sub[\s._-])(?<!subtitulos[\s._-])\b(?:ESPANOL|SPANISH)\b(?!\s*subs?)", re.IGNORECASE), "ESP", 95),
 
     # Audio track markers
     (re.compile(r"\b(?:AC3|DTS|AAC|EAC3|TrueHD)[\s._-]*(?:ESP|SPA|CAST|CASTELLANO)\b", re.IGNORECASE), "ESP", 95),
@@ -25,17 +28,11 @@ _PATTERNS = [
     (re.compile(r"\b(?:es|spa)[\s._-](?:ES|MX|AR|CO|CL|PE|VE)\b"), "ESP", 85),
 
     # Dual / Multi (medium confidence)
-    (re.compile(r"\bDUAL\b", re.IGNORECASE), "DUAL", 60),
-    (re.compile(r"\bMULTI\b", re.IGNORECASE), "MULTI", 50),
-    (re.compile(r"\bMULTi\.?(?:AUDIO|LANG|LANGUAGE)\b", re.IGNORECASE), "MULTI", 55),
+    (re.compile(r"\b(?:DUAL|DUAL[\s._-]?AUDIO|LATINO[\s._-]?INGLES|CASTELLANO[\s._-]?INGLES)\b", re.IGNORECASE), "DUAL", 90),
+    (re.compile(r"\b(?:MULTI|MULTi[\s._-]?(?:AUDIO|LANG|LANGUAGE))\b", re.IGNORECASE), "MULTI", 80),
 
-    # Spanish release groups
-    (re.compile(r"\b(?:EliteTorrent|MejorTorrent|DivXTotaL|NewPCT|ZonaHD)\b", re.IGNORECASE), "ESP", 90),
-    (re.compile(r"\b(?:SPANiSH|SPANISH)\b", re.IGNORECASE), "ESP", 95),
-
-    # Subtitled variants (lower priority)
-    (re.compile(r"\bSUB[\s._-]*(?:ESP|SPA|SPANISH)\b", re.IGNORECASE), "SubESP", 30),
-    (re.compile(r"\b(?:VOSE|V\.?O\.?S\.?E\.?)\b", re.IGNORECASE), "VOSE", 25),
+    # Spanish release groups & trackers
+    (re.compile(r"\b(?:EliteTorrent|MejorTorrent|DivXTotaL|NewPCT|ZonaHD|CineCalidad|Descargas2020|GranTorrent|EstrenosDTL|PCTReload)\b", re.IGNORECASE), "ESP", 95),
 ]
 
 _LATAM_PATTERNS = [
@@ -49,6 +46,9 @@ def detect_spanish(title):
     Analyze a stream title for Spanish language indicators.
     Returns dict: is_spanish, variant, confidence, is_sub_only
     """
+    if isinstance(title, dict):
+        s = title
+        title = f"{s.get('title', '')} {s.get('description', '')} {s.get('name', '')}"
     if not title:
         return {"is_spanish": False, "variant": "", "confidence": 0, "is_sub_only": False}
 
