@@ -122,13 +122,13 @@ class RottenTomatoesClient:
         try:
             score_num = int(rt_score)
             if score_num >= 75:
-                return f" [COLOR lime]🍅{score_num}%[/COLOR]"
+                return f" [COLOR lime][RT {score_num}%][/COLOR]"
             elif score_num >= 60:
-                return f" [COLOR yellow]🍅{score_num}%[/COLOR]"
+                return f" [COLOR yellow][RT {score_num}%][/COLOR]"
             else:
-                return f" [COLOR lightgreen]🟢{score_num}%[/COLOR]"
+                return f" [COLOR lightgreen][RT {score_num}%][/COLOR]"
         except (ValueError, TypeError):
-            return f" [COLOR yellow]🍅{rt_score}[/COLOR]"
+            return f" [COLOR yellow][RT {rt_score}][/COLOR]"
 
     def enrich_items(self, items):
         """

@@ -273,7 +273,7 @@ class TorrentResolver:
         encoded_link = quote(uri or f"magnet:?xt=urn:btih:{info_hash}", safe="")
         stream_url = f"http://{auth_str}{host}:{port}/stream/{encoded_filename}?link={encoded_link}&index={best_id}&play"
         log(f"TorrServer resolved direct stream: {stream_url[:120]}...", level="info")
-        ui.show_notification(f"Reproduciendo con TorrServer ({host}) 🚀", time=2500)
+        ui.show_notification(f"Reproduciendo con TorrServer ({host})", time=2500)
         return stream_url
 
     def resolve_elementum_stream(self, uri, file_idx=None, info_hash=None):
@@ -867,17 +867,17 @@ class TorrentResolver:
         from resources.lib.rtn import RTN
         seeds = RTN.parse(stream).get("seeds", 0)
         if seeds >= 50:
-            return f"[COLOR lime]👤 {seeds}[/COLOR]"
+            return f"[COLOR lime]S:{seeds}[/COLOR]"
         elif seeds >= 10:
-            return f"[COLOR yellow]👤 {seeds}[/COLOR]"
+            return f"[COLOR yellow]S:{seeds}[/COLOR]"
         elif seeds > 0:
-            return f"[COLOR orange]👤 {seeds}[/COLOR]"
-        return "[COLOR red]👤 0[/COLOR]"
+            return f"[COLOR orange]S:{seeds}[/COLOR]"
+        return "[COLOR red]S:0[/COLOR]"
 
     def get_size_label(self, stream):
         from resources.lib.rtn import RTN
         sz = RTN.parse(stream).get("size", "")
-        return f"💾 {sz}" if sz else ""
+        return f"[COLOR lightgrey]{sz}[/COLOR]" if sz else ""
 
     def get_rd_label(self, stream):
         if stream.get("_rd_cached"):

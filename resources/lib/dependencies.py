@@ -482,7 +482,7 @@ def install_elementum():
 
     xbmcgui.Dialog().notification(
         "Stremio for Kodi",
-        "✅ Elementum instalado correctamente",
+        "Elementum instalado correctamente",
         xbmcgui.NOTIFICATION_INFO,
         4000
     )
@@ -491,7 +491,7 @@ def install_elementum():
         xbmcgui.Dialog().ok(
             "Permiso en Android Necesario",
             "Elementum se ha instalado con éxito.\n\n"
-            "📱 PASO REQUERIDO EN MÓVILES ANDROID:\n"
+            "PASO REQUERIDO EN MÓVILES ANDROID:\n"
             "1. Ve a los Ajustes de Android > Aplicaciones > Kodi > Permisos.\n"
             "2. En 'Archivos y contenido multimedia' (o Almacenamiento), selecciona 'Permitir siempre'.\n"
             "3. Cierra Kodi completamente y vuelve a abrirlo."
@@ -518,7 +518,7 @@ def install_horus():
 
     xbmcgui.Dialog().notification(
         "Stremio for Kodi",
-        "✅ Horus instalado correctamente",
+        "Horus instalado correctamente",
         xbmcgui.NOTIFICATION_INFO,
         4000
     )
@@ -527,7 +527,7 @@ def install_horus():
         xbmcgui.Dialog().ok(
             "AceStream en Android",
             "Horus se ha instalado con éxito en Kodi.\n\n"
-            "📱 Requisito en móviles Android / TV Box:\n"
+            "Requisito en móviles Android / TV Box:\n"
             "Para reproducir emisiones deportivas en directo, asegúrate de tener instalada en tu móvil la app gratuita 'AceStream Engine' (o AceStream Media)."
         )
     return True
@@ -593,15 +593,15 @@ def check_engines_prompt():
     actions = []
 
     if not has_elementum and not has_horus:
-        opts.append("🚀 Instalar ambos (Elementum + Horus) [Recomendado]")
+        opts.append("[Recomendado] Instalar ambos (Elementum + Horus)")
         actions.append("both")
     if not has_elementum:
-        opts.append("🎬 Instalar Elementum (Para Películas y Series)")
+        opts.append("Instalar Elementum (Para Películas y Series)")
         actions.append("elementum")
     if not has_horus:
-        opts.append("⚽ Instalar Horus (Para AceStream / TV en Directo)")
+        opts.append("Instalar Horus (Para AceStream / TV en Directo)")
         actions.append("horus")
-    opts.append("⏭️ No instalar ahora (Configurar más tarde)")
+    opts.append("No instalar ahora (Configurar más tarde)")
     actions.append("skip")
 
     dialog = xbmcgui.Dialog()

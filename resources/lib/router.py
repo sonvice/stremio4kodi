@@ -89,6 +89,9 @@ class Router:
             "platform_catalog":    self._platform_catalog,
             # v3.2: AceStream (replaces livetv)
             "acestream":               self._acestream,
+            "acestream_agenda":        self._acestream_agenda,
+            "acestream_agenda_list":   self._acestream_agenda_list,
+            "acestream_agenda_event":  self._acestream_agenda_event,
             "acestream_trends":        self._acestream_trends,
             "acestream_search":        self._acestream_search,
             "acestream_traditional":   self._acestream_traditional,
@@ -173,12 +176,12 @@ class Router:
         if self._is_vpn_supported():
             vpn_on = self._is_vpn_connected()
             if vpn_on:
-                vpn_label = "[COLOR lime]🛡️ VPN Surfshark: CONECTADA (Paises Bajos)[/COLOR]"
+                vpn_label = "[COLOR lime]VPN Surfshark: CONECTADA (Paises Bajos)[/COLOR]"
             else:
-                vpn_label = "[COLOR red]⚡ VPN Surfshark: DESCONECTADA (Fibra Directa)[/COLOR]"
+                vpn_label = "[COLOR red]VPN Surfshark: DESCONECTADA (Fibra Directa)[/COLOR]"
             items.append((vpn_label, "vpn_toggle", "DefaultNetwork.png"))
 
-        items.append(("🛠️ Gestor de Motores (Elementum / AceStream)", "manage_engines", "DefaultAddonProgram.png"))
+        items.append(("Gestor de Motores (Elementum / AceStream)", "manage_engines", "DefaultAddonProgram.png"))
         items.append(("Ajustes", "settings", "DefaultAddonProgram.png"))
 
         for label, action, icon in items:
@@ -462,7 +465,7 @@ class Router:
             label = f"{ep_num}. {ep_title}"
             vote = ep.get("vote_average", 0)
             if vote:
-                label += f" [COLOR yellow]★{vote:.1f}[/COLOR]"
+                label += f" [COLOR yellow]({vote:.1f})[/COLOR]"
 
             ep_imdb_id = f"{imdb_id}:{season}:{ep_num}" if (imdb_id and imdb_id.startswith("tt")) else (f"tmdb:{tmdb_id}:{season}:{ep_num}" if tmdb_id else "")
 
@@ -472,7 +475,7 @@ class Router:
                 media_type="series", season=str(season), episode=str(ep_num),
                 title=f"{title} S{season:02d}E{ep_num:02d}",
             )
-            ep_ctx = [("💬 Buscar Subtítulos (OpenSubtitles)", f"RunPlugin({sub_url})")]
+            ep_ctx = [("Buscar Subtítulos (OpenSubtitles)", f"RunPlugin({sub_url})")]
 
             ui.add_directory_item(
                 handle=self.handle, label=label, action="streams",
@@ -680,7 +683,7 @@ class Router:
                 season=str(season), episode=str(ep_num),
                 title=f"{title} S{season:02d}E{ep_num:02d}",
             )
-            ep_ctx = [("💬 Buscar Subtítulos (OpenSubtitles)", f"RunPlugin({sub_url})")]
+            ep_ctx = [("Buscar Subtítulos (OpenSubtitles)", f"RunPlugin({sub_url})")]
 
             ui.add_directory_item(
                 handle=self.handle, label=label, action="streams",
@@ -857,13 +860,13 @@ class Router:
                     ep_tag = f"[{ep_match.group(1).upper()}]" if ep_match else "[PACK]"
                     clean_file = re.sub(r"\.(mkv|mp4|avi)$", "", matched_file, flags=re.I)
                     clean_file = clean_file.split("/")[-1]
-                    file_target = f"{ep_tag} {line1[:30]} ➔ {clean_file[:35]}"
+                    file_target = f"{ep_tag} {line1[:30]} -> {clean_file[:35]}"
 
                 lbl = RTN.format_label(stream, file_target=file_target)
                 labels.append(lbl)
 
             # Option to force a fresh search
-            labels.append("🔄  [COLOR yellow]Buscar de nuevo (Actualizar fuentes)[/COLOR]")
+            labels.append("[COLOR yellow]Buscar de nuevo (Actualizar fuentes)[/COLOR]")
 
             ui.end_directory(self.handle, succeeded=True)
 
@@ -935,12 +938,12 @@ class Router:
 
         options = []
         if es_subs:
-            options.append(f"🇪🇸 Español ({len(es_subs)} disponibles)")
+            options.append(f"[ES] Español ({len(es_subs)} disponibles)")
         if en_subs:
-            options.append(f"🇬🇧 Inglés ({len(en_subs)} disponibles)")
+            options.append(f"[EN] Inglés ({len(en_subs)} disponibles)")
         if other_subs:
-            options.append(f"🌐 Otros idiomas ({len(other_subs)} disponibles)")
-        options.append(f"📋 Ver todos ({len(subs)} subtítulos)")
+            options.append(f"[Otros] Otros idiomas ({len(other_subs)} disponibles)")
+        options.append(f"Ver todos ({len(subs)} subtítulos)")
 
         selected_subs = subs
         if len(options) > 1:
@@ -959,7 +962,7 @@ class Router:
 
         items = []
         for s in selected_subs:
-            flag = s.get("flag", "🌐")
+            flag = s.get("flag", "[SUB]")
             fn = s.get("filename", "")
             fmt = s.get("format", "SRT")
             fps = f"{s['fps']}fps" if s.get("fps") else ""
@@ -989,9 +992,9 @@ class Router:
 
         applied = apply_subtitle_to_player(local_path)
         if applied:
-            ui.show_notification(f"✓ Subtítulo activado: {chosen_sub.get('lang_name')}")
+            ui.show_notification(f"Subtítulo activado: {chosen_sub.get('lang_name')}")
         else:
-            ui.show_notification("✓ Subtítulo descargado para reproducción.")
+            ui.show_notification("Subtítulo descargado para reproducción.")
 
     def _subtitle_module_route(self):
         """Dispatches Kodi subtitle service module actions (search, manualsearch, download)."""
@@ -1050,8 +1053,8 @@ class Router:
 
                     dialog = xbmcgui.Dialog()
                     opts = [
-                        f"▶️  Reanudar desde el minuto {time_str}",
-                        "⏮️  Empezar desde el principio"
+                        f"Reanudar desde el minuto {time_str}",
+                        "Empezar desde el principio"
                     ]
                     choice = dialog.select("Reanudar reproducción", opts)
                     if choice == 0:
@@ -1261,7 +1264,7 @@ class Router:
         if items:
             ui.add_directory_item(
                 handle=self.handle,
-                label=f"[COLOR cyan][B]🔍 Buscar torrents directos en DHT para: '{query}'[/B][/COLOR]",
+                label=f"[COLOR cyan][B]Buscar torrents directos en DHT para: '{query}'[/B][/COLOR]",
                 action="raw_dht_search",
                 base_url=self.base_url,
                 icon="DefaultAddonsSearch.png",
@@ -1286,9 +1289,9 @@ class Router:
 
     def _raw_dht_search_with_query(self, query):
         categories = [
-            "• 🎬 Películas (Video)",
-            "• 📺 Series (TV)",
-            "• 🎵 Música"
+            "Películas (Video)",
+            "Series (TV)",
+            "Música"
         ]
         cat_choice = xbmcgui.Dialog().select("Seleccionar Categoría", categories)
         if cat_choice < 0:
@@ -1638,7 +1641,7 @@ class Router:
                     imdb_id=imdb_id, tmdb_id=tmdb_id,
                     media_type=mt, title=title,
                 )
-                ctx.append(("💬 Buscar Subtítulos (OpenSubtitles)", f"RunPlugin({sub_url})"))
+                ctx.append(("Buscar Subtítulos (OpenSubtitles)", f"RunPlugin({sub_url})"))
 
             kwargs = {
                 "handle": self.handle, "label": label, "action": click,
@@ -1909,24 +1912,31 @@ class Router:
     def _acestream(self):
         """AceStream main menu: instant zero-lag rendering without loading heavy IPFS."""
         try:
-            # 1. Trends & Search shortcuts (ALWAYS FIRST, INSTANT)
+            # 1. Agenda Deportiva de Hoy (Partidos en directo)
             ui.add_directory_item(
                 handle=self.handle,
-                label="[B][COLOR lightgreen]⚽ Tendencias Fútbol / Deportes (Hoy)[/COLOR][/B]",
+                label="[B][COLOR gold]Agenda Deportiva de Hoy (Directos)[/COLOR][/B]",
+                action="acestream_agenda", base_url=self.base_url,
+                icon="DefaultPVRTVChannels.png",
+            )
+            # 2. Trends & Search shortcuts (ALWAYS FIRST, INSTANT)
+            ui.add_directory_item(
+                handle=self.handle,
+                label="[B][COLOR lightgreen]Tendencias y Canales en Directo[/COLOR][/B]",
                 action="acestream_trends", base_url=self.base_url,
                 icon="DefaultPVRTVChannels.png",
             )
             ui.add_directory_item(
                 handle=self.handle,
-                label="[B][COLOR yellow]🔍 Buscar canal o evento AceStream[/COLOR][/B]",
+                label="[B][COLOR yellow]Buscar canal o evento AceStream[/COLOR][/B]",
                 action="acestream_search", base_url=self.base_url,
                 icon="DefaultAddonsSearch.png",
             )
 
-            # 2. Utilities: Manual input & History
+            # 3. Utilities: Manual input & History
             ui.add_directory_item(
                 handle=self.handle,
-                label="[COLOR yellow]📋 Pegar hash/enlace AceStream[/COLOR]",
+                label="[COLOR yellow]Pegar hash o enlace AceStream[/COLOR]",
                 action="acestream_manual", base_url=self.base_url,
                 icon="DefaultNetwork.png",
                 is_folder=False,
@@ -1941,7 +1951,7 @@ class Router:
                 ]
                 ui.add_directory_item(
                     handle=self.handle,
-                    label=f"[COLOR orange]🕒 Historial: {short_hash}[/COLOR]",
+                    label=f"[COLOR orange]Historial: {short_hash}[/COLOR]",
                     action="acestream_play",
                     base_url=self.base_url,
                     ace_hash=h_hash,
@@ -1952,18 +1962,18 @@ class Router:
                     context_menu=context_menu,
                 )
 
-            # 3. Traditional IPFS / M3U channel list (DEDICATED SUBFOLDER AT THE BOTTOM)
+            # 4. Traditional IPFS / M3U channel list (DEDICATED SUBFOLDER AT THE BOTTOM)
             ui.add_directory_item(
                 handle=self.handle,
-                label="[B][COLOR lightblue]📦 Canales Tradicionales (Lista IPFS / M3U)[/COLOR][/B]",
+                label="[B][COLOR lightblue]Canales Tradicionales (Lista IPFS / M3U)[/COLOR][/B]",
                 action="acestream_traditional", base_url=self.base_url,
                 icon="DefaultFolder.png",
             )
 
-            # 4. Refresh & VPN at bottom
+            # 5. Refresh & VPN at bottom
             ui.add_directory_item(
                 handle=self.handle,
-                label="[COLOR cyan]🔄 Refrescar lista y tendencias[/COLOR]",
+                label="[COLOR cyan]Refrescar lista y agenda deportiva[/COLOR]",
                 action="acestream_refresh", base_url=self.base_url,
                 icon="DefaultAddonProgram.png",
                 is_folder=False,
@@ -1974,9 +1984,9 @@ class Router:
             if self._is_vpn_supported():
                 vpn_on = self._is_vpn_connected()
                 if vpn_on:
-                    vpn_label = "[COLOR lightgreen]🛡️ VPN Surfshark: CONECTADA (NL)[/COLOR]"
+                    vpn_label = "[COLOR lightgreen]VPN Surfshark: CONECTADA (NL)[/COLOR]"
                 else:
-                    vpn_label = "[COLOR red]🛡️ VPN Surfshark: DESCONECTADA (Pulsar para activar)[/COLOR]"
+                    vpn_label = "[COLOR red]VPN Surfshark: DESCONECTADA (Pulsar para activar)[/COLOR]"
                 ui.add_directory_item(
                     handle=self.handle,
                     label=vpn_label,
@@ -2012,7 +2022,7 @@ class Router:
             total = len(channels)
             ui.add_directory_item(
                 handle=self.handle,
-                label=f"[B]📺 Todos los canales ({total})[/B]",
+                label=f"[B]Todos los canales ({total})[/B]",
                 action="acestream_all", base_url=self.base_url,
                 icon="DefaultPVRTVChannels.png",
             )
@@ -2022,7 +2032,7 @@ class Router:
                 count = group["count"]
                 name = group["name"]
                 logo = group.get("logo", "")
-                label = f"📁 {name} ({count})"
+                label = f"{name} ({count})"
                 ui.add_directory_item(
                     handle=self.handle, label=label, action="acestream_group",
                     base_url=self.base_url,
@@ -2131,6 +2141,230 @@ class Router:
             ui.show_notification("Error.")
             ui.end_directory(self.handle)
 
+    def _acestream_agenda(self):
+        """Displays sports categories for today's televised events."""
+        try:
+            from resources.lib.sports_agenda import SportsAgendaClient
+            force_refresh = bool(self.params.get("refresh") == "1")
+            client = SportsAgendaClient()
+            events = client.fetch_today_events(force_refresh=force_refresh)
+
+            if not events:
+                ui.show_notification("No se pudo cargar la agenda deportiva.")
+                ui.end_directory(self.handle)
+                return
+
+            # Refresh option
+            ui.add_directory_item(
+                handle=self.handle,
+                label="[COLOR cyan]Actualizar agenda deportiva[/COLOR]",
+                action="acestream_agenda",
+                base_url=self.base_url,
+                refresh="1",
+                icon="DefaultAddonProgram.png",
+                is_folder=True,
+            )
+
+            # Option: All events today
+            ui.add_directory_item(
+                handle=self.handle,
+                label=f"[B][COLOR gold]Todos los Eventos de Hoy ({len(events)})[/COLOR][/B]",
+                action="acestream_agenda_list",
+                base_url=self.base_url,
+                sport="all",
+                icon="DefaultPVRTVChannels.png",
+                is_folder=True,
+            )
+
+            # Categorized sports
+            categories = client.get_categories(events)
+            for sport, count in categories:
+                if sport == "Fútbol":
+                    label = f"[B][COLOR lightgreen]{sport} ({count})[/COLOR][/B]"
+                elif sport == "Baloncesto":
+                    label = f"[B][COLOR orange]{sport} / NBA ({count})[/COLOR][/B]"
+                elif sport in ("Automovilismo", "Motociclismo"):
+                    label = f"[B][COLOR deepskyblue]Motor: {sport} ({count})[/COLOR][/B]"
+                elif sport in ("Tenis", "Pádel"):
+                    label = f"[B][COLOR yellow]{sport} ({count})[/COLOR][/B]"
+                else:
+                    label = f"{sport} ({count})"
+
+                ui.add_directory_item(
+                    handle=self.handle,
+                    label=label,
+                    action="acestream_agenda_list",
+                    base_url=self.base_url,
+                    sport=sport,
+                    icon="DefaultPVRTVChannels.png",
+                    is_folder=True,
+                )
+
+            ui.end_directory(self.handle)
+        except Exception as e:
+            log(f"Sports agenda category error: {e}", level="error")
+            ui.show_notification("Error al cargar la agenda deportiva.")
+            ui.end_directory(self.handle)
+
+    def _acestream_agenda_list(self):
+        """Lists events for selected sport chronologically."""
+        try:
+            from resources.lib.sports_agenda import SportsAgendaClient
+            sport = self.params.get("sport", "all")
+            client = SportsAgendaClient()
+            events = client.get_events_by_sport(sport)
+
+            if not events:
+                ui.show_notification("No hay eventos disponibles para esta categoría.")
+                ui.end_directory(self.handle)
+                return
+
+            for ev in events:
+                time_str = ev.get("time", "")
+                comp = ev.get("competition", "")
+                title = ev.get("title", "")
+                home = ev.get("home", "")
+                away = ev.get("away", "")
+                channels = ev.get("channels", [])
+                channels_str = ", ".join(channels[:3]) if channels else "Sin canal asignado"
+
+                status, tag_info = client.get_event_status(time_str)
+                if status == "LIVE":
+                    dot = "[COLOR lightgreen]● [/COLOR]"
+                    st_tag = f"[COLOR orange][DIRECTO {tag_info}][/COLOR]"
+                elif status == "NEXT":
+                    dot = "[COLOR yellow]○ [/COLOR]"
+                    st_tag = f"[COLOR skyblue][{time_str}][/COLOR]"
+                else:
+                    dot = ""
+                    st_tag = f"[COLOR grey][{time_str}][/COLOR]"
+
+                label = f"{dot}{st_tag} [COLOR yellow][{comp}][/COLOR] [B]{title}[/B] — [COLOR lightgrey]{channels_str}[/COLOR]"
+                plot = f"Competición: {comp}\nEvento: {title}\nHora: {time_str}\nCanales TV: {', '.join(channels)}"
+
+                ui.add_directory_item(
+                    handle=self.handle,
+                    label=label,
+                    action="acestream_agenda_event",
+                    base_url=self.base_url,
+                    event_title=title,
+                    home=home,
+                    away=away,
+                    competition=comp,
+                    channels=",".join(channels),
+                    plot=plot,
+                    icon="DefaultPVRTVChannels.png",
+                    is_folder=True,
+                )
+
+            ui.end_directory(self.handle)
+        except Exception as e:
+            log(f"Sports agenda list error: {e}", level="error")
+            ui.show_notification("Error al mostrar eventos.")
+            ui.end_directory(self.handle)
+
+    def _acestream_agenda_event(self):
+        """Searches and resolves AceStream channels broadcasting the chosen event."""
+        try:
+            from resources.lib.acestream_search import AceStreamSearchClient
+            from resources.lib.acestream import AceStreamClient
+
+            event_title = self.params.get("event_title", "")
+            home = self.params.get("home", "")
+            away = self.params.get("away", "")
+            comp = self.params.get("competition", "")
+            channels_raw = self.params.get("channels", "")
+            channel_names = [c.strip() for c in channels_raw.split(",") if c.strip()]
+
+            ui.show_notification(f"Buscando directos: {event_title}...", time=2500)
+
+            search_client = AceStreamSearchClient()
+            streams = []
+            seen_hashes = set()
+
+            queries = []
+            if home and len(home) >= 3:
+                queries.append(home)
+            if away and len(away) >= 3 and away != home:
+                queries.append(away)
+            for ch in channel_names[:3]:
+                clean_ch = re.sub(r"\(.*?\)", "", ch).strip()
+                if clean_ch and len(clean_ch) >= 3 and clean_ch not in queries:
+                    queries.append(clean_ch)
+
+            for q in queries:
+                found = search_client.search(q)
+                for s in found:
+                    h = s.get("hash", "").lower()
+                    if h and h not in seen_hashes:
+                        seen_hashes.add(h)
+                        streams.append(s)
+
+            if not streams:
+                ui.show_notification("No se encontraron emisiones directas activas con ese nombre.")
+                for ch in channel_names:
+                    clean_ch = re.sub(r"\(.*?\)", "", ch).strip()
+                    ui.add_directory_item(
+                        handle=self.handle,
+                        label=f"[B][COLOR yellow]Buscar canal de emisión: '{clean_ch}'[/COLOR][/B]",
+                        action="acestream_search",
+                        base_url=self.base_url,
+                        query=clean_ch,
+                        icon="DefaultAddonsSearch.png",
+                        is_folder=True,
+                    )
+                ui.end_directory(self.handle)
+                return
+
+            # Health check (semáforo)
+            health = {}
+            try:
+                ace = AceStreamClient()
+                health = ace.check_channels_health(streams)
+            except Exception as e:
+                log(f"Agenda event health check error: {e}", level="debug")
+
+            for s in streams:
+                ace_hash = s.get("hash", "")
+                title = s.get("title", event_title)
+                source = s.get("source", "")
+                ups = s.get("ups", 0)
+                downs = s.get("downs", 0)
+
+                status = health.get(ace_hash)
+                if status == "online":
+                    dot = "[COLOR lightgreen]● [/COLOR]"
+                elif status == "offline":
+                    dot = "[COLOR red]○ [/COLOR]"
+                else:
+                    dot = ""
+
+                karma = ""
+                if ups or downs:
+                    karma = f" [COLOR lightgreen]+{ups}[/COLOR]/[COLOR red]-{downs}[/COLOR]"
+                src_tag = f" [COLOR grey][{source}][/COLOR]" if source else ""
+
+                label = f"{dot}[B]{title}[/B]{karma}{src_tag}"
+                plot = f"Evento: {event_title}\nCompetición: {comp}\nCanales TV previstos: {', '.join(channel_names)}"
+
+                ui.add_directory_item(
+                    handle=self.handle,
+                    label=label,
+                    action="acestream_play",
+                    base_url=self.base_url,
+                    ace_hash=ace_hash,
+                    title=title,
+                    plot=plot,
+                    is_folder=False,
+                    icon="DefaultPVRTVChannels.png",
+                )
+
+            ui.end_directory(self.handle, content_type="videos")
+        except Exception as e:
+            log(f"Agenda event resolution error: {e}", level="error")
+            ui.show_notification("Error al resolver evento.")
+            ui.end_directory(self.handle)
+
     def _acestream_trends(self):
         """Display trending sports channels from acestreamid.com and search-ace.stream."""
         try:
@@ -2153,13 +2387,23 @@ class Router:
             # Refresh option at the top
             ui.add_directory_item(
                 handle=self.handle,
-                label="[COLOR cyan]🔄 Actualizar tendencias en directo[/COLOR]",
+                label="[COLOR cyan]Actualizar tendencias en directo[/COLOR]",
                 action="acestream_trends",
                 base_url=self.base_url,
                 refresh="1",
                 icon="DefaultAddonProgram.png",
                 is_folder=True,
             )
+
+            # Load today's sports agenda for channel event enrichment
+            agenda_client = None
+            today_events = []
+            try:
+                from resources.lib.sports_agenda import SportsAgendaClient
+                agenda_client = SportsAgendaClient()
+                today_events = agenda_client.fetch_today_events()
+            except Exception as e:
+                log(f"Trends sports agenda enrichment error: {e}", level="debug")
 
             # Health check (semáforo)
             health = {}
@@ -2190,8 +2434,22 @@ class Router:
                 if ups or downs:
                     karma = f" [COLOR lightgreen]+{ups}[/COLOR]/[COLOR red]-{downs}[/COLOR]"
 
+                # Event tag from sports agenda
+                event_tag = ""
+                plot = ""
+                if agenda_client and today_events:
+                    match_info = agenda_client.find_event_for_channel(title, today_events)
+                    if match_info:
+                        ev = match_info["event"]
+                        st = match_info["status"]
+                        if st == "LIVE":
+                            event_tag = f" [COLOR orange][DIRECTO: {ev['title']}][/COLOR]"
+                        elif st == "NEXT":
+                            event_tag = f" [COLOR skyblue][{ev['time']} {ev['title']}][/COLOR]"
+                        plot = f"Competición: {ev.get('competition')}\nEvento: {ev.get('title')}\nHora: {ev.get('time')}\nCanales TV: {', '.join(ev.get('channels', []))}"
+
                 src_tag = f" [COLOR grey][{source}][/COLOR]" if source else ""
-                label = f"{dot}[B]{title}[/B]{karma}{src_tag}"
+                label = f"{dot}[B]{title}[/B]{karma}{event_tag}{src_tag}"
 
                 ui.add_directory_item(
                     handle=self.handle,
@@ -2200,6 +2458,7 @@ class Router:
                     base_url=self.base_url,
                     ace_hash=ace_hash,
                     title=title,
+                    plot=plot,
                     is_folder=False,
                     icon="DefaultPVRTVChannels.png",
                 )
@@ -2238,7 +2497,7 @@ class Router:
             # Option to search again
             ui.add_directory_item(
                 handle=self.handle,
-                label=f"[COLOR yellow]🔍 Nueva búsqueda (Actual: {query})[/COLOR]",
+                label=f"[COLOR yellow]Nueva búsqueda (Actual: {query})[/COLOR]",
                 action="acestream_search",
                 base_url=self.base_url,
                 icon="DefaultAddonsSearch.png",
@@ -2705,7 +2964,7 @@ class Router:
                     except Exception:
                         pass
                     xbmcgui.Dialog().ok(
-                        "VPN Desconectada ⚡",
+                        "VPN Desconectada",
                         f"La VPN de Surfshark ha sido DESCONECTADA.\n\n"
                         f"Ahora estás navegando directo con tu operadora.\n"
                         f"• IP Pública Actual: {ip}\n"
@@ -2739,7 +2998,7 @@ class Router:
                         except Exception:
                             pass
                         xbmcgui.Dialog().ok(
-                            "VPN Conectada 🛡️",
+                            "VPN Conectada",
                             f"La VPN de Surfshark ha sido CONECTADA con éxito.\n\n"
                             f"Tu tráfico está cifrado y protegido.\n"
                             f"• IP Pública VPN: {ip}\n"
@@ -2767,23 +3026,23 @@ class Router:
 
         # Elementum status & action
         if el_installed:
-            status = "[COLOR lime]✅ Instalado y Activo[/COLOR]" if el_alive else "[COLOR yellow]⚠️ Instalado (Inactivo)[/COLOR]"
+            status = "[COLOR lime][Instalado y Activo][/COLOR]" if el_alive else "[COLOR yellow][Instalado (Inactivo)][/COLOR]"
             items.append((f"Elementum: {status} — Reinstalar / Reparar", "install_elementum", "DefaultAddonProgram.png"))
         else:
-            items.append(("Elementum: [COLOR red]❌ No Instalado[/COLOR] — Click para Instalar", "install_elementum", "DefaultAddonProgram.png"))
+            items.append(("Elementum: [COLOR red][No Instalado][/COLOR] — Click para Instalar", "install_elementum", "DefaultAddonProgram.png"))
 
         # Horus status & action
         if ho_installed:
-            items.append(("Horus (AceStream): [COLOR lime]✅ Instalado[/COLOR] — Reinstalar / Actualizar", "install_horus", "DefaultAddonProgram.png"))
+            items.append(("Horus (AceStream): [COLOR lime][Instalado][/COLOR] — Reinstalar / Actualizar", "install_horus", "DefaultAddonProgram.png"))
         else:
-            items.append(("Horus (AceStream): [COLOR red]❌ No Instalado[/COLOR] — Click para Instalar", "install_horus", "DefaultAddonProgram.png"))
+            items.append(("Horus (AceStream): [COLOR red][No Instalado][/COLOR] — Click para Instalar", "install_horus", "DefaultAddonProgram.png"))
 
         # Option to install both
-        items.append(("🚀 Instalar / Reparar Ambos Motores", "install_both_engines", "DefaultAddonProgram.png"))
+        items.append(("Instalar / Reparar Ambos Motores", "install_both_engines", "DefaultAddonProgram.png"))
 
         # Current configuration info & link to settings
-        items.append((f"ℹ️ Motor Torrent actual: [COLOR cyan]{torr_engine}[/COLOR]", "settings", "DefaultAddonProgram.png"))
-        items.append((f"ℹ️ Motor AceStream actual: [COLOR cyan]{ace_engine}[/COLOR]", "settings", "DefaultAddonProgram.png"))
+        items.append((f"Motor Torrent actual: [COLOR cyan]{torr_engine}[/COLOR]", "settings", "DefaultAddonProgram.png"))
+        items.append((f"Motor AceStream actual: [COLOR cyan]{ace_engine}[/COLOR]", "settings", "DefaultAddonProgram.png"))
 
         for label, action, icon in items:
             ui.add_directory_item(
@@ -2901,11 +3160,11 @@ class Router:
                 try:
                     r = float(rating)
                     if r >= 7.5:
-                        rating_tag = f" [COLOR gold]★{rating}[/COLOR]"
+                        rating_tag = f" [COLOR gold]({rating})[/COLOR]"
                     elif r >= 5.0:
-                        rating_tag = f" [COLOR yellow]★{rating}[/COLOR]"
+                        rating_tag = f" [COLOR yellow]({rating})[/COLOR]"
                     else:
-                        rating_tag = f" [COLOR grey]★{rating}[/COLOR]"
+                        rating_tag = f" [COLOR grey]({rating})[/COLOR]"
                 except (ValueError, TypeError):
                     pass
 
@@ -2927,9 +3186,9 @@ class Router:
             # Build enriched plot / description
             meta_header = []
             if rating:
-                meta_header.append(f"★ {rating}/10")
+                meta_header.append(f"Nota: {rating}/10")
             if rt_score:
-                meta_header.append(f"🍅 Rotten Tomatoes: {rt_score}%")
+                meta_header.append(f"Rotten Tomatoes: {rt_score}%")
             if item.get("metascore"):
                 meta_header.append(f"Metacritic: {item.get('metascore')}")
 
@@ -2938,7 +3197,7 @@ class Router:
             if header_str:
                 extra_lines.append(header_str)
             if item.get("awards"):
-                extra_lines.append(f"🏆 {item.get('awards')}")
+                extra_lines.append(f"Premios: {item.get('awards')}")
 
             if extra_lines and plot:
                 plot = "\n".join(extra_lines) + "\n\n" + plot
@@ -2974,7 +3233,7 @@ class Router:
                 imdb_id=imdb_id, tmdb_id=tmdb_id,
                 media_type=media_type, title=title,
             )
-            ctx.append(("💬 Buscar Subtítulos (OpenSubtitles)", f"RunPlugin({sub_url})"))
+            ctx.append(("Buscar Subtítulos (OpenSubtitles)", f"RunPlugin({sub_url})"))
 
         if Config.trakt_enabled():
             trakt_url = ui.build_url(

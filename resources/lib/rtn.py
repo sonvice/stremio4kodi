@@ -345,17 +345,17 @@ class RTN:
         # 6. Seeds (Colored)
         seeds = meta["seeds"]
         if seeds >= 50:
-            parts.append(f"[COLOR lime]👤 {seeds}[/COLOR]")
+            parts.append(f"[COLOR lime]S:{seeds}[/COLOR]")
         elif seeds >= 10:
-            parts.append(f"[COLOR yellow]👤 {seeds}[/COLOR]")
+            parts.append(f"[COLOR yellow]S:{seeds}[/COLOR]")
         elif seeds > 0:
-            parts.append(f"[COLOR orange]👤 {seeds}[/COLOR]")
+            parts.append(f"[COLOR orange]S:{seeds}[/COLOR]")
         else:
-            parts.append("[COLOR red]👤 0[/COLOR]")
+            parts.append("[COLOR red]S:0[/COLOR]")
 
         # 7. Size
         if meta["size"]:
-            parts.append(f"💾 {meta['size']}")
+            parts.append(f"[COLOR lightgrey]{meta['size']}[/COLOR]")
 
         # 8. Addon tag
         if meta["addon"]:

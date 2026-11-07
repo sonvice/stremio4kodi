@@ -194,7 +194,7 @@ class BitsearchClient:
         size_str = f"{size_gb:.2f} GB" if size_gb >= 1 else f"{size / (1024 * 1024):.2f} MB"
         return {
             "name": f"DHT | {category}",
-            "title": f"{title}\n👤 {seeds} | 📥 {size_str} ({source})",
+            "title": f"{title}\nS:{seeds} | {size_str} ({source})",
             "infoHash": infohash,
             "seeds": seeds,
             "size": size,

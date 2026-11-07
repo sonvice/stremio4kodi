@@ -154,7 +154,7 @@ def handle_search(handle, params):
         lang_code = s.get("lang", "").lower()
         meta = LANG_META.get(lang_code, {})
         lang_name = meta.get("name") or s.get("lang_name") or lang_code.upper()
-        flag = meta.get("flag") or s.get("flag") or "🌐"
+        flag = meta.get("flag") or s.get("flag") or "[SUB]"
         clean_fn = s.get("filename", "subtitle.srt")
 
         # Format label and label2 for Kodi's subtitle dialog:
@@ -229,7 +229,7 @@ def handle_manualsearch(handle, params):
         lang_code = s.get("lang", "").lower()
         meta = LANG_META.get(lang_code, {})
         lang_name = meta.get("name") or s.get("lang_name") or lang_code.upper()
-        flag = meta.get("flag") or s.get("flag") or "🌐"
+        flag = meta.get("flag") or s.get("flag") or "[SUB]"
         clean_fn = s.get("filename", "subtitle.srt")
 
         label = f"{flag} {lang_name}"

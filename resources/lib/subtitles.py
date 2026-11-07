@@ -19,36 +19,36 @@ SUBTITLE_PROVIDERS = [
 ]
 
 LANG_META = {
-    "spa": {"name": "Español (Castellano)", "flag": "🇪🇸", "tag": "ES"},
-    "es": {"name": "Español (Castellano)", "flag": "🇪🇸", "tag": "ES"},
-    "spl": {"name": "Español (Latino)", "flag": "🇲🇽", "tag": "LAT"},
-    "lat": {"name": "Español (Latino)", "flag": "🇲🇽", "tag": "LAT"},
-    "eng": {"name": "Inglés (English)", "flag": "🇬🇧", "tag": "EN"},
-    "en": {"name": "Inglés (English)", "flag": "🇬🇧", "tag": "EN"},
-    "por": {"name": "Portugués", "flag": "🇵🇹", "tag": "PT"},
-    "pt": {"name": "Portugués", "flag": "🇵🇹", "tag": "PT"},
-    "pob": {"name": "Portugués (Brasil)", "flag": "🇧🇷", "tag": "BR"},
-    "fre": {"name": "Francés (Français)", "flag": "🇫🇷", "tag": "FR"},
-    "fra": {"name": "Francés (Français)", "flag": "🇫🇷", "tag": "FR"},
-    "fr": {"name": "Francés (Français)", "flag": "🇫🇷", "tag": "FR"},
-    "ger": {"name": "Alemán (Deutsch)", "flag": "🇩🇪", "tag": "DE"},
-    "deu": {"name": "Alemán (Deutsch)", "flag": "🇩🇪", "tag": "DE"},
-    "de": {"name": "Alemán (Deutsch)", "flag": "🇩🇪", "tag": "DE"},
-    "ita": {"name": "Italiano", "flag": "🇮🇹", "tag": "IT"},
-    "it": {"name": "Italiano", "flag": "🇮🇹", "tag": "IT"},
-    "rus": {"name": "Ruso", "flag": "🇷🇺", "tag": "RU"},
-    "ru": {"name": "Ruso", "flag": "🇷🇺", "tag": "RU"},
-    "dan": {"name": "Danés", "flag": "🇩🇰", "tag": "DA"},
-    "swe": {"name": "Sueco", "flag": "🇸🇪", "tag": "SV"},
-    "nor": {"name": "Noruego", "flag": "🇳🇴", "tag": "NO"},
-    "fin": {"name": "Finés", "flag": "🇫🇮", "tag": "FI"},
-    "dut": {"name": "Holandés", "flag": "🇳🇱", "tag": "NL"},
-    "nld": {"name": "Holandés", "flag": "🇳🇱", "tag": "NL"},
-    "pol": {"name": "Polaco", "flag": "🇵🇱", "tag": "PL"},
-    "jpn": {"name": "Japonés", "flag": "🇯🇵", "tag": "JA"},
-    "kor": {"name": "Coreano", "flag": "🇰🇷", "tag": "KO"},
-    "chi": {"name": "Chino", "flag": "🇨🇳", "tag": "ZH"},
-    "zho": {"name": "Chino", "flag": "🇨🇳", "tag": "ZH"},
+    "spa": {"name": "Español (Castellano)", "flag": "[ES]", "tag": "ES"},
+    "es": {"name": "Español (Castellano)", "flag": "[ES]", "tag": "ES"},
+    "spl": {"name": "Español (Latino)", "flag": "[LAT]", "tag": "LAT"},
+    "lat": {"name": "Español (Latino)", "flag": "[LAT]", "tag": "LAT"},
+    "eng": {"name": "Inglés (English)", "flag": "[EN]", "tag": "EN"},
+    "en": {"name": "Inglés (English)", "flag": "[EN]", "tag": "EN"},
+    "por": {"name": "Portugués", "flag": "[PT]", "tag": "PT"},
+    "pt": {"name": "Portugués", "flag": "[PT]", "tag": "PT"},
+    "pob": {"name": "Portugués (Brasil)", "flag": "[BR]", "tag": "BR"},
+    "fre": {"name": "Francés (Français)", "flag": "[FR]", "tag": "FR"},
+    "fra": {"name": "Francés (Français)", "flag": "[FR]", "tag": "FR"},
+    "fr": {"name": "Francés (Français)", "flag": "[FR]", "tag": "FR"},
+    "ger": {"name": "Alemán (Deutsch)", "flag": "[DE]", "tag": "DE"},
+    "deu": {"name": "Alemán (Deutsch)", "flag": "[DE]", "tag": "DE"},
+    "de": {"name": "Alemán (Deutsch)", "flag": "[DE]", "tag": "DE"},
+    "ita": {"name": "Italiano", "flag": "[IT]", "tag": "IT"},
+    "it": {"name": "Italiano", "flag": "[IT]", "tag": "IT"},
+    "rus": {"name": "Ruso", "flag": "[RU]", "tag": "RU"},
+    "ru": {"name": "Ruso", "flag": "[RU]", "tag": "RU"},
+    "dan": {"name": "Danés", "flag": "[DA]", "tag": "DA"},
+    "swe": {"name": "Sueco", "flag": "[SV]", "tag": "SV"},
+    "nor": {"name": "Noruego", "flag": "[NO]", "tag": "NO"},
+    "fin": {"name": "Finés", "flag": "[FI]", "tag": "FI"},
+    "dut": {"name": "Holandés", "flag": "[NL]", "tag": "NL"},
+    "nld": {"name": "Holandés", "flag": "[NL]", "tag": "NL"},
+    "pol": {"name": "Polaco", "flag": "[PL]", "tag": "PL"},
+    "jpn": {"name": "Japonés", "flag": "[JA]", "tag": "JA"},
+    "kor": {"name": "Coreano", "flag": "[KO]", "tag": "KO"},
+    "chi": {"name": "Chino", "flag": "[ZH]", "tag": "ZH"},
+    "zho": {"name": "Chino", "flag": "[ZH]", "tag": "ZH"},
 }
 
 
@@ -59,7 +59,7 @@ def fetch_subtitles_rich(imdb_id, media_type="movie", season=None, episode=None,
       - id: str
       - lang: str (e.g. 'spa', 'eng')
       - lang_name: str (e.g. 'Español')
-      - flag: str (e.g. '🇪🇸')
+      - flag: str (e.g. '[ES]')
       - filename: str
       - release: str
       - format: str
@@ -102,7 +102,7 @@ def fetch_subtitles_rich(imdb_id, media_type="movie", season=None, episode=None,
                 lang_code = s.get("lang", "").lower()
                 meta = LANG_META.get(lang_code, {
                     "name": lang_code.upper() if lang_code else "Desconocido",
-                    "flag": "🌐",
+                    "flag": f"[{lang_code.upper()}]" if lang_code else "[SUB]",
                     "tag": lang_code.upper()
                 })
 
