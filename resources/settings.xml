@@ -1,82 +1,98 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <settings>
-    <category label="Stremio Addons">
-        <setting id="stremio_addons" type="text" label="Addon URLs (separate with ;;)" default="https://v3-cinemeta.strem.io;;https://94c8cb9f702d-tmdb-addon.baby-beamup.club;;https://torrentio.strem.fun;;https://cometa.stremx.net;;https://peerflix.mov;;https://mediafusion.elfhosted.com"/>
-        <setting id="stremio_timeout" type="slider" label="Request timeout (seconds)" default="10" range="3,1,30" option="int"/>
-        <setting id="stremio_parallel" type="bool" label="Parallel addon queries" default="true"/>
+    <category label="General &amp; Idioma">
+        <setting id="language" type="labelenum" label="Idioma de metadatos" values="es|en|fr|de|it|pt" default="es"/>
+        <setting id="spanish_boost" type="bool" label="Priorizar streams en español" default="true"/>
+        <setting id="spanish_filter_mode" type="labelenum" label="Modo de filtro de idioma español" values="boost|only|off" default="boost"/>
+        <setting id="spanish_variant" type="labelenum" label="Variante preferida" values="all|castellano|latino|dual" default="all"/>
+        <setting id="items_per_page" type="slider" label="Elementos por página en catálogos" default="50" range="10,5,100" option="int"/>
+        <setting id="log_level" type="labelenum" label="Nivel de registro (Log)" values="Info|Debug|Verbose" default="Info"/>
     </category>
-    <category label="Spanish / Idioma">
-        <setting id="spanish_boost" type="bool" label="Prioritize Spanish streams" default="true"/>
-        <setting id="spanish_filter_mode" type="labelenum" label="Spanish filter mode" values="boost|only|off" default="boost"/>
-        <setting id="spanish_variant" type="labelenum" label="Preferred variant" values="all|castellano|latino|dual" default="all"/>
-    </category>
-    <category label="Torrents">
+
+    <category label="Motores Torrent">
         <setting id="torrent_engine" type="labelenum" label="Motor Torrent" values="Auto|TorrServer|Elementum|Torrest" default="Auto"/>
+        <setting id="torrent_sort" type="labelenum" label="Ordenar streams por" values="Seeds|Quality|Size" default="Seeds"/>
+        <setting id="torrent_quality" type="labelenum" label="Calidad preferida" values="4K|1080p|720p|480p|Any" default="1080p"/>
+        <setting id="torrent_autoplay" type="bool" label="Auto-reproducir mejor stream disponible" default="false"/>
+        <setting id="torrent_preflight_check" type="bool" label="Verificar salud del motor antes de reproducir" default="true"/>
         <setting id="torrserver_host" type="text" label="TorrServer: Host / IP (127.0.0.1 o IP del PC)" default="127.0.0.1"/>
         <setting id="torrserver_port" type="text" label="TorrServer: Puerto" default="8090"/>
         <setting id="torrserver_auth" type="bool" label="TorrServer: Requiere autenticación" default="false"/>
         <setting id="torrserver_user" type="text" label="TorrServer: Usuario" default="" enable="eq(-1,true)"/>
         <setting id="torrserver_pass" type="text" label="TorrServer: Contraseña" default="" option="hidden" enable="eq(-2,true)"/>
         <setting id="elementum_auto_heal" type="bool" label="Elementum: Auto-recuperar si no responde" default="true"/>
-        <setting id="torrent_preflight_check" type="bool" label="Verificar salud del motor antes de reproducir" default="true"/>
-        <setting id="torrent_sort" type="labelenum" label="Sort streams by" values="Seeds|Quality|Size" default="Seeds"/>
-        <setting id="torrent_quality" type="labelenum" label="Preferred quality" values="4K|1080p|720p|480p|Any" default="1080p"/>
-        <setting id="torrent_autoplay" type="bool" label="Auto-play best stream" default="false"/>
     </category>
-    <category label="AceStream">
-        <setting id="acestream_enabled" type="bool" label="Enable AceStream / TV en Directo" default="true"/>
+
+    <category label="Servicios Debrid (Multi-Debrid)">
+        <setting id="rd_priority" type="bool" label="Priorizar streams Debrid en caché" default="true"/>
+        <setting id="strict_debrid" type="bool" label="Modo Estricto Debrid (Bloquear P2P / Solo reproducir por Debrid)" default="false"/>
+        
+        <!-- Real-Debrid -->
+        <setting id="rd_enabled" type="bool" label="Habilitar Real-Debrid" default="false"/>
+        <setting id="rd_apikey" type="text" label="Real-Debrid: API Key / Token" default="" option="hidden" enable="eq(-1,true)"/>
+
+        <!-- AllDebrid -->
+        <setting id="alldebrid_enabled" type="bool" label="Habilitar AllDebrid" default="false"/>
+        <setting id="alldebrid_apikey" type="text" label="AllDebrid: API Key" default="" option="hidden" enable="eq(-1,true)"/>
+
+        <!-- Premiumize -->
+        <setting id="premiumize_enabled" type="bool" label="Habilitar Premiumize" default="false"/>
+        <setting id="premiumize_apikey" type="text" label="Premiumize: API Key" default="" option="hidden" enable="eq(-1,true)"/>
+
+        <!-- TorBox -->
+        <setting id="torbox_enabled" type="bool" label="Habilitar TorBox" default="false"/>
+        <setting id="torbox_apikey" type="text" label="TorBox: API Key / Token" default="" option="hidden" enable="eq(-1,true)"/>
+
+        <!-- Debrid-Link -->
+        <setting id="debridlink_enabled" type="bool" label="Habilitar Debrid-Link" default="false"/>
+        <setting id="debridlink_apikey" type="text" label="Debrid-Link: API Key" default="" option="hidden" enable="eq(-1,true)"/>
+    </category>
+
+    <category label="Comet &amp; Stremio (Avanzado)">
+        <setting id="comet_custom_manifest" type="text" label="URL Manifest Comet personalizada (ej: https://.../manifest.json)" default=""/>
+        <setting id="stremio_addons" type="text" label="Addons Stremio adicionales (separados con ;;)" default="https://v3-cinemeta.strem.io;;https://94c8cb9f702d-tmdb-addon.baby-beamup.club;;https://torrentio.strem.fun;;https://cometa.stremx.net;;https://peerflix.mov;;https://mediafusion.elfhosted.com"/>
+        <setting id="stremio_timeout" type="slider" label="Timeout de peticiones (segundos)" default="10" range="3,1,30" option="int"/>
+        <setting id="stremio_parallel" type="bool" label="Consultas en paralelo a los addons" default="true"/>
+    </category>
+
+    <category label="AceStream &amp; Deportes">
+        <setting id="acestream_enabled" type="bool" label="Habilitar AceStream / TV en Directo" default="true"/>
         <setting id="acestream_check_health" type="bool" label="Verificar estado de canales (Semáforo)" default="true"/>
-        <setting id="acestream_urls" type="text" label="AceStream URLs (JSON or M3U, separate with ;;)" default="https://ipfs.io/ipns/k51qzi5uqu5di462t7j4vu4akwfhvtjhy88qbupktvoacqfqe9uforjvhyi4wr/hashes.json"/>
-        <setting id="acestream_engine" type="labelenum" label="AceStream engine" values="Plexus|Horus|AceStream|AceWeb|Elementum" default="Plexus"/>
+        <setting id="acestream_engine" type="labelenum" label="Motor AceStream" values="Plexus|Horus|AceStream|AceWeb|Elementum" default="Plexus"/>
+        <setting id="acestream_urls" type="text" label="URLs de canales tradicionales (JSON o M3U, separadas por ;;)" default="https://ipfs.io/ipns/k51qzi5uqu5di462t7j4vu4akwfhvtjhy88qbupktvoacqfqe9uforjvhyi4wr/hashes.json"/>
         <setting id="acestream_host" type="text" label="AceWeb Host / IP" default="127.0.0.1"/>
-        <setting id="acestream_port" type="slider" label="AceWeb local port" default="6878" range="1024,1,65535" option="int"/>
-        <setting id="acestream_cache_ttl" type="slider" label="Channel list cache (minutes)" default="30" range="5,5,360" option="int"/>
+        <setting id="acestream_port" type="slider" label="Puerto local AceWeb" default="6878" range="1024,1,65535" option="int"/>
+        <setting id="acestream_cache_ttl" type="slider" label="Caché de lista de canales (minutos)" default="30" range="5,5,360" option="int"/>
     </category>
-    <category label="Real-Debrid">
-        <setting id="rd_enabled" type="bool" label="Enable Real-Debrid" default="false"/>
-        <setting id="rd_apikey" type="text" label="API Key" default=""/>
-        <setting id="rd_priority" type="bool" label="Prioritize RD cached streams" default="true"/>
-        <setting id="strict_debrid" type="bool" label="Strict Debrid (Bloquear P2P local)" default="false"/>
-    </category>
-    <category label="Trakt">
-        <setting id="trakt_enabled" type="bool" label="Enable Trakt" default="false"/>
-        <setting id="trakt_clientid" type="text" label="Client ID" default=""/>
-        <setting id="trakt_token" type="text" label="Access Token" default=""/>
-        <setting id="trakt_auth" type="action" label="Authorize Trakt..." action="RunPlugin(plugin://plugin.video.stremio4kodi/?action=trakt_auth)"/>
-        <setting id="trakt_sync_watched" type="bool" label="Sync watched status" default="true"/>
-    </category>
-    <category label="Subtitles">
-        <setting id="subs_auto_search_v2" type="bool" label="Auto-search subtitles on play" default="false"/>
-        <setting id="subs_language" type="text" label="Subtitle language (ISO 639-1)" default="es"/>
-        <setting id="subs_enabled" type="bool" label="Enable OpenSubtitles addon" default="true"/>
-        <setting id="subs_addon_url" type="text" label="OpenSubtitles URL" default="https://opensubtitles-v3.strem.io"/>
-    </category>
-    <category label="Playback">
-        <setting id="auto_next_episode" type="bool" label="Auto-play next episode" default="false"/>
-        <setting id="auto_next_percent" type="slider" label="Trigger at % watched" default="90" range="70,5,98" option="int"/>
-        <setting id="resume_enabled" type="bool" label="Enable resume (Continue Watching)" default="true"/>
-        <setting id="reopen_streams_on_cancel" type="bool" label="Permanecer en lista de streams al parar/cancelar" default="true"/>
-    </category>
-    <category label="Cache">
-        <setting id="cache_enabled" type="bool" label="Enable catalog cache" default="true"/>
-        <setting id="cache_ttl" type="slider" label="Cache TTL (hours)" default="6" range="1,1,72" option="int"/>
-        <setting id="cache_clear" type="action" label="Clear all cache" action="RunPlugin(plugin://plugin.video.stremio4kodi/?action=clear_cache)"/>
-    </category>
-    <category label="General">
-        <setting id="language" type="labelenum" label="Metadata language" values="es|en|fr|de|it|pt" default="es"/>
-        <setting id="items_per_page" type="slider" label="Items per page" default="50" range="10,5,100" option="int"/>
-        <setting id="log_level" type="labelenum" label="Log level" values="Info|Debug|Verbose" default="Info"/>
-    </category>
-    <category label="TMDB">
+
+    <category label="Catálogos (TMDB, Trakt, RT)">
         <setting id="tmdb_enabled" type="bool" label="Habilitar catálogos TMDB (Tendencias, Popular, Cartelera)" default="true"/>
         <setting id="tmdb_apikey" type="text" label="API Key de TMDB (Opcional)" default=""/>
+        <setting id="rt_enabled" type="bool" label="Habilitar puntuaciones Rotten Tomatoes" default="true"/>
+        <setting id="rt_show_consensus" type="bool" label="Mostrar datos ampliados de RT en sinopsis" default="true"/>
+        <setting id="trakt_enabled" type="bool" label="Habilitar Trakt" default="false"/>
+        <setting id="trakt_clientid" type="text" label="Trakt Client ID" default=""/>
+        <setting id="trakt_token" type="text" label="Trakt Access Token" default=""/>
+        <setting id="trakt_auth" type="action" label="Autorizar Trakt..." action="RunPlugin(plugin://plugin.video.stremio4kodi/?action=trakt_auth)"/>
+        <setting id="trakt_sync_watched" type="bool" label="Sincronizar historial con Trakt" default="true"/>
+        <setting id="streaming_catalogs_enabled" type="bool" label="Catálogos de plataformas (Netflix, HBO, Disney+)" default="true"/>
+        <setting id="streaming_catalogs_url" type="text" label="URL del catálogo de plataformas" default="https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club"/>
     </category>
-    <category label="Rotten Tomatoes">
-        <setting id="rt_enabled" type="bool" label="Habilitar puntuaciones y descripciones Rotten Tomatoes" default="true"/>
-        <setting id="rt_show_consensus" type="bool" label="Mostrar datos ampliados en sinopsis" default="true"/>
+
+    <category label="Subtítulos &amp; Reproductor">
+        <setting id="subs_enabled" type="bool" label="Habilitar OpenSubtitles v3 integrado" default="true"/>
+        <setting id="subs_language" type="text" label="Idioma de subtítulos (ISO 639-1)" default="es"/>
+        <setting id="subs_addon_url" type="text" label="URL de OpenSubtitles" default="https://opensubtitles-v3.strem.io"/>
+        <setting id="subs_auto_search_v2" type="bool" label="Auto-buscar subtítulos al reproducir" default="false"/>
+        <setting id="resume_enabled" type="bool" label="Habilitar reanudar reproducción (Continue Watching)" default="true"/>
+        <setting id="auto_next_episode" type="bool" label="Auto-reproducir siguiente episodio" default="false"/>
+        <setting id="auto_next_percent" type="slider" label="Porcentaje para siguiente episodio" default="90" range="70,5,98" option="int"/>
+        <setting id="reopen_streams_on_cancel" type="bool" label="Permanecer en lista de streams al parar/cancelar" default="true"/>
     </category>
-    <category label="Extras (v3)">
-        <setting id="streaming_catalogs_enabled" type="bool" label="Netflix/HBO/Disney+ catalogs" default="true"/>
-        <setting id="streaming_catalogs_url" type="text" label="Streaming Catalogs URL" default="https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club"/>
+
+    <category label="Caché &amp; Mantenimiento">
+        <setting id="cache_enabled" type="bool" label="Habilitar caché de catálogos y metadatos" default="true"/>
+        <setting id="cache_ttl" type="slider" label="Duración de caché (horas)" default="6" range="1,1,72" option="int"/>
+        <setting id="cache_clear" type="action" label="Limpiar toda la caché ahora" action="RunPlugin(plugin://plugin.video.stremio4kodi/?action=clear_cache)"/>
     </category>
 </settings>

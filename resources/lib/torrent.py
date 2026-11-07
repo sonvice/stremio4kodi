@@ -348,13 +348,15 @@ class TorrentResolver:
         file_idx = stream.get("fileIdx")
         stream_title = (stream.get("title") or stream.get("name") or "").split("\n")[0].strip()
 
-        # ── Try Real-Debrid first for ANY hash (cache API is unreliable) ──
+        # ── Try Debrid first for ANY hash ──
         if info_hash and self.rd.is_configured():
-            log(f"Resolving via Real-Debrid: {info_hash}", level="info")
+            provider = self.rd.get_active_provider_name()
+            log(f"Resolving via {provider}: {info_hash}", level="info")
             rd_url = self.rd.resolve(info_hash, file_idx)
             if rd_url:
+                ui.show_notification(f"Reproduciendo con {provider}", time=2000)
                 return rd_url
-            log("RD resolve failed, falling back to torrent engine", level="warning")
+            log(f"{provider} resolve failed, falling back to torrent engine", level="warning")
 
         # ── infoHash → magnet → engine ─────────────────────
         if info_hash:
@@ -788,7 +790,7 @@ class TorrentResolver:
         spanish_on = Config.spanish_boost() and Config.spanish_filter_mode() != "off"
 
         def _sort_key(s):
-            is_rd = bool(s.get("_rd_cached") and Config.rd_priority())
+            is_rd = bool((s.get("_rd_cached") or any(k in str(s) for k in ("[RD+]", "[AD+]", "[PM+]", "[TB+]", "[DL+]"))) and Config.rd_priority())
             seeds = self._extract_seeds(s)
 
             # Base health score
@@ -881,7 +883,8 @@ class TorrentResolver:
 
     def get_rd_label(self, stream):
         if stream.get("_rd_cached"):
-            return "[COLOR magenta][B][RD+][/B][/COLOR]"
+            b = stream.get("_debrid_provider") or "RD"
+            return f"[COLOR magenta][B][{b}+][/B][/COLOR]"
         return ""
 
     def get_spanish_tag(self, stream):

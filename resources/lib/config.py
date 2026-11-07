@@ -27,7 +27,14 @@ class Config:
 
     # ── Stremio ────────────────────────────────────────────
     @staticmethod
+    def comet_custom_manifest():
+        raw = ADDON.getSetting("comet_custom_manifest") or ""
+        return raw.strip()
+
+    @staticmethod
     def stremio_addon_urls():
+        custom_comet = Config.comet_custom_manifest()
+
         raw = ADDON.getSetting("stremio_addons") or ""
         if ";;" in raw:
             urls = [u.strip().rstrip("/") for u in raw.split(";;") if u.strip()]
@@ -38,9 +45,16 @@ class Config:
         else:
             urls = list(Config.DEFAULT_ADDON_URLS)
 
-        # Ensure Comet instance is available even if an older default string was cached in Kodi settings
-        if urls and not any("comet" in u.lower() for u in urls):
-            urls.append("https://cometa.stremx.net")
+        # Handle custom Comet manifest URL
+        if custom_comet:
+            # Replace public instance with user-configured private manifest
+            urls = [u for u in urls if "cometa.stremx.net" not in u]
+            if custom_comet not in urls:
+                urls.insert(0, custom_comet)
+        else:
+            # Ensure Comet instance is available even if an older default string was cached
+            if urls and not any("comet" in u.lower() for u in urls):
+                urls.append("https://cometa.stremx.net")
 
         return urls
 
@@ -112,7 +126,7 @@ class Config:
     def pack_select_mode():
         return "Reproducir episodio actual"
 
-    # ── Real-Debrid ────────────────────────────────────────
+    # ── Debrid Providers (Multi-Debrid) ───────────────────
     @staticmethod
     def rd_enabled():
         return ADDON.getSetting("rd_enabled") == "true"
@@ -122,12 +136,54 @@ class Config:
         return ADDON.getSetting("rd_apikey") or ""
 
     @staticmethod
+    def alldebrid_enabled():
+        return ADDON.getSetting("alldebrid_enabled") == "true"
+
+    @staticmethod
+    def alldebrid_apikey():
+        return ADDON.getSetting("alldebrid_apikey") or ""
+
+    @staticmethod
+    def premiumize_enabled():
+        return ADDON.getSetting("premiumize_enabled") == "true"
+
+    @staticmethod
+    def premiumize_apikey():
+        return ADDON.getSetting("premiumize_apikey") or ""
+
+    @staticmethod
+    def torbox_enabled():
+        return ADDON.getSetting("torbox_enabled") == "true"
+
+    @staticmethod
+    def torbox_apikey():
+        return ADDON.getSetting("torbox_apikey") or ""
+
+    @staticmethod
+    def debridlink_enabled():
+        return ADDON.getSetting("debridlink_enabled") == "true"
+
+    @staticmethod
+    def debridlink_apikey():
+        return ADDON.getSetting("debridlink_apikey") or ""
+
+    @staticmethod
     def rd_priority():
-        return ADDON.getSetting("rd_priority") == "true"
+        return ADDON.getSetting("rd_priority") != "false"
 
     @staticmethod
     def strict_debrid():
         return ADDON.getSetting("strict_debrid") == "true"
+
+    @staticmethod
+    def debrid_configured():
+        return (
+            (Config.rd_enabled() and bool(Config.rd_apikey())) or
+            (Config.alldebrid_enabled() and bool(Config.alldebrid_apikey())) or
+            (Config.premiumize_enabled() and bool(Config.premiumize_apikey())) or
+            (Config.torbox_enabled() and bool(Config.torbox_apikey())) or
+            (Config.debridlink_enabled() and bool(Config.debridlink_apikey()))
+        )
 
     # ── Trakt ──────────────────────────────────────────────
     @staticmethod

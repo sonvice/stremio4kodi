@@ -581,11 +581,11 @@ def check_engines_prompt():
         cache.set("_dep_engines_prompted", True, ttl=86400 * 30)
         return
 
-    # If TorrServer or Real-Debrid is already configured and elementum is missing, user might not need Elementum
-    rd_configured = bool(Config.rd_token())
+    # If TorrServer or Debrid is already configured and elementum is missing, user might not need Elementum
+    debrid_configured = Config.debrid_configured()
     torr_configured = (Config.torrent_engine() == "TorrServer")
 
-    if has_elementum and (torr_configured or rd_configured):
+    if has_elementum and (torr_configured or debrid_configured):
         cache.set("_dep_engines_prompted", True, ttl=86400 * 30)
         return
 

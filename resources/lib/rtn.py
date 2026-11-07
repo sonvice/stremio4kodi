@@ -241,6 +241,24 @@ class RTN:
 
         size = s.get("size") or ""
         is_rd = bool(s.get("_rd_cached"))
+        debrid_badge = s.get("_debrid_provider") or "RD"
+        if not is_rd:
+            if any(k in raw_text for k in ("[RD+]", "[RD cached]", "RealDebrid")):
+                is_rd = True
+                debrid_badge = "RD"
+            elif any(k in raw_text for k in ("[AD+]", "[AD cached]", "AllDebrid")):
+                is_rd = True
+                debrid_badge = "AD"
+            elif any(k in raw_text for k in ("[PM+]", "[Premiumize]", "Premiumize")):
+                is_rd = True
+                debrid_badge = "PM"
+            elif any(k in raw_text for k in ("[TB+]", "[TorBox]", "TorBox")):
+                is_rd = True
+                debrid_badge = "TB"
+            elif any(k in raw_text for k in ("[DL+]", "[DebridLink]", "DebridLink")):
+                is_rd = True
+                debrid_badge = "DL"
+
         addon = s.get("_addon") or ""
         if not addon:
             # Detect addon from name/description if missing
@@ -261,6 +279,7 @@ class RTN:
             "seeds": seeds,
             "size": size,
             "is_rd": is_rd,
+            "debrid_badge": debrid_badge,
             "addon": addon,
             "quality_rank": res_rank + source_rank
         }
@@ -288,9 +307,10 @@ class RTN:
         else:
             parts.append("[COLOR white][V.O.][/COLOR]")
 
-        # 2. Real-Debrid badge
+        # 2. Debrid badge
         if meta["is_rd"]:
-            parts.append("[COLOR magenta][B][RD+][/B][/COLOR]")
+            b = meta.get("debrid_badge") or "RD"
+            parts.append(f"[COLOR magenta][B][{b}+][/B][/COLOR]")
 
         # 3. Quality & Source Block (e.g. [4K DV REMUX], [1080p WEB-DL])
         qual_parts = []

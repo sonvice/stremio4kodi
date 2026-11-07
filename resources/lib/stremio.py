@@ -121,13 +121,21 @@ class StremioClient:
     # ── Manifest ───────────────────────────────────────────
     def get_manifest(self, addon_url):
         addon_url = self._resolve_addon_url(addon_url)
-        cache_key = f"manifest:{addon_url}"
+        clean_url = str(addon_url).strip()
+        if clean_url.endswith("/manifest.json"):
+            manifest_req_url = clean_url
+            base_url = clean_url[:-len("/manifest.json")].rstrip("/")
+        else:
+            base_url = clean_url.rstrip("/")
+            manifest_req_url = f"{base_url}/manifest.json"
+
+        cache_key = f"manifest:{base_url}"
         cached = self.cache.get(cache_key)
         if cached:
             return cached
-        data = self._get(f"{addon_url}/manifest.json")
+        data = self._get(manifest_req_url)
         if data:
-            data["_resolved_url"] = addon_url
+            data["_resolved_url"] = base_url
             self.cache.set(cache_key, data, ttl=86400)
         return data
 
@@ -406,13 +414,21 @@ class StremioClient:
 
     def _get_extra_manifest(self, url):
         try:
-            cache_key = f"manifest:{url}"
+            clean_url = str(url).strip()
+            if clean_url.endswith("/manifest.json"):
+                manifest_req_url = clean_url
+                base_url = clean_url[:-len("/manifest.json")].rstrip("/")
+            else:
+                base_url = clean_url.rstrip("/")
+                manifest_req_url = f"{base_url}/manifest.json"
+
+            cache_key = f"manifest:{base_url}"
             cached = self.cache.get(cache_key)
             if cached:
                 return cached
-            data = self._get(f"{url}/manifest.json")
+            data = self._get(manifest_req_url)
             if data:
-                data["_resolved_url"] = url
+                data["_resolved_url"] = base_url
                 self.cache.set(cache_key, data, ttl=86400)
             return data
         except Exception as e:
