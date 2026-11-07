@@ -7,6 +7,7 @@
 [![Python Version](https://img.shields.io/badge/Python-3.0%2B-yellow.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-orange.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Android%20|%20CoreELEC%20|%20Linux%20|%20Windows%20|%20macOS-lightgrey.svg)](https://github.com/sonvice/stremio4kodi)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20Development-F16061?logo=ko-fi&logoColor=white)](https://ko-fi.com/sonvice)
 
 **The ultimate bridge between Stremio's decentralized ecosystem and Kodi's native hardware playback engine.**  
 Stream movies, TV shows, and live sports with **TorrServer**, **Elementum**, **Real-Debrid**, integrated **OpenSubtitles v3**, and a zero-lag **AceStream** sports center with DNS anti-censorship bypass.
@@ -117,6 +118,14 @@ No. The addon integrates OpenSubtitles v3 with direct REST endpoints, downloadin
 
 ---
 
+### ☕ Support Development
+
+If you enjoy using Stremio for Kodi and would like to support its ongoing development, server maintenance, and new features, consider buying me a coffee:
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/sonvice)
+
+---
+
 <a name="-español"></a>
 ## 🇪🇸 Español
 
@@ -212,6 +221,14 @@ Las operadoras de telecomunicaciones bloquean dominios de streaming P2P modifica
 <summary><b>3. ¿Necesito una cuenta para los subtítulos?</b></summary>
 No. El addon integra OpenSubtitles v3 mediante endpoints REST directos, descargando subtítulos limpios y sincronizados sin necesidad de usuario, contraseña ni clave API.
 </details>
+
+---
+
+### ☕ Apoyar el Desarrollo
+
+Si disfrutas utilizando Stremio for Kodi y valoras el trabajo dedicado al proyecto, puedes apoyar su desarrollo continuo, mantenimiento de servidores y nuevas funciones invitándome a un café:
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/sonvice)
 
 ---
 
