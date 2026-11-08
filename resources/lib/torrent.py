@@ -117,12 +117,13 @@ class TorrentResolver:
         return False
 
     def _ensure_elementum_ready(self):
-        """Ensures Elementum is active, or prompts the user to install/repair it if missing."""
-        if self.is_engine_alive("Elementum"):
-            return True
-
+        """Ensures Elementum is active and properly configured to avoid memory deadlock."""
         from resources.lib import dependencies
         dependencies.ensure_kodi_settings_for_elementum()
+        dependencies.ensure_elementum_config()
+
+        if self.is_engine_alive("Elementum"):
+            return True
 
         if Config.elementum_auto_heal() and self.try_recover_elementum():
             return True
@@ -376,6 +377,10 @@ class TorrentResolver:
                 return None
             elif active == "Elementum":
                 if not self._ensure_elementum_ready():
+                    if self.is_engine_alive("TorrServer"):
+                        log("Elementum unavailable, falling back to active TorrServer...", level="info")
+                        ui.show_notification("Usando TorrServer...", time=2000)
+                        return self.resolve_torrserver_stream(magnet, file_idx, stream_title, info_hash=info_hash)
                     return None
                 checked = self._check_privacy_and_engine("Elementum")
                 if not checked:
@@ -383,6 +388,10 @@ class TorrentResolver:
                 resolved = self.resolve_elementum_stream(magnet, file_idx, info_hash=info_hash)
                 if resolved:
                     return resolved
+                if self.is_engine_alive("TorrServer"):
+                    log("Elementum resolution failed, trying active TorrServer fallback...", level="warning")
+                    ui.show_notification("Elementum no respondió. Usando TorrServer...", time=2500)
+                    return self.resolve_torrserver_stream(magnet, file_idx, stream_title, info_hash=info_hash)
                 return None
             return self._check_privacy_and_engine(self._to_engine_url(magnet, stream))
 
@@ -409,6 +418,10 @@ class TorrentResolver:
                 return None
             elif active == "Elementum":
                 if not self._ensure_elementum_ready():
+                    if self.is_engine_alive("TorrServer"):
+                        log("Elementum unavailable, falling back to active TorrServer...", level="info")
+                        ui.show_notification("Usando TorrServer...", time=2000)
+                        return self.resolve_torrserver_stream(enriched, file_idx, stream_title)
                     return None
                 checked = self._check_privacy_and_engine("Elementum")
                 if not checked:
@@ -416,6 +429,10 @@ class TorrentResolver:
                 resolved = self.resolve_elementum_stream(enriched, file_idx)
                 if resolved:
                     return resolved
+                if self.is_engine_alive("TorrServer"):
+                    log("Elementum resolution failed, trying active TorrServer fallback...", level="warning")
+                    ui.show_notification("Elementum no respondió. Usando TorrServer...", time=2500)
+                    return self.resolve_torrserver_stream(enriched, file_idx, stream_title)
                 return None
             return self._check_privacy_and_engine(self._to_engine_url(enriched, stream))
 
@@ -436,6 +453,10 @@ class TorrentResolver:
                 return None
             elif active == "Elementum":
                 if not self._ensure_elementum_ready():
+                    if self.is_engine_alive("TorrServer"):
+                        log("Elementum unavailable, falling back to active TorrServer...", level="info")
+                        ui.show_notification("Usando TorrServer...", time=2000)
+                        return self.resolve_torrserver_stream(url, file_idx, stream_title)
                     return None
                 checked = self._check_privacy_and_engine("Elementum")
                 if not checked:
@@ -443,6 +464,10 @@ class TorrentResolver:
                 resolved = self.resolve_elementum_stream(url, file_idx)
                 if resolved:
                     return resolved
+                if self.is_engine_alive("TorrServer"):
+                    log("Elementum resolution failed, trying active TorrServer fallback...", level="warning")
+                    ui.show_notification("Elementum no respondió. Usando TorrServer...", time=2500)
+                    return self.resolve_torrserver_stream(url, file_idx, stream_title)
                 return None
             return self._check_privacy_and_engine(self._to_engine_url(url, stream))
 

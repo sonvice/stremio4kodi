@@ -486,14 +486,15 @@ class StremioService(xbmc.Monitor):
         except Exception:
             pass
 
-        # Pause Elementum background torrents on startup
+        # Pause Elementum background torrents on startup / cleanup (only finished/seeding, never active/buffering)
         try:
             elem_req = urllib.request.Request("http://127.0.0.1:65220/torrents/list", headers={"User-Agent": "Kodi"})
             with urllib.request.urlopen(elem_req, timeout=1.5) as r:
                 elem_torrents = json.loads(r.read().decode())
                 for t in elem_torrents:
                     tid = t.get("id")
-                    if tid:
+                    status = str(t.get("status") or "")
+                    if tid and status not in ("Paused", "Buffering", "Downloading", "Allocating"):
                         pause_req = urllib.request.Request(f"http://127.0.0.1:65220/torrents/pause/{tid}")
                         urllib.request.urlopen(pause_req, timeout=1.5)
                         log(f"Paused Elementum torrent on startup: {tid} ({t.get('name', '')})", level="info")

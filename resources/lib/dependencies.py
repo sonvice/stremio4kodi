@@ -52,12 +52,77 @@ def is_horus_installed():
     return is_addon_installed("script.module.horus")
 
 
+def ensure_elementum_config():
+    """
+    Ensures Elementum settings prevent the 0.00% (0 B / 0 B) memory storage deadlock:
+    - Sets download_storage to 0 (File storage)
+    - Sets download_path to special://temp/elementum_downloads/ (with directory auto-created)
+    - Sets keep_files_playing to 2 (Delete on stop) and keep_files_finished to 2 (Delete when finished)
+    - Sets download_file_strategy to 0 (Fast piece allocation)
+    - Sets startup_delay to 0
+    """
+    try:
+        import xml.etree.ElementTree as ET
+        profile_dir = xbmcvfs.translatePath("special://profile/addon_data/plugin.video.elementum")
+        if not os.path.exists(profile_dir):
+            os.makedirs(profile_dir, exist_ok=True)
+
+        downloads_dir = xbmcvfs.translatePath("special://temp/elementum_downloads")
+        if not os.path.exists(downloads_dir):
+            os.makedirs(downloads_dir, exist_ok=True)
+
+        settings_path = os.path.join(profile_dir, "settings.xml")
+        root = None
+        tree = None
+        if os.path.exists(settings_path):
+            try:
+                tree = ET.parse(settings_path)
+                root = tree.getroot()
+            except Exception:
+                root = None
+
+        if root is None:
+            root = ET.Element("settings", {"version": "2"})
+            tree = ET.ElementTree(root)
+
+        required_settings = {
+            "download_storage": "0",  # File storage avoids memory piece allocation deadlock
+            "download_path": "special://temp/elementum_downloads/",
+            "keep_files_playing": "2",  # Auto-delete chunks on stop
+            "keep_files_finished": "2",  # Auto-delete when finished
+            "download_file_strategy": "0",  # Fast allocation
+            "startup_delay": "0",
+        }
+
+        changed = False
+        for s in root.findall("setting"):
+            sid = s.get("id")
+            if sid in required_settings:
+                if s.text != required_settings[sid]:
+                    s.text = required_settings[sid]
+                    changed = True
+                del required_settings[sid]
+
+        for sid, val in required_settings.items():
+            elem = ET.SubElement(root, "setting", {"id": sid})
+            elem.text = val
+            changed = True
+
+        if changed:
+            tree.write(settings_path, encoding="utf-8", xml_declaration=True)
+            log("Configured Elementum settings to avoid memory deadlock (file storage enabled)", level="info")
+    except Exception as e:
+        log(f"Notice ensuring Elementum settings: {e}", level="debug")
+
+
 def ensure_kodi_settings_for_elementum():
     """
     Enables Kodi's internal JSON-RPC TCP server (port 9090) and remote control.
     Sets safe webserver credentials to permanently suppress the dialog:
     'If web server authentication is enabled, a password must be entered as well'.
+    Also configures Elementum to prevent memory buffer stalls.
     """
+    ensure_elementum_config()
     try:
         xbmc.startServer(xbmc.SERVER_JSONRPCSERVER, True)
     except Exception as e:

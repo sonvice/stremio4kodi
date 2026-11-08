@@ -173,4 +173,13 @@ El proyecto está dividido en dos repositorios/carpetas hermanas:
 * **Soporte de AceStream Host Remoto (Offload a PC):** Nuevo ajuste `acestream_host` que permite a televisores o FireSticks delegar el P2P pesado al PC (`192.168.1.xxx:6878`).
 * **Protección contra Cortes en Vivo:** Inyección de propiedades `IsLive=true`, `http-reconnect=true` y soporte de `inputstream.ffmpegdirect` para evitar cierres repentinos por underflow o pausas en el enjambre P2P.
 
+---
+
+## 10. Corrección Crítica de Reproducción en Búfer 0.00% (v3.7.32)
+* **Eliminación del Bloqueo Permanente a 0.00% (0 B / 0 B) en Elementum:** Diagnóstico y corrección del fallo en el motor `Elementum` donde la descarga permanecía a `0 kB/s` y `0 B / 0 B` indefinidamente al reproducir capítulos o paquetes multi-archivo debido a un bloqueo de prioridades de archivo en modo memoria (`IsMemoryStorage`).
+* **Auto-configuración de Almacenamiento Seguro para Elementum:** `dependencies.py` ahora autoconfigura Elementum con `download_storage=0` (File), ruta temporal auto-creada (`special://temp/elementum_downloads/`), auto-eliminación de fragmentos al parar (`keep_files_playing=2`, `keep_files_finished=2`) y estrategia rápida de asignación (`download_file_strategy=0`).
+* **Conmutación Inteligente a TorrServer (Fallback Automático):** Si Elementum no responde o su resolución falla, el addon conmuta automáticamente a TorrServer activo local (`127.0.0.1:8090`), logrando inicio de reproducción en menos de 5 segundos.
+* **Prevención de Pausa Prematura en `service.py`:** El watchdog en segundo plano ya no pausa torrents en estado `Buffering` o `Downloading`.
+* **Migración del Repositorio a GitHub Pages (CDN Fastly):** Actualización de los endpoints del repositorio en `repository.sonvice/addon.xml` hacia `https://sonvice.github.io/repository.sonvice/repo/` para evitar errores HTTP 403 Forbidden causados por políticas de cuota en jsDelivr.
+
 
