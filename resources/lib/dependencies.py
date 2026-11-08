@@ -115,14 +115,22 @@ def ensure_elementum_config():
         log(f"Notice ensuring Elementum settings: {e}", level="debug")
 
 
+_kodi_settings_ensured = False
+
+
 def ensure_kodi_settings_for_elementum():
     """
-    Enables Kodi's internal JSON-RPC TCP server (port 9090) and remote control.
-    Sets safe webserver credentials to permanently suppress the dialog:
-    'If web server authentication is enabled, a password must be entered as well'.
-    Also configures Elementum to prevent memory buffer stalls.
+    Enables Kodi's internal JSON-RPC TCP server (port 9090) and EventServer remote control.
+    Also ensures Elementum settings are configured to prevent memory buffer stalls.
+    Does not touch webserver authentication to prevent Kodi security warning popups.
     """
+    global _kodi_settings_ensured
     ensure_elementum_config()
+
+    if _kodi_settings_ensured:
+        return
+    _kodi_settings_ensured = True
+
     try:
         xbmc.startServer(xbmc.SERVER_JSONRPCSERVER, True)
     except Exception as e:
@@ -137,11 +145,6 @@ def ensure_kodi_settings_for_elementum():
         for setting, val in [
             ("services.esenabled", True),
             ("services.esallinterfaces", True),
-            ("services.webserver", False),
-            ("services.webserverauthentication", False),
-            ("services.webserverpassword", "kodi"),
-            ("services.webserverusername", "kodi"),
-            ("services.webserverport", 8080),
         ]:
             xbmc.executeJSONRPC(json.dumps({
                 "jsonrpc": "2.0",
