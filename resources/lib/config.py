@@ -70,7 +70,7 @@ class Config:
     # ── Torrents ───────────────────────────────────────────
     @staticmethod
     def torrent_engine():
-        return ADDON.getSetting("torrent_engine") or "Auto"
+        return ADDON.getSetting("torrent_engine") or "TorrServer"
 
     @staticmethod
     def torrserver_host():

@@ -193,6 +193,12 @@ class TorrentResolver:
         password = Config.torrserver_pass()
 
         self._ensure_lan_bypass(host)
+
+        # Ultra-fast pre-flight check (< 0.8s): fail immediately if TorrServer is offline
+        if not self.is_engine_alive("TorrServer", timeout=0.8):
+            log(f"TorrServer at {host}:{port} is unreachable or offline", level="info")
+            return None
+
         base_api_url = f"http://{host}:{port}"
         headers = {"User-Agent": "Kodi", "Content-Type": "application/json"}
         if auth_required and user:
@@ -222,23 +228,22 @@ class TorrentResolver:
                 "save_to_db": False
             }).encode("utf-8")
             req = urllib.request.Request(f"{base_api_url}/torrents", data=add_payload, headers=headers)
-            with urllib.request.urlopen(req, timeout=4.0) as resp:
+            with urllib.request.urlopen(req, timeout=2.5) as resp:
                 pass
         except Exception as e:
             log(f"TorrServer add session notice: {e}", level="warning")
-            if not self.is_engine_alive("TorrServer", timeout=2.0):
-                return None
+            return None
 
         best_id = None
         chosen_filename = None
 
-        # Fetch file list from TorrServer
+        # Fetch file list from TorrServer (quick check up to 4 attempts x 150ms)
         if info_hash:
             get_payload = json.dumps({"action": "get", "hash": info_hash}).encode("utf-8")
-            for _ in range(8):
+            for _ in range(4):
                 try:
                     req = urllib.request.Request(f"{base_api_url}/torrents", data=get_payload, headers=headers)
-                    with urllib.request.urlopen(req, timeout=2.0) as resp:
+                    with urllib.request.urlopen(req, timeout=1.0) as resp:
                         data = json.loads(resp.read().decode())
                         file_stats = data.get("file_stats") or []
                         if file_stats:
@@ -255,7 +260,7 @@ class TorrentResolver:
                             break
                 except Exception:
                     pass
-                xbmc.sleep(250)
+                xbmc.sleep(150)
 
         if best_id is None:
             if file_idx is not None and isinstance(file_idx, int):
@@ -371,7 +376,7 @@ class TorrentResolver:
                 if resolved:
                     return resolved
                 log("TorrServer resolution failed, trying Elementum fallback...", level="warning")
-                ui.show_notification("TorrServer no respondió. Usando Elementum...", time=3000)
+                ui.show_notification("TorrServer no detectado. Usando Elementum...", time=2500)
                 if self._ensure_elementum_ready():
                     return self.resolve_elementum_stream(magnet, file_idx, info_hash=info_hash)
                 return None
@@ -412,7 +417,7 @@ class TorrentResolver:
                 if resolved:
                     return resolved
                 log("TorrServer resolution failed, trying Elementum fallback...", level="warning")
-                ui.show_notification("TorrServer no respondió. Usando Elementum...", time=3000)
+                ui.show_notification("TorrServer no detectado. Usando Elementum...", time=2500)
                 if self._ensure_elementum_ready():
                     return self.resolve_elementum_stream(enriched, file_idx)
                 return None
@@ -447,7 +452,7 @@ class TorrentResolver:
                 if resolved:
                     return resolved
                 log("TorrServer resolution failed, trying Elementum fallback...", level="warning")
-                ui.show_notification("TorrServer no respondió. Usando Elementum...", time=3000)
+                ui.show_notification("TorrServer no detectado. Usando Elementum...", time=2500)
                 if self._ensure_elementum_ready():
                     return self.resolve_elementum_stream(url, file_idx)
                 return None
@@ -494,6 +499,7 @@ class TorrentResolver:
             if resolved:
                 return resolved, "direct"
             log("TorrServer manual magnet resolve failed, trying Elementum fallback...", level="warning")
+            ui.show_notification("TorrServer no detectado. Usando Elementum...", time=2500)
             if self._ensure_elementum_ready():
                 resolved = self.resolve_elementum_stream(enriched, None)
                 if resolved:
@@ -544,42 +550,32 @@ class TorrentResolver:
     def is_engine_alive(self, engine_name, timeout=None):
         try:
             if engine_name == "TorrServer":
-                host = Config.torrserver_host()
-                port = int(Config.torrserver_port())
-                t = timeout or 3.5
+                host = (Config.torrserver_host() or "127.0.0.1").strip()
+                try:
+                    port = int(Config.torrserver_port())
+                except (ValueError, TypeError):
+                    port = 8090
+                t = timeout if timeout is not None else (0.5 if host in ("127.0.0.1", "localhost") else 1.0)
                 self._ensure_lan_bypass(host)
                 import socket
-                for attempt in range(2):
-                    try:
-                        s = socket.create_connection((host, port), timeout=t)
-                        s.sendall(b"GET /echo HTTP/1.1\r\nHost: " + host.encode() + b"\r\nConnection: close\r\n\r\n")
-                        s.settimeout(t)
-                        resp = s.recv(512)
-                        s.close()
-                        if b"200 OK" in resp or b"MatriX" in resp or b"401" in resp:
-                            return True
-                    except Exception as se:
-                        log(f"TorrServer probe attempt {attempt+1} notice: {se}", level="debug")
-                        import xbmc
-                        xbmc.sleep(250)
-                # Fallback to urllib if socket had an unexpected response
-                import urllib.request
-                import urllib.error
-                req = urllib.request.Request(f"http://{host}:{port}/echo", headers={"User-Agent": "Kodi"})
                 try:
-                    with urllib.request.urlopen(req, timeout=t) as r:
-                        return r.status in (200, 401)
-                except urllib.error.HTTPError as he:
-                    return he.code in (200, 401)
+                    with socket.create_connection((host, port), timeout=t) as s:
+                        s.settimeout(t)
+                        s.sendall(b"GET /echo HTTP/1.1\r\nHost: " + host.encode() + b"\r\nConnection: close\r\n\r\n")
+                        resp = s.recv(512)
+                        return (b"200" in resp or b"MatriX" in resp or b"401" in resp)
+                except Exception as se:
+                    log(f"TorrServer probe notice ({host}:{port}): {se}", level="debug")
+                    return False
             elif engine_name == "Elementum":
                 import urllib.request
                 req = urllib.request.Request("http://127.0.0.1:65220/", headers={"User-Agent": "Kodi"})
-                with urllib.request.urlopen(req, timeout=1.5) as r:
+                with urllib.request.urlopen(req, timeout=1.0) as r:
                     return True
             elif engine_name == "Torrest":
                 import urllib.request
                 req = urllib.request.Request("http://127.0.0.1:61235/torrents", headers={"User-Agent": "Kodi"})
-                with urllib.request.urlopen(req, timeout=1.5) as r:
+                with urllib.request.urlopen(req, timeout=1.0) as r:
                     return True
         except Exception as e:
             log(f"is_engine_alive exception for {engine_name}: {e}", level="warning")
@@ -590,12 +586,12 @@ class TorrentResolver:
         engine = Config.torrent_engine()
         preflight = Config.torrent_preflight_check()
 
-        # If user explicitly chose TorrServer, respect it and let resolve() attempt TorrServer directly
+        # If user explicitly chose TorrServer, resolve() handles fast-probe (< 0.8s) and Elementum fallback
         if engine == "TorrServer":
             return "TorrServer"
 
         if engine == "Auto":
-            if self.is_engine_alive("TorrServer"):
+            if self.is_engine_alive("TorrServer", timeout=0.8):
                 return "TorrServer"
             if self.is_engine_alive("Elementum"):
                 return "Elementum"
@@ -603,7 +599,7 @@ class TorrentResolver:
                 return "Elementum"
             if self.is_engine_alive("Torrest"):
                 return "Torrest"
-            return "Elementum"
+            return "TorrServer"
 
         if preflight:
             if engine == "Elementum" and not self.is_engine_alive("Elementum"):

@@ -178,8 +178,17 @@ El proyecto está dividido en dos repositorios/carpetas hermanas:
 ## 10. Corrección Crítica de Reproducción en Búfer 0.00% (v3.7.32)
 * **Eliminación del Bloqueo Permanente a 0.00% (0 B / 0 B) en Elementum:** Diagnóstico y corrección del fallo en el motor `Elementum` donde la descarga permanecía a `0 kB/s` y `0 B / 0 B` indefinidamente al reproducir capítulos o paquetes multi-archivo debido a un bloqueo de prioridades de archivo en modo memoria (`IsMemoryStorage`).
 * **Auto-configuración de Almacenamiento Seguro para Elementum:** `dependencies.py` ahora autoconfigura Elementum con `download_storage=0` (File), ruta temporal auto-creada (`special://temp/elementum_downloads/`), auto-eliminación de fragmentos al parar (`keep_files_playing=2`, `keep_files_finished=2`) y estrategia rápida de asignación (`download_file_strategy=0`).
-* **Conmutación Inteligente a TorrServer (Fallback Automático):** Si Elementum no responde o su resolución falla, el addon conmuta automáticamente a TorrServer activo local (`127.0.0.1:8090`), logrando inicio de reproducción en menos de 5 segundos.
+* **Conmutación Inteligente a TorrServer (Fallback Automático):** Si Elementum no responde o su resolución falla, el addon conmuta automáticamente a TorrServer activo local (`127.0.0.1:8090`).
 * **Prevención de Pausa Prematura en `service.py`:** El watchdog en segundo plano ya no pausa torrents en estado `Buffering` o `Downloading`.
 * **Migración del Repositorio a GitHub Pages (CDN Fastly):** Actualización de los endpoints del repositorio en `repository.sonvice/addon.xml` hacia `https://sonvice.github.io/repository.sonvice/repo/` para evitar errores HTTP 403 Forbidden causados por políticas de cuota en jsDelivr.
+
+---
+
+## 11. Prioridad Predeterminada TorrServer y Fallback Instantáneo (<1s) a Elementum (v3.7.33)
+* **TorrServer como Motor Prioritario por Defecto:** Se establece `TorrServer` como la primera opción en la lista de motores y el valor por defecto en `settings.xml` y `config.py`. Los dispositivos con recursos limitados (Android TV, FireStick, TV Boxes) obtienen reproducción inmediata en RAM sin consumo ni desgaste de almacenamiento flash.
+* **Sonda Ultra-Rápida de Estado (<0.8s):** Rediseño de `is_engine_alive("TorrServer")` con un único socket probe optimizado (0.5s en localhost, 1.0s en red local LAN). Se eliminaron reintentos con sleep y peticiones urllib redundantes.
+* **Conmutación Fluida en < 1 Segundo si TorrServer no está Activo:** Antes de enviar peticiones pesadas a la API de TorrServer, `resolve_torrserver_stream` ejecuta un chequeo previo ultrarrápido (<0.8s). Si TorrServer está apagado o no responde, el addon salta de inmediato a `Elementum` con la notificación `TorrServer no detectado. Usando Elementum...` en menos de 1 segundo (cumpliendo con creces la meta de <5 segundos).
+* **Gestión Visual de Motores:** En `_manage_engines` ([router.py](file:///home/wilson/Pictures/plugin.video.stremio4kodi_v3.2.3/plugin.video.stremio4kodi/resources/lib/router.py)) ahora se muestra el estado en vivo de TorrServer (`Activo` o `No detectado`) con su host y puerto configurados.
+
 
 

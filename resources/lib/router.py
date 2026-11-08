@@ -3041,6 +3041,11 @@ class Router:
         items.append(("Instalar / Reparar Ambos Motores", "install_both_engines", "DefaultAddonProgram.png"))
 
         # Current configuration info & link to settings
+        torr_alive = self.resolver.is_engine_alive("TorrServer")
+        torr_host = Config.torrserver_host()
+        torr_port = Config.torrserver_port()
+        torr_status = f"[COLOR lime][Activo ({torr_host}:{torr_port})][/COLOR]" if torr_alive else f"[COLOR yellow][No detectado ({torr_host}:{torr_port})][/COLOR]"
+        items.append((f"TorrServer: {torr_status} — Configurar", "settings", "DefaultAddonProgram.png"))
         items.append((f"Motor Torrent actual: [COLOR cyan]{torr_engine}[/COLOR]", "settings", "DefaultAddonProgram.png"))
         items.append((f"Motor AceStream actual: [COLOR cyan]{ace_engine}[/COLOR]", "settings", "DefaultAddonProgram.png"))
 

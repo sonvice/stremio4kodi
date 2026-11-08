@@ -10,7 +10,7 @@
     </category>
 
     <category label="Motores Torrent">
-        <setting id="torrent_engine" type="labelenum" label="Motor Torrent" values="Auto|TorrServer|Elementum|Torrest" default="Auto"/>
+        <setting id="torrent_engine" type="labelenum" label="Motor Torrent" values="TorrServer|Elementum|Torrest|Auto" default="TorrServer"/>
         <setting id="torrent_sort" type="labelenum" label="Ordenar streams por" values="Seeds|Quality|Size" default="Seeds"/>
         <setting id="torrent_quality" type="labelenum" label="Calidad preferida" values="4K|1080p|720p|480p|Any" default="1080p"/>
         <setting id="torrent_autoplay" type="bool" label="Auto-reproducir mejor stream disponible" default="false"/>
