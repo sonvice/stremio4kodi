@@ -58,7 +58,7 @@
 
     <category label="Indexadores (Jackett / Prowlarr)">
         <setting id="torznab_enabled" type="bool" label="Habilitar puente Torznab (Jackett / Prowlarr)" default="false"/>
-        <setting id="torznab_url" type="text" label="URL Torznab (ej: http://192.168.1.50:9696/api)" default="" enable="eq(-1,true)"/>
+        <setting id="torznab_url" type="text" label="URL(s) Torznab (ej: http://192.168.1.138:9696/1, http://192.168.1.138:9696/2)" default="" enable="eq(-1,true)"/>
         <setting id="torznab_apikey" type="text" label="API Key de Torznab" default="" option="hidden" enable="eq(-2,true)"/>
     </category>
 

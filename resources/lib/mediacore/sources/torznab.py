@@ -28,8 +28,8 @@ class TorznabSource(BaseSource):
         except Exception:
             return False
 
-    def _build_url(self, item: MediaItem) -> Optional[str]:
-        base_url = Config.torznab_url().strip().rstrip("/")
+    def _build_url(self, base_url: str, item: MediaItem) -> Optional[str]:
+        base_url = base_url.strip().rstrip("/")
         api_key = Config.torznab_apikey().strip()
         if not base_url:
             return None
@@ -65,79 +65,85 @@ class TorznabSource(BaseSource):
         if not self.is_enabled():
             return []
 
-        search_url = self._build_url(item)
-        if not search_url:
+        raw_config = Config.torznab_url().replace(";", ",")
+        base_urls = [u.strip() for u in raw_config.split(",") if u.strip()]
+        if not base_urls:
             return []
 
-        log(f"Torznab searching: {item.title} ({search_url.split('?')[0]})", level="info")
-        data, status = self.http.get(search_url, timeout=7.0)
-        if not data or status != 200:
-            log(f"Torznab query failed (status {status})", level="warning")
-            return []
+        all_releases: List[StreamRelease] = []
 
-        releases: List[StreamRelease] = []
-        try:
-            root = ET.fromstring(data)
-            # Find all <item> in channel
-            channel = root.find("channel")
-            items = channel.findall("item") if channel is not None else root.findall(".//item")
+        for base_url in base_urls:
+            search_url = self._build_url(base_url, item)
+            if not search_url:
+                continue
 
-            for it in items:
-                try:
-                    title = it.findtext("title") or "Release"
-                    link = it.findtext("link") or ""
+            log(f"Torznab searching: {item.title} ({search_url.split('?')[0]})", level="info")
+            data, status = self.http.get(search_url, timeout=7.0)
+            if not data or status != 200:
+                log(f"Torznab query failed for {base_url} (status {status})", level="warning")
+                continue
 
-                    # Enclosure
-                    enclosure = it.find("enclosure")
-                    enc_url = enclosure.get("url") if enclosure is not None else ""
-                    enc_len = enclosure.get("length") if enclosure is not None else 0
+            try:
+                root = ET.fromstring(data)
+                channel = root.find("channel")
+                items = channel.findall("item") if channel is not None else root.findall(".//item")
 
-                    url = enc_url or link
-                    size_bytes = int(enc_len or 0)
+                for it in items:
+                    try:
+                        title = it.findtext("title") or "Release"
+                        link = it.findtext("link") or ""
 
-                    # Torznab attributes (support any XML namespace: 2010/etree, 2015/feed, etc.)
-                    seeds = 0
-                    peers = 0
-                    info_hash = ""
-                    indexer = it.findtext("prowlarrindexer") or it.findtext("jackettindexer") or "Torznab"
+                        # Enclosure
+                        enclosure = it.find("enclosure")
+                        enc_url = enclosure.get("url") if enclosure is not None else ""
+                        enc_len = enclosure.get("length") if enclosure is not None else 0
 
-                    for attr in [a for a in it if a.tag.endswith("attr")]:
-                        name = attr.get("name")
-                        val = attr.get("value")
-                        if name == "seeders" and val and val.isdigit():
-                            seeds = int(val)
-                        elif name == "peers" and val and val.isdigit():
-                            peers = int(val)
-                        elif name == "infohash" and val:
-                            info_hash = val.lower()
-                        elif name == "size" and val and val.isdigit() and size_bytes == 0:
-                            size_bytes = int(val)
-                        elif name == "indexer" and val:
-                            indexer = val
+                        url = enc_url or link
+                        size_bytes = int(enc_len or 0)
 
-                    # Fallback info_hash from magnet URI
-                    if not info_hash and "urn:btih:" in url:
-                        info_hash = url
+                        # Torznab attributes (support any XML namespace: 2010/etree, 2015/feed, etc.)
+                        seeds = 0
+                        peers = 0
+                        info_hash = ""
+                        indexer = it.findtext("prowlarrindexer") or it.findtext("jackettindexer") or "Torznab"
 
-                    if not url and not info_hash:
-                        continue
+                        for attr in [a for a in it if a.tag.endswith("attr")]:
+                            name = attr.get("name")
+                            val = attr.get("value")
+                            if name == "seeders" and val and val.isdigit():
+                                seeds = int(val)
+                            elif name == "peers" and val and val.isdigit():
+                                peers = int(val)
+                            elif name == "infohash" and val:
+                                info_hash = val.lower()
+                            elif name == "size" and val and val.isdigit() and size_bytes == 0:
+                                size_bytes = int(val)
+                            elif name == "indexer" and val:
+                                indexer = val
 
-                    rel = StreamRelease(
-                        source_name=f"Torznab ({indexer})",
-                        title=title,
-                        info_hash=info_hash,
-                        size_bytes=size_bytes,
-                        seeds=seeds,
-                        peers=peers,
-                        url=url,
-                        tracker=indexer,
-                    )
-                    releases.append(rel)
-                except Exception as parse_item_err:
-                    log(f"Torznab item parse error: {parse_item_err}", level="debug")
+                        # Fallback info_hash from magnet URI
+                        if not info_hash and "urn:btih:" in url:
+                            info_hash = url
 
-        except Exception as xml_err:
-            log(f"Torznab XML parse error: {xml_err}", level="warning")
+                        if not url and not info_hash:
+                            continue
 
-        log(f"Torznab found {len(releases)} releases for '{item.title}'", level="info")
-        return releases
+                        rel = StreamRelease(
+                            source_name=f"Torznab ({indexer})",
+                            title=title,
+                            info_hash=info_hash,
+                            size_bytes=size_bytes,
+                            seeds=seeds,
+                            peers=peers,
+                            url=url,
+                            tracker=indexer,
+                        )
+                        all_releases.append(rel)
+                    except Exception as parse_item_err:
+                        log(f"Torznab item parse error: {parse_item_err}", level="debug")
+
+            except Exception as xml_err:
+                log(f"Torznab XML parse error for {base_url}: {xml_err}", level="warning")
+
+        log(f"Torznab found {len(all_releases)} releases in total for '{item.title}'", level="info")
+        return all_releases
