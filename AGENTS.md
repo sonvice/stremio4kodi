@@ -242,7 +242,42 @@ El proyecto está dividido en dos repositorios/carpetas hermanas:
 * **Endpoints de Widgets para Skins de Kodi:**
   * Exposición de rutas de widgets nativos (`action=widget_continue`, `action=widget_trending_movies`, `action=widget_trending_shows`, `action=widget_spanish`, `action=widget_platforms`) para integración con skins como Estuary, Arctic Fuse, Titan y AH2.
 * **Retención Multi-Versión en Repositorio (`repository.sonvice`):**
-  * El repositorio conserva y lista simultáneamente `v4.1.0` (Última), `v4.0.0` (MediaCore base) y `v3.7.33` (Legacy Estable) en su `index.html` para el gestor de archivos de Kodi.
+  * El repositorio conserva y lista intencionadamente **únicamente dos versiones**: `v4.1.0` (Última versión con MediaCore) y `v3.7.33` (Versión Clásica Legacy). Se excluyen versiones intermedias para mantener el índice limpio y sin confusión para los usuarios.
+
+---
+
+## 14. Correcciones Críticas de Ranking, Formato y Diálogos XML en Kodi
+
+### 14.1. Motor de Puntuación y Priorización de Semillas (Seeds)
+* **Integración RTN en Sources (`StremioSource` y `DhtSource`):** Todo stream crudo es analizado mediante `RTN.parse(stream)` antes de entrar al pipeline de scoring para extraer con precisión resolución, HDR/DV, códec de vídeo, canales de audio y conteo numérico de semillas (`seeds`).
+* **Ordenación Prioritaria:** En modo por semillas (`sort_by == "seeds"`), los torrents se ordenan estrictamente:
+  1. Torrents en caché Debrid (`[RD+]` o equivalente).
+  2. Torrents activos ordenados de **mayor a menor número de semillas** (`seeds DESC`, ej: 786 > 50 > 1).
+  3. Torrents con 0 semillas relegados al fondo de la lista.
+* **Limpieza de Formato y Etiquetas de Color:**
+  * Para evitar la corrupción de etiquetas BBCode en Kodi (donde `_format_display_title` desnudaba corchetes dejando `(COLOR lime][Audio ES][/COLOR]`), el título base nunca se modifica. Los distintivos se transmiten en campos aislados (`item["_audio_badge"]`) y se anexan limpiamente en `_render_item_list`.
+  * Se decodifican entidades HTML (`&Uacute;` -> `Ú`) y se formatean automáticamente tamaños crudos en bytes (`1809412258` -> `1.7 GB`).
+
+### 14.2. Reglas de Oro para Diálogos Nativos en Kodi (`WindowXMLDialog`)
+Al implementar ventanas o cuadros de diálogo personalizados en Kodi mediante archivos XML (`resources/skins/Default/`):
+
+1. **Empaquetado Obligatorio de Texturas en `resources/skins/Default/media/`:**
+   * **Problema:** Skins estándar de Kodi (Estuary, Titan, CoreELEC) compilan sus recursos en `Textures.xbt` y **no contienen archivos sueltos como `white.png`**. Referenciarlos hace que Kodi no renderice nada y el diálogo se vuelva 100% transparente, montándose sobre el menú principal.
+   * **Regla:** Incluir siempre texturas propias en `resources/skins/Default/media/`:
+     * `overlay.png`: Fondo oscurecido con 92% de opacidad (`#05080f`, alpha 235) para tapar por completo la pantalla previa.
+     * `card_bg.png`: Tarjeta modal oscura para contener los controles.
+     * `qr_bg.png`: Tarjeta blanca pura de contraste máximo para lectura rápida de códigos QR.
+     * `btn_focus.png` / `btn_nofocus.png`: Botones navegables con resalte visual.
+2. **Vinculación Explícita por Control ID en Python:**
+   * **Problema:** Las macros `<texture>$INFO[Window.Property(...)]</texture>` en `WindowXMLDialog` a menudo evalúan contra la ventana padre (10025) y no cargan en el diálogo modal.
+   * **Regla:** Definir identificadores numéricos en el XML (`id="200"`, `id="101"`, etc.) e inyectar los valores en el método `onInit(self)` mediante la API directa de Kodi:
+     ```python
+     self.getControl(200).setImage(self.qr_path)
+     self.getControl(101).setLabel(self.setup_url)
+     self.getControl(203).setLabel('[COLOR FFFFDD00]• Esperando...[/COLOR]')
+     ```
+3. **Navegación Cruzada Obligatoria en Controles Interactivas:**
+   * Todo botón interactivo debe contar con `<onup>`, `<ondown>`, `<onleft>` y `<onright>` definidos explícitamente para asegurar que el mando a distancia del televisor nunca quede atrapado sin foco.
 
 
 
