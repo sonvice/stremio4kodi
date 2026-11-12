@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#060c18">
+  <title>Stremio4Kodi — Configuración Móvil</title>
+  <style>
+    :root {
+      --bg: #070d19;
+      --card-bg: rgba(16, 29, 54, 0.72);
+      --card-border: rgba(90, 145, 255, 0.18);
+      --text: #f0f4fc;
+      --text-muted: #9ab3db;
+      --accent: #2e75ff;
+      --accent-glow: rgba(46, 117, 255, 0.4);
+      --accent2: #00e5ff;
+      --ok: #00e676;
+      --err: #ff5252;
+      --input-bg: rgba(3, 10, 22, 0.75);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0; min-height: 100vh; color: var(--text); background: var(--bg);
+      background: radial-gradient(100% 60% at 80% -10%, rgba(46,117,255,0.22), transparent 70%),
+                  radial-gradient(90% 50% at 0% 20%, rgba(0,229,255,0.14), transparent 60%),
+                  radial-gradient(130% 90% at 50% 0%, #0c1c38 0%, var(--bg) 65%) fixed;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.45;
+    }
+    header {
+      position: sticky; top: 0; z-index: 20;
+      background: rgba(7, 13, 25, 0.82);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--card-border);
+    }
+    .header-content {
+      max-width: 680px; margin: 0 auto; padding: 14px 18px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .brand {
+      display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 19px;
+      letter-spacing: -0.02em; background: linear-gradient(135deg, #fff, var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .status-badge {
+      display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;
+      padding: 4px 10px; border-radius: 999px; background: rgba(0,230,118,0.12);
+      color: var(--ok); border: 1px solid rgba(0,230,118,0.3);
+    }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+    nav {
+      display: flex; gap: 8px; max-width: 680px; margin: 0 auto; padding: 10px 16px;
+      overflow-x: auto; scrollbar-width: none;
+    }
+    nav::-webkit-scrollbar { display: none; }
+    nav button {
+      flex: 1; min-width: 95px; padding: 10px 12px; border-radius: 14px; border: 1px solid transparent;
+      background: transparent; color: var(--text-muted); font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: 0.2s; white-space: nowrap; text-align: center;
+    }
+    nav button.active {
+      background: linear-gradient(135deg, rgba(46,117,255,0.3), rgba(0,229,255,0.18));
+      color: #fff; border-color: var(--card-border); box-shadow: 0 4px 14px var(--accent-glow);
+    }
+    main { max-width: 680px; margin: 0 auto; padding: 16px 16px 130px; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; animation: fadeIn 0.25s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .card {
+      background: var(--card-bg); border: 1px solid var(--card-border);
+      border-radius: var(--radius); padding: 18px; margin-bottom: 16px;
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+    }
+    .card-title {
+      font-size: 15px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.05em; color: var(--accent2); margin-top: 0; margin-bottom: 14px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .field { margin-bottom: 14px; }
+    .field:last-child { margin-bottom: 0; }
+    label.field-label {
+      display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;
+    }
+    input[type=text], input[type=password], select, textarea {
+      width: 100%; padding: 12px 14px; border-radius: 12px;
+      border: 1px solid var(--card-border); background: var(--input-bg);
+      color: var(--text); font-size: 15px; font-family: inherit;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none; border-color: var(--accent2); box-shadow: 0 0 0 3px rgba(0,229,255,0.2);
+    }
+    textarea { min-height: 90px; resize: vertical; line-height: 1.4; word-break: break-all; }
+    .row-switch {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .row-switch:last-child { border-bottom: none; }
+    .row-info .title { font-weight: 600; font-size: 15px; }
+    .row-info .desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .toggle {
+      position: relative; width: 50px; height: 30px; flex-shrink: 0;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; inset: 0; border-radius: 999px;
+      background: rgba(120, 140, 180, 0.3); transition: 0.25s; cursor: pointer;
+    }
+    .toggle-slider:before {
+      content: ""; position: absolute; height: 24px; width: 24px;
+      left: 3px; bottom: 3px; background: #fff; border-radius: 50%;
+      transition: 0.25s; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .toggle input:checked + .toggle-slider {
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+    }
+    .toggle input:checked + .toggle-slider:before {
+      transform: translateX(20px);
+    }
+    .bottom-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
+      padding: 14px 18px calc(14px + env(safe-area-inset-bottom));
+      background: rgba(6, 12, 24, 0.88);
+      backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+      border-top: 1px solid var(--card-border);
+    }
+    .bottom-bar-inner {
+      max-width: 680px; margin: 0 auto; display: flex; gap: 12px;
+    }
+    .btn-save {
+      flex: 1; padding: 15px; border-radius: 999px; border: none;
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      color: #fff; font-size: 16px; font-weight: 700; cursor: pointer;
+      box-shadow: 0 6px 24px var(--accent-glow);
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: transform 0.12s, opacity 0.2s;
+    }
+    .btn-save:active { transform: scale(0.97); }
+    .btn-save:disabled { opacity: 0.5; }
+    .toast {
+      position: fixed; left: 16px; right: 16px; bottom: 85px; z-index: 40;
+      max-width: 648px; margin: 0 auto; padding: 14px 18px; border-radius: 14px;
+      background: rgba(10, 24, 50, 0.96); border: 1px solid var(--accent);
+      color: #fff; font-weight: 600; font-size: 14px; text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5); opacity: 0; transform: translateY(10px);
+      pointer-events: none; transition: 0.25s;
+    }
+    .toast.show { opacity: 1; transform: none; }
+    .toast.ok { border-color: var(--ok); color: var(--ok); }
+    .toast.err { border-color: var(--err); color: var(--err); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-content">
+    <div class="brand">
+      <span>⚡ Stremio4Kodi</span>
+    </div>
+    <div class="status-badge">
+      <span class="status-dot"></span>
+      <span>Kodi Conectado</span>
+    </div>
+  </div>
+  <nav>
+    <button class="active" onclick="switchTab('debrid')">Debrid & P2P</button>
+    <button onclick="switchTab('stremio')">Stremio & Comet</button>
+    <button onclick="switchTab('torznab')">Jackett / Prowlarr</button>
+    <button onclick="switchTab('preferences')">Audio & Filtros</button>
+  </nav>
+</header>
+
+<main>
+  <!-- TAB 1: DEBRID & P2P -->
+  <section id="tab-debrid" class="tab-pane active">
+    <div class="card">
+      <div class="card-title">Real-Debrid</div>
+      <div class="row-switch">
+        <div class="row-info">
+          <div class="title">Activar Real-Debrid</div>
+          <div class="desc">Descarga directa ultra-rápida en caché sin subir torrents</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="rd_enabled">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label class="field-label" for="rd_apikey">API Token / Clave de Real-Debrid</label>
+        <input type="password" id="rd_apikey" placeholder="Pega tu token de real-debrid.com/apitoken">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Otros Proveedores Debrid</div>
+      <div class="row-switch">
+        <div class="row-info"><div class="title">TorBox</div></div>
+        <label class="toggle"><input type="checkbox" id="torbox_enabled"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="field"><input type="password" id="torbox_apikey" placeholder="API Key de TorBox"></div>
+
+      <div class="row-switch">
+        <div class="row-info"><div class="title">AllDebrid</div></div>
+        <label class="toggle"><input type="checkbox" id="alldebrid_enabled"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="field"><input type="password" id="alldebrid_apikey" placeholder="API Key de AllDebrid"></div>
+
+      <div class="row-switch">
+        <div class="row-info"><div class="title">Premiumize.me</div></div>
+        <label class="toggle"><input type="checkbox" id="premiumize_enabled"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="field"><input type="password" id="premiumize_apikey" placeholder="API Key de Premiumize"></div>
+
+      <div class="row-switch">
+        <div class="row-info"><div class="title">Debrid-Link</div></div>
+        <label class="toggle"><input type="checkbox" id="debridlink_enabled"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="field"><input type="password" id="debridlink_apikey" placeholder="API Key de Debrid-Link"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">TorrServer & Motores P2P</div>
+      <div class="field">
+        <label class="field-label" for="torrent_engine">Motor Principal</label>
+        <select id="torrent_engine">
+          <option value="TorrServer">TorrServer (Recomendado - Ultra Ligero)</option>
+          <option value="Elementum">Elementum</option>
+          <option value="Auto">Automático (TorrServer con fallback <1s)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label" for="torrserver_host">Host / IP de TorrServer</label>
+        <input type="text" id="torrserver_host" placeholder="127.0.0.1 o IP del PC/servidor">
+      </div>
+      <div class="field">
+        <label class="field-label" for="torrserver_port">Puerto de TorrServer</label>
+        <input type="text" id="torrserver_port" placeholder="8090">
+      </div>
+      <div class="row-switch">
+        <div class="row-info">
+          <div class="title">Priorizar Debrid en Caché</div>
+          <div class="desc">Si un stream está en Real-Debrid, reproducir sin esperar P2P</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="rd_priority"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="row-switch">
+        <div class="row-info">
+          <div class="title">Modo Debrid Estricto</div>
+          <div class="desc">Bloquea conexiones P2P directas (solo enlaces por Debrid)</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="strict_debrid"><span class="toggle-slider"></span></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 2: STREMIO & COMET -->
+  <section id="tab-stremio" class="tab-pane">
+    <div class="card">
+      <div class="card-title">Comet (Instancia Personalizada)</div>
+      <div class="field">
+        <label class="field-label" for="comet_custom_manifest">URL completa de manifest.json</label>
+        <input type="text" id="comet_custom_manifest" placeholder="https://comet.servidor.com/stremio/ey.../manifest.json">
+        <p style="font-size:12px; color:var(--text-muted); margin-top:6px;">
+          Pega aquí el enlace de instalación generado en el configurador web de Comet para usar tus filtros y Debrids privados.
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Addons de Stremio Adicionales</div>
+      <div class="field">
+        <label class="field-label" for="stremio_addons">URLs de Addons (separadas por ;;)</label>
+        <textarea id="stremio_addons" placeholder="https://torrentio.strem.fun;;https://cometa.stremx.net;;https://mediafusion.elfhosted.com"></textarea>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 3: TORZNAB -->
+  <section id="tab-torznab" class="tab-pane">
+    <div class="card">
+      <div class="card-title">Puente Torznab (Jackett / Prowlarr)</div>
+      <div class="row-switch">
+        <div class="row-info">
+          <div class="title">Activar Torznab</div>
+          <div class="desc">Busca simultáneamente en tus trackers privados/públicos</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="torznab_enabled"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label class="field-label" for="torznab_url">URL Torznab</label>
+        <input type="text" id="torznab_url" placeholder="http://192.168.1.50:9696/api (Prowlarr) o /api/v2.0/indexers/all/results/torznab/">
+      </div>
+      <div class="field">
+        <label class="field-label" for="torznab_apikey">API Key</label>
+        <input type="password" id="torznab_apikey" placeholder="Pega la API Key de tu Prowlarr o Jackett">
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 4: PREFERENCIAS & AUDIO -->
+  <section id="tab-preferences" class="tab-pane">
+    <div class="card">
+      <div class="card-title">Audio en Español & Calidad</div>
+      <div class="row-switch">
+        <div class="row-info">
+          <div class="title">Priorizar Streams en Español</div>
+          <div class="desc">Aplica el Spanish Booster (+3000 pts a Castellano / Dual)</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="spanish_boost"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label class="field-label" for="spanish_filter_mode">Modo de Filtro de Idioma</label>
+        <select id="spanish_filter_mode">
+          <option value="boost">Priorizar (Mostrar primero español, pero dejar otros)</option>
+          <option value="only">Estricto (Ocultar streams que no tengan audio en español)</option>
+          <option value="off">Desactivado (Sin boost de idioma)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label" for="spanish_variant">Variante Preferida</label>
+        <select id="spanish_variant">
+          <option value="all">Todas (Castellano, Dual y Latino)</option>
+          <option value="castellano">Castellano (España) prioritario</option>
+          <option value="latino">Latino prioritario</option>
+          <option value="dual">Dual (Castellano + Original)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label" for="torrent_quality">Calidad Preferida</label>
+        <select id="torrent_quality">
+          <option value="1080p">1080p (Óptimo para la mayoría de dispositivos)</option>
+          <option value="4K">4K UHD</option>
+          <option value="720p">720p HD</option>
+          <option value="Any">Cualquiera</option>
+        </select>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="bottom-bar">
+  <div class="bottom-bar-inner">
+    <button class="btn-save" id="save-btn" onclick="saveSettings()">
+      <span>💾 Guardar en Kodi</span>
+    </button>
+  </div>
+</div>
+
+<div id="toast" class="toast">Ajustes guardados</div>
+
+<script>
+  const urlParams = new URLSearchParams(window.location.search);
+  const token = urlParams.get('k') || '';
+
+  function switchTab(tabId) {
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    document.getElementById('tab-' + tabId).classList.add('active');
+  }
+
+  function showToast(msg, isError = false) {
+    const t = document.getElementById('toast');
+    t.innerText = msg;
+    t.className = 'toast show ' + (isError ? 'err' : 'ok');
+    setTimeout(() => { t.className = 'toast'; }, 3500);
+  }
+
+  async function loadConfig() {
+    try {
+      const res = await fetch('/api/config?k=' + encodeURIComponent(token));
+      if (!res.ok) throw new Error('Error al cargar configuración: ' + res.statusText);
+      const data = await res.json();
+      if (!data.ok || !data.config) throw new Error('Respuesta inválida');
+      
+      const c = data.config;
+      for (const [key, val] of Object.entries(c)) {
+        const el = document.getElementById(key);
+        if (el) {
+          if (el.type === 'checkbox') {
+            el.checked = Boolean(val);
+          } else {
+            el.value = val ?? '';
+          }
+        }
+      }
+    } catch (err) {
+      showToast('Error cargando ajustes: ' + err.message, true);
+    }
+  }
+
+  async function saveSettings() {
+    const btn = document.getElementById('save-btn');
+    btn.disabled = true;
+    btn.innerText = '⏳ Guardando en Kodi...';
+
+    const keys = [
+      'torrent_engine', 'torrserver_host', 'torrserver_port', 'torrent_quality',
+      'rd_priority', 'strict_debrid',
+      'rd_enabled', 'rd_apikey',
+      'torbox_enabled', 'torbox_apikey',
+      'alldebrid_enabled', 'alldebrid_apikey',
+      'premiumize_enabled', 'premiumize_apikey',
+      'debridlink_enabled', 'debridlink_apikey',
+      'comet_custom_manifest', 'stremio_addons',
+      'torznab_enabled', 'torznab_url', 'torznab_apikey',
+      'spanish_boost', 'spanish_filter_mode', 'spanish_variant'
+    ];
+
+    const settings = {};
+    for (const key of keys) {
+      const el = document.getElementById(key);
+      if (el) {
+        settings[key] = el.type === 'checkbox' ? el.checked : el.value;
+      }
+    }
+
+    try {
+      const res = await fetch('/api/save?k=' + encodeURIComponent(token), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || 'Error guardando');
+      showToast('✓ ' + data.message);
+      btn.innerText = '✓ ¡Guardado en Kodi!';
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.innerText = '💾 Guardar en Kodi';
+      }, 2500);
+    } catch (err) {
+      showToast('✗ ' + err.message, true);
+      btn.disabled = false;
+      btn.innerText = '💾 Guardar en Kodi';
+    }
+  }
+
+  window.addEventListener('DOMContentLoaded', loadConfig);
+</script>
+</body>
+</html>

@@ -13,6 +13,29 @@ Este archivo proporciona contexto e instrucciones técnicas para que los agentes
 
 ---
 
+## ⚠️ REGLA ESTRICTA DE INTERFAZ: PROHIBICIÓN ABSOLUTA DE EMOJIS (Iconos Nativos Únicamente)
+
+> [!IMPORTANT]
+> **EL ADDON/PLUGIN NO DEBE CONTENER EMOJIS BAJO NINGUNA CIRCUNSTANCIA.**
+> Queda terminantemente prohibido insertar caracteres emoji Unicode (ej: 🏠, ⚡, 🎬, 🔥, 📺, 🍿, 🇪🇸, 🏆, 🔍, ⚙️, etc.) en etiquetas de menús (`label`), diálogos, notificaciones o archivos `settings.xml`.
+> 
+> * **Motivo técnico:** Las fuentes tipográficas estándar de Kodi (Estuary, CoreELEC, Android TV, LibreELEC) no incluyen glifos de emojis en sus tablas TTF y renderizan rectángulos rotos o caracteres basura vacíos (`[]` / ``).
+> * **Solución obligatoria:** Si es necesario aportar riqueza visual a una entrada, se deben utilizar **únicamente iconos nativos de Kodi** mediante el parámetro `icon="DefaultX.png"`.
+>   * Carpetas generales: `DefaultFolder.png`
+>   * Películas: `DefaultMovies.png`
+>   * Series: `DefaultTVShows.png`
+>   * Seguir viendo / En progreso: `DefaultInProgressShows.png`
+>   * Recientes / Novedades: `DefaultRecentlyAddedMovies.png` / `DefaultRecentlyAddedEpisodes.png`
+>   * Plataformas y Estudios: `DefaultStudios.png`
+>   * Ajustes / Programas: `DefaultAddonProgram.png`
+>   * Búsqueda: `DefaultAddonsSearch.png`
+>   * Géneros: `DefaultGenre.png`
+>   * Años: `DefaultYear.png`
+>   * Red / Magnets: `DefaultNetwork.png`
+>   * Favoritos: `DefaultFavourites.png`
+
+---
+
 ## 2. Flujo de Trabajo y Relación con el Repositorio
 
 El proyecto está dividido en dos repositorios/carpetas hermanas:
@@ -202,6 +225,24 @@ El proyecto está dividido en dos repositorios/carpetas hermanas:
   * **`metadata/` (Metadata Hub):** Agregación de TMDB, Trakt, Cinemeta y Rotten Tomatoes (Tomatometer y Audience Score).
   * **`orchestrator.py` (`MediaCore`):** Orquestador central reutilizable que coordina la búsqueda, puntuación y reproducción multimedia.
   * **`router.py` Adelgazado:** Despachador de interfaz de usuario de Kodi desacoplado que delega la lógica de negocio al orquestador `MediaCore`.
+
+---
+
+## 13. Stremio4Kodi v4.1.0 — Home Moderna, Configuración Móvil vía QR y Unificación de Catálogos
+* **Configuración Móvil por Código QR (Mobile Web Setup):**
+  * **Servidor HTTP Local Efímero (`resources/lib/websetup/server.py`):** Levanta un servidor `ThreadingHTTPServer` en el puerto 52025 de la red local, asegurado con un token criptográfico efímero de sesión (`?k=token_urlsafe`).
+  * **Generador Pure-Python de QR y PNG (`resources/lib/websetup/qr.py`):** Codificador PNG de 8 bits RGB sin dependencias binarias (usando `zlib` y `struct`), compatible universalmente con cualquier arquitectura de Kodi sin Pillow ni C++.
+  * **Ventana Modal de Kodi (`resources/lib/websetup/dialog.py` y XMLs en `resources/skins/`):** Muestra el código QR en grande y la URL local en pantalla con monitoreo reactivo automático al recibir los ajustes guardados.
+  * **Web UI Móvil Responsiva (`resources/lib/websetup/static/index.html`):** Interfaz táctil oscura tipo Glassmorphism para configurar cuentas Debrid (Real-Debrid, TorBox, AllDebrid, Premiumize), TorrServer, Stremio Manifests (Comet privado, Torrentio), Torznab y preferencias de audio en español sin teclear con el mando de la TV.
+* **Eliminación Crítica de "Catálogos Stremio" y Rediseño de Plataformas:**
+  * Supresión de la carpeta técnica `[B]Catalogos Stremio (Cinemeta / Addons)[/B]` al final de los menús de Películas y Series (evitando el antipatrón de fuga de abstracción técnica).
+  * Creación de accesos directos de primer nivel: **"Plataformas (Netflix, HBO, Disney+...)"** y **"Colecciones y Sagas"** con metadatos y arte enriquecidos.
+* **Home Moderna / Hub Principal de Streaming:**
+  * Vista central unificada con estantes clave: *Seguir Viendo (En progreso)*, *Tendencias de Hoy (Películas)*, *Series Más Populares*, *Estrenos en Castellano*, *Plataformas de Streaming*, *Top 10 Semanal* y *Buscador Universal*.
+* **Endpoints de Widgets para Skins de Kodi:**
+  * Exposición de rutas de widgets nativos (`action=widget_continue`, `action=widget_trending_movies`, `action=widget_trending_shows`, `action=widget_spanish`, `action=widget_platforms`) para integración con skins como Estuary, Arctic Fuse, Titan y AH2.
+* **Retención Multi-Versión en Repositorio (`repository.sonvice`):**
+  * El repositorio conserva y lista simultáneamente `v4.1.0` (Última), `v4.0.0` (MediaCore base) y `v3.7.33` (Legacy Estable) en su `index.html` para el gestor de archivos de Kodi.
 
 
 

@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<window type="dialog">
+  <defaultcontrol always="true">100</defaultcontrol>
+  <controls>
+    <!-- Fondo oscuro oscurecido detrás del diálogo -->
+    <control type="image">
+      <left>0</left>
+      <top>0</top>
+      <width>1920</width>
+      <height>1080</height>
+      <texture colordiffuse="CC000000">white.png</texture>
+    </control>
+
+    <!-- Tarjeta principal del diálogo -->
+    <control type="image">
+      <left>210</left>
+      <top>140</top>
+      <width>1500</width>
+      <height>800</height>
+      <texture colordiffuse="F0081224">white.png</texture>
+      <border>16</border>
+    </control>
+
+    <!-- Marco blanco para el Código QR -->
+    <control type="image">
+      <left>260</left>
+      <top>200</top>
+      <width>540</width>
+      <height>540</height>
+      <texture colordiffuse="FFFFFFFF">white.png</texture>
+    </control>
+
+    <!-- Imagen del Código QR -->
+    <control type="image">
+      <left>280</left>
+      <top>220</top>
+      <width>500</width>
+      <height>500</height>
+      <aspectratio>keep</aspectratio>
+      <texture>$INFO[Window.Property(stremio4kodi.qr)]</texture>
+    </control>
+
+    <!-- Título -->
+    <control type="label">
+      <left>850</left>
+      <top>200</top>
+      <width>800</width>
+      <height>50</height>
+      <font>font24_title</font>
+      <textcolor>FF00E5FF</textcolor>
+      <label>Configuración desde el Móvil</label>
+    </control>
+
+    <!-- Subtítulo / Pasos -->
+    <control type="textbox">
+      <left>850</left>
+      <top>270</top>
+      <width>800</width>
+      <height>300</height>
+      <font>font13</font>
+      <textcolor>FFF0F4FC</textcolor>
+      <label>1. Conecta tu teléfono o tableta a la misma red Wi-Fi que este dispositivo.[CR][CR]2. Abre la cámara del móvil y escanea el código QR de la izquierda.[CR][CR]3. Configura tus cuentas Debrid (Real-Debrid, TorBox), TorrServer, Stremio o Torznab cómodamente desde la pantalla táctil y pulsa [B]Guardar en Kodi[/B].[CR][CR][COLOR FF9AB3DB]El servidor local se cerrará automáticamente al guardar o pulsar volver.[/COLOR]</label>
+    </control>
+
+    <!-- Etiqueta de URL alternativa -->
+    <control type="label">
+      <left>850</left>
+      <top>590</top>
+      <width>800</width>
+      <height>35</height>
+      <font>font12</font>
+      <textcolor>FF9AB3DB</textcolor>
+      <label>O abre directamente esta dirección en el navegador de tu móvil o PC:</label>
+    </control>
+
+    <!-- URL en texto clickable -->
+    <control type="button" id="101">
+      <left>850</left>
+      <top>630</top>
+      <width>800</width>
+      <height>50</height>
+      <font>font13</font>
+      <label>$INFO[Window.Property(stremio4kodi.url)]</label>
+      <textcolor>FF00E5FF</textcolor>
+      <focusedcolor>FFFFFFFF</focusedcolor>
+      <texturefocus colordiffuse="402E75FF">white.png</texturefocus>
+      <texturenofocus colordiffuse="20FFFFFF">white.png</texturenofocus>
+      <onup>101</onup>
+      <ondown>100</ondown>
+      <onleft>100</onleft>
+      <onright>100</onright>
+    </control>
+
+    <!-- Estado en vivo -->
+    <control type="label">
+      <left>260</left>
+      <top>780</top>
+      <width>950</width>
+      <height>60</height>
+      <font>font14</font>
+      <textcolor>FF00E676</textcolor>
+      <label>$INFO[Window.Property(stremio4kodi.status)]</label>
+    </control>
+
+    <!-- Botón Volver / Cerrar -->
+    <control type="button" id="100">
+      <left>1290</left>
+      <top>780</top>
+      <width>360</width>
+      <height>60</height>
+      <font>font13</font>
+      <label>Cerrar / Cancelar</label>
+      <align>center</align>
+      <textcolor>FFFFFFFF</textcolor>
+      <focusedcolor>FFFFFFFF</focusedcolor>
+      <texturefocus colordiffuse="C02E75FF">white.png</texturefocus>
+      <texturenofocus colordiffuse="40FFFFFF">white.png</texturenofocus>
+      <onup>101</onup>
+      <ondown>100</ondown>
+      <onleft>100</onleft>
+      <onright>100</onright>
+    </control>
+  </controls>
+</window>

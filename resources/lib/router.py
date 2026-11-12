@@ -118,6 +118,17 @@ class Router:
             "install_elementum":       self._install_elementum_route,
             "install_horus":           self._install_horus_route,
             "install_both_engines":    self._install_both_engines_route,
+            # v4.1: Modern Home, Mobile Setup & Widgets
+            "home":                    self._home_hub,
+            "home_hub":                self._home_hub,
+            "mobile_setup":            self._mobile_setup_route,
+            "spanish_releases":        self._spanish_releases,
+            "top_weekly":              self._top_weekly,
+            "widget_continue":         self._widget_continue,
+            "widget_trending_movies":  self._widget_trending_movies,
+            "widget_trending_shows":   self._widget_trending_shows,
+            "widget_spanish":          self._widget_spanish,
+            "widget_platforms":        self._widget_platforms,
         }
 
         handler = routes.get(action, self._main_menu)
@@ -141,11 +152,12 @@ class Router:
             log(f"Engines startup check notice: {e}", level="debug")
 
         items = [
-            ("Peliculas",           "movies",             "DefaultMovies.png"),
-            ("Series",              "series",             "DefaultTVShows.png"),
-            ("Buscador",            "dht_search",         "DefaultAddonsSearch.png"),
-            ("Trending Torrents",   "trending",           "DefaultTVShows.png"),
-            ("Generos",             "genres",             "DefaultGenre.png"),
+            ("Home / Hub Principal",    "home_hub",           "DefaultAddonProgram.png"),
+            ("Peliculas",               "movies",             "DefaultMovies.png"),
+            ("Series",                  "series",             "DefaultTVShows.png"),
+            ("Buscador",                "dht_search",         "DefaultAddonsSearch.png"),
+            ("Trending Torrents",       "trending",           "DefaultTVShows.png"),
+            ("Generos",                 "genres",             "DefaultGenre.png"),
         ]
 
         # v3: Streaming Platforms
@@ -163,10 +175,10 @@ class Router:
             pass
 
         items.extend([
-            ("Seguir viendo",       "continue_watching",  "DefaultInProgressShows.png"),
-            ("Favoritos",           "favorites",          "DefaultFavourites.png"),
-            ("Historial",           "history",            "DefaultRecentlyAddedEpisodes.png"),
-            ("Pegar Magnet/Torrent","manual_torrent",     "DefaultNetwork.png"),
+            ("Seguir viendo",           "continue_watching",  "DefaultInProgressShows.png"),
+            ("Favoritos",               "favorites",          "DefaultFavourites.png"),
+            ("Historial",               "history",            "DefaultRecentlyAddedEpisodes.png"),
+            ("Pegar Magnet/Torrent",    "manual_torrent",     "DefaultNetwork.png"),
         ])
 
         if Config.trakt_enabled():
@@ -182,6 +194,7 @@ class Router:
             items.append((vpn_label, "vpn_toggle", "DefaultNetwork.png"))
 
         items.append(("Gestor de Motores (Elementum / AceStream)", "manage_engines", "DefaultAddonProgram.png"))
+        items.append(("Configurar desde el Movil (QR)", "mobile_setup", "DefaultAddonProgram.png"))
         items.append(("Ajustes", "settings", "DefaultAddonProgram.png"))
 
         for label, action, icon in items:
@@ -227,7 +240,11 @@ class Router:
             )
         
         ui.add_directory_item(
-            handle=self.handle, label="[B]Catalogos Stremio (Cinemeta / Addons)[/B]", action="catalog_list",
+            handle=self.handle, label="Plataformas (Netflix, HBO, Disney+...)", action="platforms",
+            base_url=self.base_url, icon="DefaultStudios.png", media_type="movie"
+        )
+        ui.add_directory_item(
+            handle=self.handle, label="Colecciones y Sagas", action="catalog_list",
             base_url=self.base_url, icon="DefaultFolder.png", media_type="movie"
         )
         ui.end_directory(self.handle)
@@ -250,7 +267,11 @@ class Router:
             )
         
         ui.add_directory_item(
-            handle=self.handle, label="[B]Catalogos Stremio (Cinemeta / Addons)[/B]", action="catalog_list",
+            handle=self.handle, label="Plataformas (Netflix, HBO, Disney+...)", action="platforms",
+            base_url=self.base_url, icon="DefaultStudios.png", media_type="series"
+        )
+        ui.add_directory_item(
+            handle=self.handle, label="Colecciones y Sagas", action="catalog_list",
             base_url=self.base_url, icon="DefaultFolder.png", media_type="series"
         )
         ui.end_directory(self.handle)
@@ -3281,3 +3302,113 @@ class Router:
         xbmcplugin.endOfDirectory(self.handle, succeeded=False)
         xbmc.sleep(100)
         xbmcaddon.Addon().openSettings()
+
+    # ══════════════════════════════════════════════════════
+    #  v4.1: MODERN HOME, MOBILE SETUP & KODI WIDGETS
+    # ══════════════════════════════════════════════════════
+    def _mobile_setup_route(self):
+        """Lanza la ventana modal de configuración móvil vía código QR."""
+        from resources.lib.websetup.dialog import show_mobile_setup
+        show_mobile_setup()
+
+    def _home_hub(self):
+        """Home / Hub Principal Moderno: Vista unificada estilo plataforma de streaming."""
+        items = [
+            ("Seguir Viendo (En progreso)", "continue_watching", "DefaultInProgressShows.png", {}),
+            ("Tendencias de Hoy (Peliculas)", "tmdb_catalog", "DefaultRecentlyAddedMovies.png", {"section": "trending", "media_type": "movie"}),
+            ("Series Mas Populares", "tmdb_catalog", "DefaultRecentlyAddedEpisodes.png", {"section": "popular", "media_type": "series"}),
+            ("Estrenos Destacados en Espanol", "spanish_releases", "DefaultMovies.png", {}),
+            ("Plataformas de Streaming (Netflix, Disney+, HBO...)", "platforms", "DefaultStudios.png", {}),
+            ("Top 10 Semanal", "top_weekly", "DefaultYear.png", {}),
+            ("Buscador Universal", "dht_search", "DefaultAddonsSearch.png", {}),
+            ("Configurar desde el Movil (QR)", "mobile_setup", "DefaultAddonProgram.png", {}),
+            ("Ajustes y Motores de Reproduccion", "settings", "DefaultAddonProgram.png", {}),
+        ]
+
+        for label, action, icon, extra in items:
+            ui.add_directory_item(
+                handle=self.handle, label=label, action=action,
+                base_url=self.base_url, icon=icon, **extra
+            )
+        ui.end_directory(self.handle, content_type="", cache_to_disc=False)
+
+    def _spanish_releases(self):
+        """Muestra estrenos y novedades con prioridad de audio en Castellano/Espanol."""
+        try:
+            items, _ = self.tmdb.get_trending("movie", time_window="week", page=1)
+            if not items:
+                ui.show_notification("No se encontraron estrenos.")
+                ui.end_directory(self.handle)
+                return
+
+            spanish_items = []
+            for item in items[:25]:
+                item_copy = dict(item)
+                orig_name = item.get("name", item.get("title", ""))
+                item_copy["name"] = f"{orig_name} [COLOR lime][Audio ES][/COLOR]"
+                spanish_items.append(item_copy)
+
+            self._render_item_list(spanish_items, "movie")
+            ui.end_directory(self.handle, content_type="movies")
+        except Exception as e:
+            log(f"Spanish releases error: {e}", level="error")
+            ui.show_notification("Error cargando estrenos.")
+            ui.end_directory(self.handle)
+
+    def _top_weekly(self):
+        """Top 10 / Novedades semanales mas vistas con numeracion destacada."""
+        try:
+            items, _ = self.tmdb.get_popular("movie", page=1)
+            if not items:
+                ui.show_notification("No se encontro informacion del Top.")
+                ui.end_directory(self.handle)
+                return
+
+            top10 = []
+            for idx, item in enumerate(items[:10], 1):
+                item_copy = dict(item)
+                orig_name = item.get("name", item.get("title", ""))
+                item_copy["name"] = f"[COLOR cyan]#{idx:02d}[/COLOR] {orig_name}"
+                top10.append(item_copy)
+
+            self._render_item_list(top10, "movie")
+            ui.end_directory(self.handle, content_type="movies")
+        except Exception as e:
+            log(f"Top weekly error: {e}", level="error")
+            ui.show_notification("Error cargando Top Semanal.")
+            ui.end_directory(self.handle)
+
+    # ══════════════════════════════════════════════════════
+    #  WIDGET ENDPOINTS (Para Skins de Kodi)
+    # ══════════════════════════════════════════════════════
+    def _widget_continue(self):
+        """Endpoint de Widget para skins de Kodi: Seguir viendo con marcas de tiempo."""
+        self._continue_watching()
+
+    def _widget_trending_movies(self):
+        """Endpoint de Widget para skins de Kodi: Películas en tendencia hoy."""
+        try:
+            items, _ = self.tmdb.get_trending("movie", time_window="day", page=1)
+            self._render_item_list(items[:20], "movie")
+            ui.end_directory(self.handle, content_type="movies")
+        except Exception as e:
+            log(f"Widget trending movies error: {e}", level="error")
+            ui.end_directory(self.handle, content_type="movies")
+
+    def _widget_trending_shows(self):
+        """Endpoint de Widget para skins de Kodi: Series populares del momento."""
+        try:
+            items, _ = self.tmdb.get_trending("tv", time_window="day", page=1)
+            self._render_item_list(items[:20], "series")
+            ui.end_directory(self.handle, content_type="tvshows")
+        except Exception as e:
+            log(f"Widget trending shows error: {e}", level="error")
+            ui.end_directory(self.handle, content_type="tvshows")
+
+    def _widget_spanish(self):
+        """Endpoint de Widget para skins de Kodi: Novedades en Español."""
+        self._spanish_releases()
+
+    def _widget_platforms(self):
+        """Endpoint de Widget para skins de Kodi: Plataformas de Streaming."""
+        self._platforms()

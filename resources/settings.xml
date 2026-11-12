@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <settings>
     <category label="General &amp; Idioma">
+        <setting id="action_mobile_setup" type="action" label="Iniciar configuración desde el móvil (QR)..." action="RunPlugin(plugin://plugin.video.stremio4kodi/?action=mobile_setup)"/>
         <setting id="language" type="labelenum" label="Idioma de metadatos" values="es|en|fr|de|it|pt" default="es"/>
         <setting id="spanish_boost" type="bool" label="Priorizar streams en español" default="true"/>
         <setting id="spanish_filter_mode" type="labelenum" label="Modo de filtro de idioma español" values="boost|only|off" default="boost"/>
