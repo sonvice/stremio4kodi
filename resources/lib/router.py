@@ -202,9 +202,11 @@ class Router:
             action = item[1]
             icon = item[2]
             is_folder = item[3] if len(item) > 3 else True
+            is_playable = False if not is_folder else None
             ui.add_directory_item(
                 handle=self.handle, label=label, action=action,
                 base_url=self.base_url, icon=icon, is_folder=is_folder,
+                is_playable=is_playable,
             )
         ui.end_directory(self.handle, content_type="", cache_to_disc=False)
 
@@ -3334,8 +3336,8 @@ class Router:
             ("Plataformas de Streaming (Netflix, Disney+, HBO...)", "platforms", "DefaultStudios.png", {}),
             ("Top 10 Semanal", "top_weekly", "DefaultYear.png", {}),
             ("Buscador Universal", "dht_search", "DefaultAddonsSearch.png", {}),
-            ("Configurar desde el Movil (QR)", "mobile_setup", "DefaultAddonProgram.png", {"is_folder": False}),
-            ("Ajustes y Motores de Reproduccion", "settings", "DefaultAddonProgram.png", {"is_folder": False}),
+            ("Configurar desde el Movil (QR)", "mobile_setup", "DefaultAddonProgram.png", {"is_folder": False, "is_playable": False}),
+            ("Ajustes y Motores de Reproduccion", "settings", "DefaultAddonProgram.png", {"is_folder": False, "is_playable": False}),
         ]
 
         for label, action, icon, extra in items:

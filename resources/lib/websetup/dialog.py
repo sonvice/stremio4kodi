@@ -255,5 +255,9 @@ def show_mobile_setup():
                 os.remove(qr_path)
             except Exception:
                 pass
+        try:
+            del dialog
+        except Exception:
+            pass
 
     return True

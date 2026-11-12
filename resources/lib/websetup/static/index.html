@@ -151,16 +151,16 @@
     .btn-finish:active { transform: scale(0.97); }
     .btn-finish:disabled { opacity: 0.5; cursor: not-allowed; }
     .toast {
-      position: fixed; left: 16px; right: 16px; bottom: 85px; z-index: 40;
-      max-width: 648px; margin: 0 auto; padding: 14px 18px; border-radius: 14px;
-      background: rgba(10, 24, 50, 0.96); border: 1px solid var(--accent);
-      color: #fff; font-weight: 600; font-size: 14px; text-align: center;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5); opacity: 0; transform: translateY(10px);
-      pointer-events: none; transition: 0.25s;
+      position: fixed; top: 16px; left: 16px; right: 16px; z-index: 99999;
+      max-width: 520px; margin: 0 auto; padding: 14px 18px; border-radius: 14px;
+      background: rgba(10, 24, 50, 0.98); border: 2px solid var(--accent);
+      color: #fff; font-weight: 700; font-size: 15px; text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.7); opacity: 0; transform: translateY(-15px);
+      pointer-events: none; transition: transform 0.25s ease, opacity 0.25s ease;
     }
-    .toast.show { opacity: 1; transform: none; }
-    .toast.ok { border-color: var(--ok); color: var(--ok); }
-    .toast.err { border-color: var(--err); color: var(--err); }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.ok { border-color: var(--ok); color: #fff; background: rgba(5, 42, 26, 0.98); box-shadow: 0 8px 25px rgba(0,230,118,0.35); }
+    .toast.err { border-color: var(--err); color: #fff; background: rgba(50, 10, 15, 0.98); box-shadow: 0 8px 25px rgba(255,82,82,0.35); }
   </style>
 </head>
 <body>
@@ -170,16 +170,16 @@
     <div class="brand">
       <span>⚡ Stremio4Kodi</span>
     </div>
-    <div class="status-badge">
-      <span class="status-dot"></span>
-      <span>Kodi Conectado</span>
+    <div class="status-badge" id="status-badge">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-text">Kodi Conectado</span>
     </div>
   </div>
   <nav>
-    <button class="active" onclick="switchTab('debrid')">Debrid & P2P</button>
-    <button onclick="switchTab('stremio')">Stremio & Comet</button>
-    <button onclick="switchTab('torznab')">Jackett / Prowlarr</button>
-    <button onclick="switchTab('preferences')">Audio & Filtros</button>
+    <button class="active" onclick="switchTab(this, 'debrid')">Debrid & P2P</button>
+    <button onclick="switchTab(this, 'stremio')">Stremio & Comet</button>
+    <button onclick="switchTab(this, 'torznab')">Jackett / Prowlarr</button>
+    <button onclick="switchTab(this, 'preferences')">Audio & Filtros</button>
   </nav>
 </header>
 
@@ -366,28 +366,44 @@
 
 <script>
   const urlParams = new URLSearchParams(window.location.search);
-  const token = urlParams.get('k') || '';
-
-  function switchTab(tabId) {
-    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-    event.currentTarget.classList.add('active');
-    document.getElementById('tab-' + tabId).classList.add('active');
+  let token = urlParams.get('k') || '';
+  if (token) {
+    try { sessionStorage.setItem('s4k_token', token); } catch (e) {}
+  } else {
+    try { token = sessionStorage.getItem('s4k_token') || ''; } catch (e) {}
   }
 
+  function switchTab(btn, tabId) {
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    const target = document.getElementById('tab-' + tabId);
+    if (target) target.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  let toastTimer = null;
   function showToast(msg, isError = false) {
     const t = document.getElementById('toast');
+    if (!t) return;
+    if (toastTimer) clearTimeout(toastTimer);
     t.innerText = msg;
     t.className = 'toast show ' + (isError ? 'err' : 'ok');
-    setTimeout(() => { t.className = 'toast'; }, 3500);
+    toastTimer = setTimeout(() => {
+      t.className = 'toast';
+    }, 4000);
   }
 
   async function loadConfig() {
+    if (!token) {
+      showToast('Aviso: Token de sesión ausente en la URL.', true);
+      return;
+    }
     try {
       const res = await fetch('/api/config?k=' + encodeURIComponent(token));
-      if (!res.ok) throw new Error('Error al cargar configuración: ' + res.statusText);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       const data = await res.json();
-      if (!data.ok || !data.config) throw new Error('Respuesta inválida');
+      if (!data.ok || !data.config) throw new Error('Respuesta no válida');
       
       const c = data.config;
       for (const [key, val] of Object.entries(c)) {
@@ -396,12 +412,14 @@
           if (el.type === 'checkbox') {
             el.checked = Boolean(val);
           } else {
-            el.value = val ?? '';
+            el.value = (val !== null && val !== undefined) ? String(val) : '';
           }
         }
       }
+      const st = document.getElementById('status-text');
+      if (st) st.innerText = 'Kodi Sincronizado';
     } catch (err) {
-      showToast('Error cargando ajustes: ' + err.message, true);
+      showToast('Error sincronizando ajustes: ' + err.message, true);
     }
   }
 
@@ -445,7 +463,7 @@
         body: JSON.stringify({ settings, close: closeOnFinish })
       });
       const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.message || 'Error guardando');
+      if (!res.ok || !data.ok) throw new Error((data && (data.error || data.message)) || 'Error al guardar');
 
       if (closeOnFinish) {
         showToast('✓ Ajustes guardados. Se ha cerrado la ventana en Kodi.');
@@ -453,10 +471,14 @@
         btnSave.style.display = 'none';
         btnFinish.style.flex = '1';
         btnFinish.disabled = true;
+        const stText = document.getElementById('status-text');
+        if (stText) stText.innerText = 'Finalizado';
       } else {
         const timeInfo = data.last_save_time ? ` (${data.last_save_time})` : '';
         showToast(`✓ Ajustes guardados en Kodi${timeInfo}. Puedes seguir editando.`);
-        btnSave.innerText = '✓ Guardado';
+        btnSave.innerText = `✓ Guardado${timeInfo}`;
+        const stText = document.getElementById('status-text');
+        if (stText) stText.innerText = `Guardado ${data.last_save_time || ''}`;
         setTimeout(() => {
           btnSave.disabled = false;
           btnFinish.disabled = false;
@@ -470,11 +492,6 @@
       btnFinish.disabled = false;
       btnSave.innerText = 'Guardar Cambios';
       btnFinish.innerText = 'Terminar y Cerrar TV';
-    }
-  }
-      showToast('✗ ' + err.message, true);
-      btn.disabled = false;
-      btn.innerText = '💾 Guardar en Kodi';
     }
   }
 

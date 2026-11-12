@@ -72,6 +72,16 @@ class SetupRequestHandler(BaseHTTPRequestHandler):
         if xbmc:
             xbmc.log(f"[Stremio4Kodi] WebSetup HTTP: {format % args}", xbmc.LOGDEBUG)
 
+    def do_OPTIONS(self):
+        """Maneja las peticiones preflight CORS de navegadores móviles modernos."""
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+        self.send_header('Access-Control-Max-Age', '86400')
+        self.send_header('Content-Length', '0')
+        self.end_headers()
+
     def _verify_token(self):
         """Verifica que el parámetro 'k' coincida con el token de sesión en tiempo constante."""
         url_parts = urlsplit(self.path)
@@ -79,7 +89,7 @@ class SetupRequestHandler(BaseHTTPRequestHandler):
         provided_token = params.get('k', [''])[0]
         expected_token = getattr(self.server, 'session_token', '')
         if not expected_token or not hmac.compare_digest(provided_token, expected_token):
-            self.send_error(403, "Forbidden: Clave de sesion invalida o ausente.")
+            self._send_json({"ok": False, "error": "Forbidden: Clave de sesion invalida o ausente."}, status=403)
             return False
         self.server.last_activity = time.time()
         return True
@@ -91,6 +101,8 @@ class SetupRequestHandler(BaseHTTPRequestHandler):
         self.send_header('Content-Length', str(len(body)))
         self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
         self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         self.end_headers()
         self.wfile.write(body)
 
@@ -180,14 +192,14 @@ class SetupRequestHandler(BaseHTTPRequestHandler):
         if path == '/api/save':
             content_length = int(self.headers.get('Content-Length', 0))
             if content_length <= 0 or content_length > MAX_BODY_BYTES:
-                self.send_error(400, "Payload invalido o demasiado grande.")
+                self._send_json({"ok": False, "error": "Payload invalido o demasiado grande."}, status=400)
                 return
 
             body = self.rfile.read(content_length)
             try:
                 payload = json.loads(body.decode('utf-8'))
             except Exception as e:
-                self.send_error(400, f"JSON malformado: {e}")
+                self._send_json({"ok": False, "error": f"JSON malformado: {e}"}, status=400)
                 return
 
             settings = payload.get("settings", {})
@@ -196,8 +208,12 @@ class SetupRequestHandler(BaseHTTPRequestHandler):
 
             # Guardar cada ajuste recibido en Kodi
             for key, val in settings.items():
-                _set_setting(key, val)
-                saved_count += 1
+                try:
+                    _set_setting(key, val)
+                    saved_count += 1
+                except Exception as ex:
+                    if xbmc:
+                        xbmc.log(f"[Stremio4Kodi] Error al guardar {key}: {ex}", xbmc.LOGWARNING)
 
             now_str = time.strftime('%H:%M:%S')
             new_save_count = getattr(self.server, 'save_count', 0) + 1

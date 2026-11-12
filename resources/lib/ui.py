@@ -106,6 +106,8 @@ def add_directory_item(handle, label, action, base_url, is_folder=True,
         is_playable = not is_folder
     if is_playable:
         li.setProperty("IsPlayable", "true")
+    else:
+        li.setProperty("IsPlayable", "false")
 
     xbmcplugin.addDirectoryItem(
         handle=handle,
