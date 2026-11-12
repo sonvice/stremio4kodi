@@ -26,8 +26,9 @@ Engineered in pure Python 3, 100% skin-agnostic, and optimized for both low-powe
 4. [Update Guide and Troubleshooting](#update-guide-and-troubleshooting)
 5. [Dual-Version Retention Policy](#dual-version-retention-policy)
 6. [Quick 1-Minute Mobile Setup (QR Code)](#quick-1-minute-mobile-setup-qr-code)
-7. [Recommended Performance Settings](#recommended-performance-settings)
-8. [Frequently Asked Questions (FAQ)](#frequently-asked-questions-faq)
+7. [TorrServer Deployment Guide (Android, PC, NAS)](#torrserver-deployment-guide-en)
+8. [Recommended Performance Settings](#recommended-performance-settings)
+9. [Frequently Asked Questions (FAQ)](#frequently-asked-questions-faq)
 
 ---
 
@@ -186,6 +187,34 @@ The repository deliberately maintains **only two versions** of Stremio for Kodi:
 
 ---
 
+<a name="torrserver-deployment-guide-en"></a>
+### TorrServer Deployment Guide: Android, PC, and Network Offloading
+
+#### Why TorrServer Is Not an Embedded Python Script
+TorrServer is a compiled, high-performance Go application (`TorrServer-MatriX`), not a Python module. It handles thousands of simultaneous BitTorrent peer connections, DHT routing, and serves a local HTTP streaming proxy on port 8090.
+On modern mobile operating systems (especially Android), strict OS security rules prevent Kodi from executing background child daemon binaries directly from an addon directory. Therefore, TorrServer runs either as an independent native Android application (APK) or as a local network server on your PC/NAS.
+
+#### Option 1: Standalone Android App (TorrServe MatriX APK)
+If you want to use your Android phone, tablet, Android TV, or Fire TV Stick autonomously without needing a computer:
+1. Download the official free open-source APK (**TorrServe MatriX**) from GitHub: `https://github.com/YouROK/TorrServer/releases`.
+2. Install the APK on your Android device and open the app.
+3. In the TorrServe app, tap **Install Server** (it automatically downloads the matching Go binary for your CPU, such as ARM64).
+4. Tap **Start Server**; TorrServer will now run in the background listening on `127.0.0.1:8090`.
+5. In Stremio4Kodi settings, set **Host** to `127.0.0.1` and **Port** to `8090`.
+Now, torrents will stream directly into a 100 MB RAM circular buffer with zero disk wear and zero buffering loops.
+
+#### Option 2: Local Network Offloading (PC, Server, or NAS) - Highly Recommended
+The most efficient way to stream torrents without draining your mobile phone's battery or storage:
+1. Run TorrServer on your PC (Windows, macOS, Linux, or Docker container on a NAS).
+2. Note your computer's local IP address (for example, `192.168.1.50`).
+3. In Stremio4Kodi on your phone (or TV), go to settings and set **Host** to your computer's IP (`192.168.1.50`) and **Port** to `8090`.
+4. Your PC handles all BitTorrent connections and sends a pristine, lightweight HTTP video stream to your mobile device over Wi-Fi.
+
+#### Why Stremio4Kodi Falls Back to Elementum
+When you select TorrServer, Stremio4Kodi issues a sub-second health probe to the specified Host and Port before attempting to play. If TorrServer is not running or unreachable, MediaCore displays an informative notification (*"TorrServer no detectado. Usando Elementum..."*) and automatically cascades to Elementum to prevent an immediate playback crash.
+
+---
+
 ### Recommended Performance Settings
 
 Optimal parameters for TorrServer web UI (`http://localhost:8090` or `http://YOUR_PC_IP:8090`):
@@ -226,8 +255,9 @@ Optimal parameters for TorrServer web UI (`http://localhost:8090` or `http://YOU
 4. [Guia de Actualizacion y Resolucion de Problemas](#guia-de-actualizacion-y-resolucion-de-problemas-es)
 5. [Politica de Retencion de Versiones (Dual-Version)](#politica-de-retencion-de-versiones-dual-version-es)
 6. [Configuracion Rapida en 1 Minuto (Codigo QR)](#configuracion-rapida-en-1-minuto-codigo-qr-es)
-7. [Ajustes de Rendimiento Recomendados](#ajustes-de-rendimiento-recomendados-es)
-8. [Preguntas Frecuentes (FAQ)](#preguntas-frecuentes-faq-es)
+7. [Guia de Despliegue de TorrServer (Android, PC, NAS)](#guia-de-despliegue-de-torrserver-es)
+8. [Ajustes de Rendimiento Recomendados](#ajustes-de-rendimiento-recomendados-es)
+9. [Preguntas Frecuentes (FAQ)](#preguntas-frecuentes-faq-es)
 
 ---
 
@@ -389,6 +419,34 @@ Para no perder tiempo escribiendo contraseñas largas con el mando de la televis
    * **Pestana Audio & Filtros:** Ajusta si deseas priorizar o exigir audio en espanol.
 5. Pulsa el boton **Guardar Cambios** para verificar que todo se guarda correctamente (veras la confirmacion en verde tanto en el movil como en la TV).
 6. Pulsa **Terminar y Cerrar TV**; la ventana se cerrara en la television y el servidor web se apagara de forma automatica e instantanea.
+
+---
+
+<a name="guia-de-despliegue-de-torrserver-es"></a>
+### Guia de Despliegue de TorrServer: Android, PC y Red Local
+
+#### Por Que TorrServer No Viene Integrado Dentro del Plugin
+TorrServer es una aplicacion compilada nativa en Go (`TorrServer-MatriX`), no un script de Python. Gestiona miles de conexiones de red simultaneas con semillas de BitTorrent, enrutamiento DHT y levanta un servidor HTTP local en el puerto 8090.
+En sistemas operativos moviles modernos (especialmente Android), las politicas de seguridad del sistema impiden que Kodi ejecute programas binarios o demonios en segundo plano de forma arbitraria desde una carpeta de complementos. Por este motivo, TorrServer se ejecuta como una aplicacion nativa Android (APK) o como un servidor en tu ordenador o NAS domestico.
+
+#### Opcion 1: App Nativa para Android (TorrServe MatriX APK)
+Si deseas utilizar tu telefono Android, tablet, Android TV o Fire TV Stick de forma autonoma sin depender de un PC:
+1. Descarga la APK gratuita oficial de **TorrServe MatriX** desde su repositorio de GitHub: `https://github.com/YouROK/TorrServer/releases`.
+2. Instala la APK en tu dispositivo Android y abre la aplicacion.
+3. En la pantalla principal de TorrServe, pulsa en **Instalar Servidor** (descargara automaticamente el binario adecuado para tu procesador, habitualmente ARM64).
+4. Pulsa en **Iniciar Servidor**; TorrServer quedara activo en segundo plano escuchando en `127.0.0.1:8090`.
+5. En los ajustes de Stremio4Kodi (o desde el configurador movil QR), deja el **Host** en `127.0.0.1` y el **Puerto** en `8090`.
+A partir de ese momento, los torrents se reproduciran con un bufer circular de 100 MB en la memoria RAM, sin desgastar la memoria interna del telefono y sin provocar bucles de reproduccion.
+
+#### Opcion 2: Delegar la Carga al PC o NAS (Red Domestica) - Altamente Recomendado
+La forma mas eficiente de reproducir torrents sin agotar la bateria ni el almacenamiento del movil:
+1. Ejecuta TorrServer en tu ordenador habitual (Windows, macOS, Linux o Docker en un NAS).
+2. Consulta la direccion IP local de tu ordenador (por ejemplo: `192.168.1.50`).
+3. En Stremio4Kodi en tu telefono movil (o en la television), introduce en los ajustes el **Host** con la IP de tu PC (`192.168.1.50`) y el **Puerto** `8090`.
+4. Tu ordenador asumira todas las conexiones BitTorrent pesadas y le enviara al movil un flujo de video HTTP limpio por Wi-Fi, sin consumir recursos del telefono.
+
+#### Por Que Stremio4Kodi Conmuta Automaticamente a Elementum
+Cuando configuras TorrServer, Stremio4Kodi realiza una comprobacion de conexion ultrarrapida (<0.8 segundos) al puerto 8090 antes de reproducir. Si TorrServer no esta activo o no responde, MediaCore emite una notificacion (*"TorrServer no detectado. Usando Elementum..."*) y conmuta automaticamente a Elementum para intentar reproducir el contenido en lugar de arrojar un error de pantalla negra.
 
 ---
 
