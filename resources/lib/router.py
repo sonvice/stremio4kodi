@@ -193,14 +193,18 @@ class Router:
                 vpn_label = "[COLOR red]VPN Surfshark: DESCONECTADA (Fibra Directa)[/COLOR]"
             items.append((vpn_label, "vpn_toggle", "DefaultNetwork.png"))
 
-        items.append(("Gestor de Motores (Elementum / AceStream)", "manage_engines", "DefaultAddonProgram.png"))
-        items.append(("Configurar desde el Movil (QR)", "mobile_setup", "DefaultAddonProgram.png"))
-        items.append(("Ajustes", "settings", "DefaultAddonProgram.png"))
+        items.append(("Gestor de Motores (Elementum / AceStream)", "manage_engines", "DefaultAddonProgram.png", True))
+        items.append(("Configurar desde el Movil (QR)", "mobile_setup", "DefaultAddonProgram.png", False))
+        items.append(("Ajustes", "settings", "DefaultAddonProgram.png", False))
 
-        for label, action, icon in items:
+        for item in items:
+            label = item[0]
+            action = item[1]
+            icon = item[2]
+            is_folder = item[3] if len(item) > 3 else True
             ui.add_directory_item(
                 handle=self.handle, label=label, action=action,
-                base_url=self.base_url, icon=icon,
+                base_url=self.base_url, icon=icon, is_folder=is_folder,
             )
         ui.end_directory(self.handle, content_type="", cache_to_disc=False)
 
@@ -3312,6 +3316,11 @@ class Router:
     # ══════════════════════════════════════════════════════
     def _mobile_setup_route(self):
         """Lanza la ventana modal de configuración móvil vía código QR."""
+        if xbmcplugin and self.handle is not None and self.handle >= 0:
+            try:
+                xbmcplugin.endOfDirectory(self.handle, succeeded=False)
+            except Exception:
+                pass
         from resources.lib.websetup.dialog import show_mobile_setup
         show_mobile_setup()
 
@@ -3325,8 +3334,8 @@ class Router:
             ("Plataformas de Streaming (Netflix, Disney+, HBO...)", "platforms", "DefaultStudios.png", {}),
             ("Top 10 Semanal", "top_weekly", "DefaultYear.png", {}),
             ("Buscador Universal", "dht_search", "DefaultAddonsSearch.png", {}),
-            ("Configurar desde el Movil (QR)", "mobile_setup", "DefaultAddonProgram.png", {}),
-            ("Ajustes y Motores de Reproduccion", "settings", "DefaultAddonProgram.png", {}),
+            ("Configurar desde el Movil (QR)", "mobile_setup", "DefaultAddonProgram.png", {"is_folder": False}),
+            ("Ajustes y Motores de Reproduccion", "settings", "DefaultAddonProgram.png", {"is_folder": False}),
         ]
 
         for label, action, icon, extra in items:

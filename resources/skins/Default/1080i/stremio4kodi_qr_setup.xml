@@ -2,24 +2,22 @@
 <window type="dialog">
   <defaultcontrol always="true">100</defaultcontrol>
   <controls>
-    <!-- Fondo oscuro oscurecido detrás del diálogo -->
-    <control type="image">
+    <!-- Fondo 100% opaco oscurecido que cubre toda la pantalla para que nada del fondo se transparente -->
+    <control type="image" id="198">
       <left>0</left>
       <top>0</top>
       <width>1920</width>
       <height>1080</height>
-      <texture>overlay.png</texture>
-      <colordiffuse>F2000000</colordiffuse>
+      <texture>special://home/addons/plugin.video.stremio4kodi/resources/media/overlay.png</texture>
     </control>
 
-    <!-- Tarjeta principal del diálogo -->
-    <control type="image">
+    <!-- Tarjeta principal del diálogo 100% opaca -->
+    <control type="image" id="199">
       <left>180</left>
       <top>90</top>
       <width>1560</width>
       <height>900</height>
-      <texture>card_bg.png</texture>
-      <border>16</border>
+      <texture>special://home/addons/plugin.video.stremio4kodi/resources/media/card_bg.png</texture>
     </control>
 
     <!-- Icono nativo de red en la cabecera -->
@@ -60,26 +58,17 @@
       <top>225</top>
       <width>1440</width>
       <height>2</height>
-      <texture>btn_nofocus.png</texture>
-    </control>
-
-    <!-- Marco blanco para el Código QR -->
-    <control type="image">
-      <left>240</left>
-      <top>255</top>
-      <width>480</width>
-      <height>480</height>
-      <texture>qr_bg.png</texture>
+      <texture>special://home/addons/plugin.video.stremio4kodi/resources/media/btn_nofocus.png</texture>
     </control>
 
     <!-- Imagen del Código QR -->
     <control type="image" id="200">
-      <left>260</left>
-      <top>275</top>
-      <width>440</width>
-      <height>440</height>
+      <left>240</left>
+      <top>255</top>
+      <width>480</width>
+      <height>480</height>
       <aspectratio>keep</aspectratio>
-      <texture>$INFO[Window.Property(stremio4kodi.qr)]</texture>
+      <texture>special://home/addons/plugin.video.stremio4kodi/resources/media/qr_code.png</texture>
     </control>
 
     <!-- Estado en vivo debajo del QR -->
@@ -125,8 +114,8 @@
       <font>font14</font>
       <align>left</align>
       <textoffsetx>25</textoffsetx>
-      <texturefocus>btn_focus.png</texturefocus>
-      <texturenofocus>btn_nofocus.png</texturenofocus>
+      <texturefocus>special://home/addons/plugin.video.stremio4kodi/resources/media/btn_focus.png</texturefocus>
+      <texturenofocus>special://home/addons/plugin.video.stremio4kodi/resources/media/btn_nofocus.png</texturenofocus>
       <textcolor>FF00E5FF</textcolor>
       <focusedcolor>FF000000</focusedcolor>
       <label>$INFO[Window.Property(stremio4kodi.url)]</label>
@@ -144,8 +133,8 @@
       <height>65</height>
       <font>font14</font>
       <align>center</align>
-      <texturefocus>btn_focus.png</texturefocus>
-      <texturenofocus>btn_nofocus.png</texturenofocus>
+      <texturefocus>special://home/addons/plugin.video.stremio4kodi/resources/media/btn_focus.png</texturefocus>
+      <texturenofocus>special://home/addons/plugin.video.stremio4kodi/resources/media/btn_nofocus.png</texturenofocus>
       <textcolor>FFFFFFFF</textcolor>
       <focusedcolor>FF000000</focusedcolor>
       <label>Cerrar / Cancelar</label>

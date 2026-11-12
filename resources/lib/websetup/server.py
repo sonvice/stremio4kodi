@@ -267,24 +267,27 @@ class SetupServer:
     def _run(self):
         if xbmc:
             xbmc.log(f"[Stremio4Kodi] WebSetup activo en {self.get_url()}", xbmc.LOGINFO)
-        while not self.is_closed:
-            # Comprobar timeout de inactividad
-            if time.time() - self.httpd.last_activity > IDLE_TIMEOUT_SECONDS:
-                if xbmc:
-                    xbmc.log("[Stremio4Kodi] WebSetup: Cerrado por inactividad (15 min).", xbmc.LOGINFO)
-                break
-            try:
-                self.httpd.handle_request()
-            except Exception:
-                break
-        self.stop()
+        try:
+            self.httpd.serve_forever(poll_interval=0.2)
+        except Exception:
+            pass
 
     def stop(self):
-        """Detiene y libera el servidor de forma segura."""
+        """Detiene y libera el servidor de forma instantánea y segura (sin esperas ni cuelgues)."""
+        if self.is_closed:
+            return
         self.is_closed = True
-        if self.httpd:
+        httpd = self.httpd
+        if httpd:
             try:
-                self.httpd.server_close()
+                # shutdown() despierta inmediatamente a serve_forever y sale al instante
+                httpd.shutdown()
+            except Exception:
+                pass
+            try:
+                httpd.server_close()
             except Exception:
                 pass
             self.httpd = None
+        if self.thread and self.thread.is_alive():
+            self.thread.join(timeout=0.3)

@@ -24,20 +24,21 @@ ADDON_ID = 'plugin.video.stremio4kodi'
 def _get_addon_path():
     if xbmcaddon:
         try:
-            return xbmcaddon.Addon(ADDON_ID).getAddonInfo('path')
+            return xbmcaddon.Addon().getAddonInfo('path')
         except Exception:
-            pass
-    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            try:
+                return xbmcaddon.Addon(ADDON_ID).getAddonInfo('path')
+            except Exception:
+                pass
+    p = os.path.abspath(__file__)
+    for _ in range(4):
+        p = os.path.dirname(p)
+    return p
 
 
 def _get_temp_qr_path():
-    if xbmcvfs:
-        try:
-            temp_dir = xbmcvfs.translatePath('special://temp/')
-            return os.path.join(temp_dir, 'stremio4kodi_qr.png')
-        except Exception:
-            pass
-    return '/tmp/stremio4kodi_qr.png'
+    addon_path = _get_addon_path()
+    return os.path.join(addon_path, 'resources', 'media', 'qr_code.png')
 
 
 class QRSetupWindow(xbmcgui.WindowXMLDialog if xbmcgui else object):
@@ -57,14 +58,34 @@ class QRSetupWindow(xbmcgui.WindowXMLDialog if xbmcgui else object):
         self.setProperty('stremio4kodi.url', self.setup_url)
         self.setProperty('stremio4kodi.status', '• Esperando conexion del movil...')
 
-        # Bind controls explicitly by ID for guaranteed rendering on all Kodi versions and skins
+        addon_path = _get_addon_path()
+        media_dir = os.path.join(addon_path, 'resources', 'media')
+
+        # 1. Overlay 100% opaco oscurecido (ID 198)
         try:
-            ctrl_qr = self.getControl(200)
-            if ctrl_qr and self.qr_path:
-                ctrl_qr.setImage(self.qr_path)
+            ctrl_overlay = self.getControl(198)
+            if ctrl_overlay:
+                ctrl_overlay.setImage(os.path.join(media_dir, 'overlay.png'))
         except Exception:
             pass
 
+        # 2. Tarjeta principal sólida 100% opaca (ID 199)
+        try:
+            ctrl_card = self.getControl(199)
+            if ctrl_card:
+                ctrl_card.setImage(os.path.join(media_dir, 'card_bg.png'))
+        except Exception:
+            pass
+
+        # 3. Imagen del código QR (ID 200)
+        try:
+            ctrl_qr = self.getControl(200)
+            if ctrl_qr:
+                ctrl_qr.setImage(os.path.join(media_dir, 'qr_code.png'))
+        except Exception:
+            pass
+
+        # 4. Botón interactivo con la URL (ID 101)
         try:
             ctrl_url = self.getControl(101)
             if ctrl_url and self.setup_url:
@@ -72,6 +93,7 @@ class QRSetupWindow(xbmcgui.WindowXMLDialog if xbmcgui else object):
         except Exception:
             pass
 
+        # 6. Estado en vivo (ID 203)
         try:
             ctrl_status = self.getControl(203)
             if ctrl_status:
@@ -84,30 +106,42 @@ class QRSetupWindow(xbmcgui.WindowXMLDialog if xbmcgui else object):
         except Exception:
             pass
 
+    def close(self):
+        self.is_active = False
+        self.cancelled = True
+        if self.server:
+            try:
+                self.server.stop()
+            except Exception:
+                pass
+        try:
+            super().close()
+        except Exception:
+            pass
+
     def onClick(self, controlId):
-        if controlId == 100:  # Botón Cerrar
-            self.cancelled = True
-            self.is_active = False
+        if controlId == 100:  # Botón Cerrar / Cancelar
             self.close()
         elif controlId == 101:  # Botón URL
             if xbmcgui:
                 try:
-                    # Copiar URL o mostrar notificación
                     xbmcgui.Dialog().notification("Stremio4Kodi", "Abre esta direccion en tu navegador movil", xbmcgui.NOTIFICATION_INFO, 3000)
                 except Exception:
                     pass
 
     def onAction(self, action):
         action_id = action.getId() if hasattr(action, 'getId') else 0
-        # 9: BACK, 10: PREVIOUS_MENU, 92: NAV_BACK
-        if action_id in (9, 10, 92, 216, 247, 257, 275, 61448, 61467):
-            self.cancelled = True
-            self.is_active = False
+        # 9: BACK, 10: PREVIOUS_MENU, 13: STOP, 92: NAV_BACK, 110: CONTEXT
+        if action_id in (9, 10, 13, 92, 110, 216, 247, 257, 275, 61448, 61467):
             self.close()
 
     def run_monitor(self):
         """Monitorea periódicamente si el móvil ha guardado la configuración para cerrar automáticamente."""
+        monitor = xbmc.Monitor() if xbmc else None
         while self.is_active and not self.cancelled:
+            if monitor and monitor.abortRequested():
+                self.close()
+                break
             if self.server and getattr(self.server, 'is_saved', False):
                 self.setProperty('stremio4kodi.status', 'Ajustes guardados correctamente desde el movil!')
                 try:
@@ -116,10 +150,14 @@ class QRSetupWindow(xbmcgui.WindowXMLDialog if xbmcgui else object):
                         ctrl_status.setLabel('[COLOR FF00E676]Ajustes guardados correctamente desde el movil![/COLOR]')
                 except Exception:
                     pass
-                xbmc.sleep(2000)
+                if xbmc:
+                    xbmc.sleep(1500)
                 self.close()
                 break
-            xbmc.sleep(300)
+            if xbmc:
+                xbmc.sleep(200)
+            else:
+                time.sleep(0.2)
 
 
 def show_mobile_setup():
@@ -161,7 +199,6 @@ def show_mobile_setup():
     addon_path = _get_addon_path()
 
     # Intentar abrir la ventana XML con estilo nativo
-    dialog = None
     try:
         dialog = QRSetupWindow(
             'stremio4kodi_qr_setup.xml',
@@ -172,7 +209,6 @@ def show_mobile_setup():
             setup_url=setup_url,
             server=server
         )
-        # Mostrar diálogo no bloqueante para poder monitorear cambios
         dialog.show()
         dialog.run_monitor()
     except Exception as e:
@@ -185,13 +221,13 @@ def show_mobile_setup():
             while not dlg.iscanceled() and not server.is_saved:
                 xbmc.sleep(500)
             dlg.close()
-
-    # Al salir, asegurar que el servidor web se apaga
-    server.stop()
-    if os.path.exists(qr_path):
-        try:
-            os.remove(qr_path)
-        except Exception:
-            pass
+    finally:
+        # Al salir, asegurar que el servidor web se apaga de forma instantánea
+        server.stop()
+        if os.path.exists(qr_path):
+            try:
+                os.remove(qr_path)
+            except Exception:
+                pass
 
     return True

@@ -12,12 +12,12 @@ if _CUR_DIR not in sys.path:
 
 
 def _png_from_pixels(pixels, side):
-    """Construye un PNG RGB de 8 bits sin entrelazado a partir de filas de bytes RGB."""
+    """Construye un PNG RGBA de 32 bits estándar (8 bits por canal con alfa opaco) para compatibilidad total con Kodi."""
     def chunk(chunk_type, body):
         return struct.pack('>I', len(body)) + chunk_type + body + struct.pack('>I', zlib.crc32(chunk_type + body) & 0xffffffff)
 
-    # Encabezado IHDR: width, height, bit_depth=8, color_type=2 (RGB), compression=0, filter=0, interlace=0
-    ihdr_data = struct.pack('>IIBBBBB', side, side, 8, 2, 0, 0, 0)
+    # Encabezado IHDR: width, height, bit_depth=8, color_type=6 (RGBA), compression=0, filter=0, interlace=0
+    ihdr_data = struct.pack('>IIBBBBB', side, side, 8, 6, 0, 0, 0)
     # Cada fila de datos PNG debe ir precedida por un byte de filtro (0 = ninguno)
     raw_data = b''.join(b'\x00' + row for row in pixels)
     idat_data = zlib.compress(raw_data, 9)
@@ -51,8 +51,8 @@ def generate_qr_png(data, output_path=None, box_size=8, border=3):
     matrix = qr.get_matrix()
     side = len(matrix) * box_size
 
-    dark_pixel = b'\x00\x00\x00'
-    light_pixel = b'\xff\xff\xff'
+    dark_pixel = b'\x00\x00\x00\xff'
+    light_pixel = b'\xff\xff\xff\xff'
 
     pixels = []
     for line in matrix:
