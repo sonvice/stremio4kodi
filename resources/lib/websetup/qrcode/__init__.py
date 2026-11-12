@@ -8,7 +8,7 @@ from qrcode.constants import (  # noqa
     ERROR_CORRECT_H,
 )
 
-from qrcode import image  # noqa
+
 
 
 def run_example(data="http://www.lincolnloop.com", *args, **kwargs):

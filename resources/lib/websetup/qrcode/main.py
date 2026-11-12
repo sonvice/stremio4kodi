@@ -12,8 +12,11 @@ from typing import (
 )
 
 from qrcode import constants, exceptions, util
-from qrcode.image.base import BaseImage
-from qrcode.image.pure import PyPNGImage
+
+class BaseImage:
+    pass
+
+PyPNGImage = BaseImage
 
 ModulesType = "list[list[Optional[bool]]]"  # MegaNexus: Python 3.8
 # Cache modules generated just based on the QR Code version
