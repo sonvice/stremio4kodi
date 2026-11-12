@@ -79,8 +79,8 @@ class ElementumProvider(BasePlaybackProvider):
         try:
             # 300s timeout so Python doesn't prematurely interrupt Kodi's buffering dialog
             res = opener.open(play_url, timeout=300)
-            if res and res.getcode() in (301, 302, 303, 307):
-                loc = res.geturl()
+            if res:
+                loc = res.headers.get("Location") or res.geturl()
                 if loc and loc.startswith("http"):
                     log(f"Elementum resolved direct stream: {loc}", level="info")
                     return PlaybackResult(
@@ -90,6 +90,32 @@ class ElementumProvider(BasePlaybackProvider):
                         title=release.title,
                         message="Reproduciendo con Elementum",
                     )
+        except urllib.error.HTTPError as he:
+            # Elementum sends 302 Found redirect when buffering reaches 100%
+            if he.code in (301, 302, 303, 307):
+                loc = he.headers.get("Location")
+                if loc and loc.startswith("http"):
+                    log(f"Elementum resolved direct stream via HTTP {he.code}: {loc}", level="info")
+                    return PlaybackResult(
+                        success=True,
+                        url=loc,
+                        provider=self.name,
+                        title=release.title,
+                        message="Reproduciendo con Elementum",
+                    )
+            log(f"Elementum daemon resolve HTTP error {he.code}: {he}", level="warning")
+            if release.info_hash:
+                try:
+                    pause_req = urllib.request.Request(f"http://127.0.0.1:65220/torrents/pause/{release.info_hash}")
+                    urllib.request.urlopen(pause_req, timeout=1.5)
+                except Exception:
+                    pass
+            return PlaybackResult(
+                success=False,
+                provider=self.name,
+                title=release.title,
+                error=f"Elementum cancelado o error en el búfer: {he}",
+            )
         except Exception as e:
             log(f"Elementum daemon resolve ended: {e}", level="info")
             if release.info_hash:

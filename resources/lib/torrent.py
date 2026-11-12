@@ -326,11 +326,26 @@ class TorrentResolver:
         try:
             # 300s timeout so Python doesn't prematurely interrupt Kodi's buffering dialog
             res = opener.open(play_url, timeout=300)
-            if res and res.getcode() in (301, 302, 303, 307):
-                loc = res.geturl()
+            if res:
+                loc = res.headers.get("Location") or res.geturl()
                 if loc and loc.startswith("http"):
                     log(f"Elementum resolved direct stream: {loc}", level="info")
                     return loc
+        except urllib.error.HTTPError as he:
+            # Elementum sends 302 Found redirect when buffering reaches 100%
+            if he.code in (301, 302, 303, 307):
+                loc = he.headers.get("Location")
+                if loc and loc.startswith("http"):
+                    log(f"Elementum resolved direct stream via HTTP {he.code}: {loc}", level="info")
+                    return loc
+            log(f"Elementum daemon resolve HTTP error {he.code}: {he}", level="warning")
+            if info_hash:
+                try:
+                    pause_req = urllib.request.Request(f"http://127.0.0.1:65220/torrents/pause/{info_hash}")
+                    urllib.request.urlopen(pause_req, timeout=1.5)
+                except Exception:
+                    pass
+            return None
         except Exception as e:
             log(f"Elementum daemon resolve ended: {e}", level="info")
             if info_hash:
