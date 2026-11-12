@@ -131,15 +131,25 @@
       max-width: 680px; margin: 0 auto; display: flex; gap: 12px;
     }
     .btn-save {
-      flex: 1; padding: 15px; border-radius: 999px; border: none;
+      flex: 1.1; padding: 14px 12px; border-radius: 999px; border: none;
       background: linear-gradient(135deg, var(--accent2), var(--accent));
-      color: #fff; font-size: 16px; font-weight: 700; cursor: pointer;
+      color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
       box-shadow: 0 6px 24px var(--accent-glow);
-      display: flex; align-items: center; justify-content: center; gap: 8px;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
       transition: transform 0.12s, opacity 0.2s;
     }
     .btn-save:active { transform: scale(0.97); }
-    .btn-save:disabled { opacity: 0.5; }
+    .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-finish {
+      flex: 0.9; padding: 14px 12px; border-radius: 999px;
+      border: 1px solid rgba(0, 230, 118, 0.45);
+      background: rgba(0, 230, 118, 0.14);
+      color: #00E676; font-size: 14px; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      transition: transform 0.12s, background 0.2s, opacity 0.2s;
+    }
+    .btn-finish:active { transform: scale(0.97); }
+    .btn-finish:disabled { opacity: 0.5; cursor: not-allowed; }
     .toast {
       position: fixed; left: 16px; right: 16px; bottom: 85px; z-index: 40;
       max-width: 648px; margin: 0 auto; padding: 14px 18px; border-radius: 14px;
@@ -343,8 +353,11 @@
 
 <div class="bottom-bar">
   <div class="bottom-bar-inner">
-    <button class="btn-save" id="save-btn" onclick="saveSettings()">
-      <span>💾 Guardar en Kodi</span>
+    <button class="btn-save" id="save-btn" onclick="saveSettings(false)">
+      <span>Guardar Cambios</span>
+    </button>
+    <button class="btn-finish" id="finish-btn" onclick="saveSettings(true)">
+      <span>Terminar y Cerrar TV</span>
     </button>
   </div>
 </div>
@@ -392,10 +405,17 @@
     }
   }
 
-  async function saveSettings() {
-    const btn = document.getElementById('save-btn');
-    btn.disabled = true;
-    btn.innerText = '⏳ Guardando en Kodi...';
+  async function saveSettings(closeOnFinish = false) {
+    const btnSave = document.getElementById('save-btn');
+    const btnFinish = document.getElementById('finish-btn');
+    btnSave.disabled = true;
+    btnFinish.disabled = true;
+
+    if (closeOnFinish) {
+      btnFinish.innerText = 'Cerrando en Kodi...';
+    } else {
+      btnSave.innerText = 'Guardando...';
+    }
 
     const keys = [
       'torrent_engine', 'torrserver_host', 'torrserver_port', 'torrent_quality',
@@ -422,17 +442,36 @@
       const res = await fetch('/api/save?k=' + encodeURIComponent(token), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ settings })
+        body: JSON.stringify({ settings, close: closeOnFinish })
       });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.message || 'Error guardando');
-      showToast('✓ ' + data.message);
-      btn.innerText = '✓ ¡Guardado en Kodi!';
-      setTimeout(() => {
-        btn.disabled = false;
-        btn.innerText = '💾 Guardar en Kodi';
-      }, 2500);
+
+      if (closeOnFinish) {
+        showToast('✓ Ajustes guardados. Se ha cerrado la ventana en Kodi.');
+        btnFinish.innerText = '✓ Configuración Finalizada';
+        btnSave.style.display = 'none';
+        btnFinish.style.flex = '1';
+        btnFinish.disabled = true;
+      } else {
+        const timeInfo = data.last_save_time ? ` (${data.last_save_time})` : '';
+        showToast(`✓ Ajustes guardados en Kodi${timeInfo}. Puedes seguir editando.`);
+        btnSave.innerText = '✓ Guardado';
+        setTimeout(() => {
+          btnSave.disabled = false;
+          btnFinish.disabled = false;
+          btnSave.innerText = 'Guardar Cambios';
+          btnFinish.innerText = 'Terminar y Cerrar TV';
+        }, 1200);
+      }
     } catch (err) {
+      showToast('Error: ' + err.message, true);
+      btnSave.disabled = false;
+      btnFinish.disabled = false;
+      btnSave.innerText = 'Guardar Cambios';
+      btnFinish.innerText = 'Terminar y Cerrar TV';
+    }
+  }
       showToast('✗ ' + err.message, true);
       btn.disabled = false;
       btn.innerText = '💾 Guardar en Kodi';

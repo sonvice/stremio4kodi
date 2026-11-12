@@ -136,24 +136,50 @@ class QRSetupWindow(xbmcgui.WindowXMLDialog if xbmcgui else object):
             self.close()
 
     def run_monitor(self):
-        """Monitorea periódicamente si el móvil ha guardado la configuración para cerrar automáticamente."""
+        """Monitorea periódicamente las acciones del móvil: guardados sucesivos, finalización o inactividad."""
         monitor = xbmc.Monitor() if xbmc else None
+        last_seen_count = 0
+
         while self.is_active and not self.cancelled:
             if monitor and monitor.abortRequested():
                 self.close()
                 break
-            if self.server and getattr(self.server, 'is_saved', False):
-                self.setProperty('stremio4kodi.status', 'Ajustes guardados correctamente desde el movil!')
+
+            # 1. Cierre solicitado desde el móvil ("Terminar y Cerrar en TV")
+            if self.server and getattr(self.server, 'is_finished', False):
                 try:
                     ctrl_status = self.getControl(203)
                     if ctrl_status:
-                        ctrl_status.setLabel('[COLOR FF00E676]Ajustes guardados correctamente desde el movil![/COLOR]')
+                        ctrl_status.setLabel('[COLOR FF00E676]• Configuracion finalizada desde el movil[/COLOR]')
                 except Exception:
                     pass
                 if xbmc:
-                    xbmc.sleep(1500)
+                    xbmc.sleep(1200)
                 self.close()
                 break
+
+            # 2. Guardado sucesivo (Multi-Save): actualiza la TV sin cerrar la sesión
+            current_count = getattr(self.server, 'save_count', 0) if self.server else 0
+            if current_count > last_seen_count:
+                last_seen_count = current_count
+                save_time = getattr(self.server, 'last_save_time', '')
+                time_str = f" ({save_time})" if save_time else ""
+                status_text = f"• Guardado{time_str} • Sesion activa"
+                self.setProperty('stremio4kodi.status', status_text)
+                try:
+                    ctrl_status = self.getControl(203)
+                    if ctrl_status:
+                        ctrl_status.setLabel(f'[COLOR FF00E676]{status_text}[/COLOR]')
+                except Exception:
+                    pass
+
+            # 3. Timeout de seguridad por inactividad prolongada (15 minutos)
+            if self.server and (time.time() - getattr(self.server, 'last_activity', time.time()) > 900):
+                if xbmc:
+                    xbmc.log("[Stremio4Kodi] WebSetup: Cerrado por inactividad (15 min).", xbmc.LOGINFO)
+                self.close()
+                break
+
             if xbmc:
                 xbmc.sleep(200)
             else:

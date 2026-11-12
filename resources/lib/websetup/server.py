@@ -191,6 +191,7 @@ class SetupRequestHandler(BaseHTTPRequestHandler):
                 return
 
             settings = payload.get("settings", {})
+            close_requested = bool(payload.get("close", False))
             saved_count = 0
 
             # Guardar cada ajuste recibido en Kodi
@@ -198,27 +199,52 @@ class SetupRequestHandler(BaseHTTPRequestHandler):
                 _set_setting(key, val)
                 saved_count += 1
 
+            now_str = time.strftime('%H:%M:%S')
+            new_save_count = getattr(self.server, 'save_count', 0) + 1
+            self.server.save_count = new_save_count
+            self.server.last_save_time = now_str
             self.server.is_saved = True
+            self.server.is_finished = close_requested
+            self.server.last_activity = time.time()
+
             if hasattr(self.server, 'wrapper'):
+                self.server.wrapper.save_count = new_save_count
+                self.server.wrapper.last_save_time = now_str
                 self.server.wrapper.is_saved = True
-            self.server.last_saved_time = time.time()
+                self.server.wrapper.is_finished = close_requested
+                self.server.wrapper.last_activity = time.time()
 
             if xbmc and xbmcgui:
                 try:
                     dialog = xbmcgui.Dialog()
+                    msg = "Ajustes guardados desde el movil" if not close_requested else "Configuracion finalizada desde el movil"
                     dialog.notification(
                         "Stremio4Kodi",
-                        "Ajustes recibidos y guardados desde el movil",
+                        msg,
                         xbmcgui.NOTIFICATION_INFO,
-                        4000
+                        3000
                     )
                 except Exception:
                     pass
 
             self._send_json({
                 "ok": True,
-                "message": f"Se han guardado correctamente {saved_count} ajustes en Kodi.",
-                "saved_count": saved_count
+                "message": f"Se han guardado correctamente {saved_count} ajustes en Kodi." if not close_requested else "Configuracion guardada y finalizada.",
+                "saved_count": saved_count,
+                "save_iteration": new_save_count,
+                "last_save_time": now_str,
+                "finished": close_requested
+            })
+            return
+
+        if path == '/api/finish':
+            self.server.is_finished = True
+            if hasattr(self.server, 'wrapper'):
+                self.server.wrapper.is_finished = True
+            self._send_json({
+                "ok": True,
+                "message": "Sesion finalizada. Cerrando ventana en Kodi.",
+                "finished": True
             })
             return
 
@@ -235,6 +261,9 @@ class SetupServer:
         self.httpd = None
         self.thread = None
         self.is_saved = False
+        self.is_finished = False
+        self.save_count = 0
+        self.last_save_time = ""
         self.is_closed = False
         self.last_activity = time.time()
 
@@ -246,7 +275,8 @@ class SetupServer:
         # Si el puerto está ocupado, buscar puerto disponible
         for attempt_port in [self.port, self.port + 1, self.port + 2, 0]:
             try:
-                self.httpd = ThreadingHTTPServer((self.host, attempt_port), SetupRequestHandler)
+                # Escuchar en todas las interfaces para permitir acceso desde LAN (móvil) y local
+                self.httpd = ThreadingHTTPServer(("", attempt_port), SetupRequestHandler)
                 self.port = self.httpd.server_address[1]
                 break
             except OSError:
@@ -258,6 +288,9 @@ class SetupServer:
         self.httpd.session_token = self.session_token
         self.httpd.last_activity = self.last_activity
         self.httpd.is_saved = False
+        self.httpd.is_finished = False
+        self.httpd.save_count = 0
+        self.httpd.last_save_time = ""
         self.httpd.wrapper = self
 
         self.thread = threading.Thread(target=self._run, daemon=True)

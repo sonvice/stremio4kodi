@@ -73,9 +73,9 @@
 
     <!-- Estado en vivo debajo del QR -->
     <control type="label" id="203">
-      <left>240</left>
+      <left>230</left>
       <top>755</top>
-      <width>480</width>
+      <width>500</width>
       <height>40</height>
       <font>font13</font>
       <align>center</align>
@@ -91,7 +91,7 @@
       <height>300</height>
       <font>font14</font>
       <textcolor>FFF0F4FC</textcolor>
-      <label>[B][COLOR FF00E5FF]PASO 1[/COLOR][/B] — Conecta tu móvil a la [B]misma red Wi-Fi[/B] que este Kodi.[CR][CR][B][COLOR FF00E5FF]PASO 2[/COLOR][/B] — Abre la app de [B]cámara o lector QR[/B] del móvil y apunta al código.[CR][CR][B][COLOR FF00E5FF]PASO 3[/COLOR][/B] — Introduce tus cuentas (Real-Debrid, TorBox, TorrServer, Stremio o Torznab) y pulsa [B]Guardar en Kodi[/B].[CR][CR][COLOR FF9AB3DB]Esta pantalla se cerrará automáticamente al guardar los ajustes.[/COLOR]</label>
+      <label>[B][COLOR FF00E5FF]PASO 1[/COLOR][/B] — Conecta tu móvil a la [B]misma red Wi-Fi[/B] que este Kodi.[CR][CR][B][COLOR FF00E5FF]PASO 2[/COLOR][/B] — Abre la app de [B]cámara o lector QR[/B] del móvil y apunta al código.[CR][CR][B][COLOR FF00E5FF]PASO 3[/COLOR][/B] — Ajusta tus cuentas y pulsa [B]Guardar Cambios[/B] las veces que quieras.[CR][CR][COLOR FF9AB3DB]Pulsa "Terminar y Cerrar TV" en tu móvil o el botón Cerrar cuando acabes.[/COLOR]</label>
     </control>
 
     <!-- Etiqueta de URL alternativa -->
