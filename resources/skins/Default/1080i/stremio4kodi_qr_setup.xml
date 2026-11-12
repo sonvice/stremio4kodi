@@ -8,117 +8,151 @@
       <top>0</top>
       <width>1920</width>
       <height>1080</height>
-      <texture colordiffuse="CC000000">white.png</texture>
+      <texture>overlay.png</texture>
+      <colordiffuse>F2000000</colordiffuse>
     </control>
 
     <!-- Tarjeta principal del diálogo -->
     <control type="image">
-      <left>210</left>
-      <top>140</top>
-      <width>1500</width>
-      <height>800</height>
-      <texture colordiffuse="F0081224">white.png</texture>
+      <left>180</left>
+      <top>90</top>
+      <width>1560</width>
+      <height>900</height>
+      <texture>card_bg.png</texture>
       <border>16</border>
     </control>
 
-    <!-- Marco blanco para el Código QR -->
+    <!-- Icono nativo de red en la cabecera -->
     <control type="image">
-      <left>260</left>
-      <top>200</top>
-      <width>540</width>
-      <height>540</height>
-      <texture colordiffuse="FFFFFFFF">white.png</texture>
-    </control>
-
-    <!-- Imagen del Código QR -->
-    <control type="image">
-      <left>280</left>
-      <top>220</top>
-      <width>500</width>
-      <height>500</height>
+      <left>240</left>
+      <top>130</top>
+      <width>64</width>
+      <height>64</height>
       <aspectratio>keep</aspectratio>
-      <texture>$INFO[Window.Property(stremio4kodi.qr)]</texture>
+      <texture>DefaultNetwork.png</texture>
     </control>
 
-    <!-- Título -->
+    <!-- Título principal -->
     <control type="label">
-      <left>850</left>
-      <top>200</top>
-      <width>800</width>
-      <height>50</height>
-      <font>font24_title</font>
+      <left>325</left>
+      <top>130</top>
+      <width>1300</width>
+      <height>45</height>
+      <font>font30_title</font>
       <textcolor>FF00E5FF</textcolor>
       <label>Configuración desde el Móvil</label>
     </control>
 
-    <!-- Subtítulo / Pasos -->
-    <control type="textbox">
-      <left>850</left>
-      <top>270</top>
-      <width>800</width>
-      <height>300</height>
+    <!-- Subtítulo -->
+    <control type="label">
+      <left>325</left>
+      <top>178</top>
+      <width>1300</width>
+      <height>30</height>
       <font>font13</font>
+      <textcolor>FF9AB3DB</textcolor>
+      <label>Escanea el código QR con tu teléfono o accede a la URL en tu navegador</label>
+    </control>
+
+    <!-- Línea divisoria -->
+    <control type="image">
+      <left>240</left>
+      <top>225</top>
+      <width>1440</width>
+      <height>2</height>
+      <texture>btn_nofocus.png</texture>
+    </control>
+
+    <!-- Marco blanco para el Código QR -->
+    <control type="image">
+      <left>240</left>
+      <top>255</top>
+      <width>480</width>
+      <height>480</height>
+      <texture>qr_bg.png</texture>
+    </control>
+
+    <!-- Imagen del Código QR -->
+    <control type="image" id="200">
+      <left>260</left>
+      <top>275</top>
+      <width>440</width>
+      <height>440</height>
+      <aspectratio>keep</aspectratio>
+      <texture>$INFO[Window.Property(stremio4kodi.qr)]</texture>
+    </control>
+
+    <!-- Estado en vivo debajo del QR -->
+    <control type="label" id="203">
+      <left>240</left>
+      <top>755</top>
+      <width>480</width>
+      <height>40</height>
+      <font>font13</font>
+      <align>center</align>
+      <textcolor>FFFFDD00</textcolor>
+      <label>• Esperando conexión del móvil...</label>
+    </control>
+
+    <!-- Instrucciones paso a paso -->
+    <control type="textbox">
+      <left>760</left>
+      <top>255</top>
+      <width>920</width>
+      <height>300</height>
+      <font>font14</font>
       <textcolor>FFF0F4FC</textcolor>
-      <label>1. Conecta tu teléfono o tableta a la misma red Wi-Fi que este dispositivo.[CR][CR]2. Abre la cámara del móvil y escanea el código QR de la izquierda.[CR][CR]3. Configura tus cuentas Debrid (Real-Debrid, TorBox), TorrServer, Stremio o Torznab cómodamente desde la pantalla táctil y pulsa [B]Guardar en Kodi[/B].[CR][CR][COLOR FF9AB3DB]El servidor local se cerrará automáticamente al guardar o pulsar volver.[/COLOR]</label>
+      <label>[B][COLOR FF00E5FF]PASO 1[/COLOR][/B] — Conecta tu móvil a la [B]misma red Wi-Fi[/B] que este Kodi.[CR][CR][B][COLOR FF00E5FF]PASO 2[/COLOR][/B] — Abre la app de [B]cámara o lector QR[/B] del móvil y apunta al código.[CR][CR][B][COLOR FF00E5FF]PASO 3[/COLOR][/B] — Introduce tus cuentas (Real-Debrid, TorBox, TorrServer, Stremio o Torznab) y pulsa [B]Guardar en Kodi[/B].[CR][CR][COLOR FF9AB3DB]Esta pantalla se cerrará automáticamente al guardar los ajustes.[/COLOR]</label>
     </control>
 
     <!-- Etiqueta de URL alternativa -->
     <control type="label">
-      <left>850</left>
-      <top>590</top>
-      <width>800</width>
-      <height>35</height>
+      <left>760</left>
+      <top>575</top>
+      <width>920</width>
+      <height>30</height>
       <font>font12</font>
       <textcolor>FF9AB3DB</textcolor>
-      <label>O abre directamente esta dirección en el navegador de tu móvil o PC:</label>
+      <label>O escribe directamente esta dirección en el navegador de tu móvil o PC:</label>
     </control>
 
-    <!-- URL en texto clickable -->
+    <!-- Botón con la URL en texto interactivo -->
     <control type="button" id="101">
-      <left>850</left>
-      <top>630</top>
-      <width>800</width>
-      <height>50</height>
-      <font>font13</font>
-      <label>$INFO[Window.Property(stremio4kodi.url)]</label>
-      <textcolor>FF00E5FF</textcolor>
-      <focusedcolor>FFFFFFFF</focusedcolor>
-      <texturefocus colordiffuse="402E75FF">white.png</texturefocus>
-      <texturenofocus colordiffuse="20FFFFFF">white.png</texturenofocus>
-      <onup>101</onup>
-      <ondown>100</ondown>
-      <onleft>100</onleft>
-      <onright>100</onright>
-    </control>
-
-    <!-- Estado en vivo -->
-    <control type="label">
-      <left>260</left>
-      <top>780</top>
-      <width>950</width>
+      <left>760</left>
+      <top>615</top>
+      <width>920</width>
       <height>60</height>
       <font>font14</font>
-      <textcolor>FF00E676</textcolor>
-      <label>$INFO[Window.Property(stremio4kodi.status)]</label>
-    </control>
-
-    <!-- Botón Volver / Cerrar -->
-    <control type="button" id="100">
-      <left>1290</left>
-      <top>780</top>
-      <width>360</width>
-      <height>60</height>
-      <font>font13</font>
-      <label>Cerrar / Cancelar</label>
-      <align>center</align>
-      <textcolor>FFFFFFFF</textcolor>
-      <focusedcolor>FFFFFFFF</focusedcolor>
-      <texturefocus colordiffuse="C02E75FF">white.png</texturefocus>
-      <texturenofocus colordiffuse="40FFFFFF">white.png</texturenofocus>
-      <onup>101</onup>
+      <align>left</align>
+      <textoffsetx>25</textoffsetx>
+      <texturefocus>btn_focus.png</texturefocus>
+      <texturenofocus>btn_nofocus.png</texturenofocus>
+      <textcolor>FF00E5FF</textcolor>
+      <focusedcolor>FF000000</focusedcolor>
+      <label>$INFO[Window.Property(stremio4kodi.url)]</label>
+      <onup>100</onup>
       <ondown>100</ondown>
       <onleft>100</onleft>
       <onright>100</onright>
+    </control>
+
+    <!-- Botón Cerrar / Cancelar -->
+    <control type="button" id="100">
+      <left>1380</left>
+      <top>870</top>
+      <width>300</width>
+      <height>65</height>
+      <font>font14</font>
+      <align>center</align>
+      <texturefocus>btn_focus.png</texturefocus>
+      <texturenofocus>btn_nofocus.png</texturenofocus>
+      <textcolor>FFFFFFFF</textcolor>
+      <focusedcolor>FF000000</focusedcolor>
+      <label>Cerrar / Cancelar</label>
+      <onup>101</onup>
+      <ondown>101</ondown>
+      <onleft>101</onleft>
+      <onright>101</onright>
     </control>
   </controls>
 </window>

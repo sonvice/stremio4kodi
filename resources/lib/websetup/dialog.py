@@ -55,7 +55,30 @@ class QRSetupWindow(xbmcgui.WindowXMLDialog if xbmcgui else object):
     def onInit(self):
         self.setProperty('stremio4kodi.qr', self.qr_path)
         self.setProperty('stremio4kodi.url', self.setup_url)
-        self.setProperty('stremio4kodi.status', 'Esperando conexion del movil...')
+        self.setProperty('stremio4kodi.status', '• Esperando conexion del movil...')
+
+        # Bind controls explicitly by ID for guaranteed rendering on all Kodi versions and skins
+        try:
+            ctrl_qr = self.getControl(200)
+            if ctrl_qr and self.qr_path:
+                ctrl_qr.setImage(self.qr_path)
+        except Exception:
+            pass
+
+        try:
+            ctrl_url = self.getControl(101)
+            if ctrl_url and self.setup_url:
+                ctrl_url.setLabel(self.setup_url)
+        except Exception:
+            pass
+
+        try:
+            ctrl_status = self.getControl(203)
+            if ctrl_status:
+                ctrl_status.setLabel('[COLOR FFFFDD00]• Esperando conexion del movil...[/COLOR]')
+        except Exception:
+            pass
+
         try:
             self.setFocusId(100)
         except Exception:
@@ -86,7 +109,13 @@ class QRSetupWindow(xbmcgui.WindowXMLDialog if xbmcgui else object):
         """Monitorea periódicamente si el móvil ha guardado la configuración para cerrar automáticamente."""
         while self.is_active and not self.cancelled:
             if self.server and getattr(self.server, 'is_saved', False):
-                self.setProperty('stremio4kodi.status', '[OK] Ajustes guardados correctamente desde el movil!')
+                self.setProperty('stremio4kodi.status', 'Ajustes guardados correctamente desde el movil!')
+                try:
+                    ctrl_status = self.getControl(203)
+                    if ctrl_status:
+                        ctrl_status.setLabel('[COLOR FF00E676]Ajustes guardados correctamente desde el movil![/COLOR]')
+                except Exception:
+                    pass
                 xbmc.sleep(2000)
                 self.close()
                 break
