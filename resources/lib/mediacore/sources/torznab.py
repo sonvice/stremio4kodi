@@ -95,13 +95,13 @@ class TorznabSource(BaseSource):
                     url = enc_url or link
                     size_bytes = int(enc_len or 0)
 
-                    # Torznab attributes
+                    # Torznab attributes (support any XML namespace: 2010/etree, 2015/feed, etc.)
                     seeds = 0
                     peers = 0
                     info_hash = ""
-                    indexer = "Torznab"
+                    indexer = it.findtext("prowlarrindexer") or it.findtext("jackettindexer") or "Torznab"
 
-                    for attr in it.findall("{http://torznab.com/schemas/2010/etree}attr"):
+                    for attr in [a for a in it if a.tag.endswith("attr")]:
                         name = attr.get("name")
                         val = attr.get("value")
                         if name == "seeders" and val and val.isdigit():
@@ -109,7 +109,7 @@ class TorznabSource(BaseSource):
                         elif name == "peers" and val and val.isdigit():
                             peers = int(val)
                         elif name == "infohash" and val:
-                            info_hash = val
+                            info_hash = val.lower()
                         elif name == "size" and val and val.isdigit() and size_bytes == 0:
                             size_bytes = int(val)
                         elif name == "indexer" and val:
