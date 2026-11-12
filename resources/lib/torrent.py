@@ -346,180 +346,57 @@ class TorrentResolver:
 
     def resolve(self, stream):
         """
-        Resolve a stream dict to a playable URL.
-        Priority: Real-Debrid (always tried first) > TorrServer/Elementum > Direct HTTP
+        Resolve a stream dict or StreamRelease to a playable URL.
+        Delegates to MediaCore Playback Orchestrator (TorrServer -> Debrid -> Elementum -> Direct).
         """
-        url = stream.get("url", "")
-        info_hash = stream.get("infoHash", "")
-        file_idx = stream.get("fileIdx")
-        stream_title = (stream.get("title") or stream.get("name") or "").split("\n")[0].strip()
+        try:
+            from resources.lib.mediacore.models import StreamRelease
+            from resources.lib.mediacore.orchestrator import MediaCore
 
-        # ── Try Debrid first for ANY hash ──
-        if info_hash and self.rd.is_configured():
-            provider = self.rd.get_active_provider_name()
-            log(f"Resolving via {provider}: {info_hash}", level="info")
-            rd_url = self.rd.resolve(info_hash, file_idx)
-            if rd_url:
-                ui.show_notification(f"Reproduciendo con {provider}", time=2000)
-                return rd_url
-            log(f"{provider} resolve failed, falling back to torrent engine", level="warning")
+            if isinstance(stream, dict):
+                info_h = stream.get("infoHash") or stream.get("info_hash") or ""
+                url = stream.get("url", "")
+                if not info_h and "urn:btih:" in url:
+                    match = re.search(r"urn:btih:([a-fA-F0-9]{40}|[a-zA-Z2-7]{32})", url, re.I)
+                    if match:
+                        info_h = match.group(1)
 
-        # ── infoHash → magnet → engine ─────────────────────
-        if info_hash:
-            magnet = self._build_magnet(info_hash, stream)
-            active = self.get_active_engine()
-            if active == "TorrServer":
-                checked = self._check_privacy_and_engine("TorrServer")
-                if not checked:
-                    return None
-                resolved = self.resolve_torrserver_stream(magnet, file_idx, stream_title, info_hash=info_hash)
-                if resolved:
-                    return resolved
-                log("TorrServer resolution failed, trying Elementum fallback...", level="warning")
-                ui.show_notification("TorrServer no detectado. Usando Elementum...", time=2500)
-                if self._ensure_elementum_ready():
-                    return self.resolve_elementum_stream(magnet, file_idx, info_hash=info_hash)
+                rel = StreamRelease(
+                    title=(stream.get("title") or stream.get("name") or "Stream").split("\n")[0].strip(),
+                    info_hash=info_h,
+                    file_idx=stream.get("fileIdx"),
+                    url=url,
+                    is_debrid_cached=stream.get("_debrid_cached", False),
+                    debrid_provider=stream.get("_debrid_provider", ""),
+                    source_name=stream.get("_addon") or stream.get("name") or "Torrent",
+                )
+            elif hasattr(stream, "info_hash"):
+                rel = stream
+            else:
                 return None
-            elif active == "Elementum":
-                if not self._ensure_elementum_ready():
-                    if self.is_engine_alive("TorrServer"):
-                        log("Elementum unavailable, falling back to active TorrServer...", level="info")
-                        ui.show_notification("Usando TorrServer...", time=2000)
-                        return self.resolve_torrserver_stream(magnet, file_idx, stream_title, info_hash=info_hash)
-                    return None
-                checked = self._check_privacy_and_engine("Elementum")
-                if not checked:
-                    return None
-                resolved = self.resolve_elementum_stream(magnet, file_idx, info_hash=info_hash)
-                if resolved:
-                    return resolved
-                if self.is_engine_alive("TorrServer"):
-                    log("Elementum resolution failed, trying active TorrServer fallback...", level="warning")
-                    ui.show_notification("Elementum no respondió. Usando TorrServer...", time=2500)
-                    return self.resolve_torrserver_stream(magnet, file_idx, stream_title, info_hash=info_hash)
-                return None
-            return self._check_privacy_and_engine(self._to_engine_url(magnet, stream))
 
-        # ── magnet: link ───────────────────────────────────
-        if url.startswith("magnet:"):
-            # Try RD if enabled
-            if self.rd.is_configured():
-                rd_url = self.rd.resolve(url, file_idx)
-                if rd_url:
-                    return rd_url
-            enriched = self._enrich_magnet(url, stream)
-            active = self.get_active_engine()
-            if active == "TorrServer":
-                checked = self._check_privacy_and_engine("TorrServer")
-                if not checked:
-                    return None
-                resolved = self.resolve_torrserver_stream(enriched, file_idx, stream_title)
-                if resolved:
-                    return resolved
-                log("TorrServer resolution failed, trying Elementum fallback...", level="warning")
-                ui.show_notification("TorrServer no detectado. Usando Elementum...", time=2500)
-                if self._ensure_elementum_ready():
-                    return self.resolve_elementum_stream(enriched, file_idx)
-                return None
-            elif active == "Elementum":
-                if not self._ensure_elementum_ready():
-                    if self.is_engine_alive("TorrServer"):
-                        log("Elementum unavailable, falling back to active TorrServer...", level="info")
-                        ui.show_notification("Usando TorrServer...", time=2000)
-                        return self.resolve_torrserver_stream(enriched, file_idx, stream_title)
-                    return None
-                checked = self._check_privacy_and_engine("Elementum")
-                if not checked:
-                    return None
-                resolved = self.resolve_elementum_stream(enriched, file_idx)
-                if resolved:
-                    return resolved
-                if self.is_engine_alive("TorrServer"):
-                    log("Elementum resolution failed, trying active TorrServer fallback...", level="warning")
-                    ui.show_notification("Elementum no respondió. Usando TorrServer...", time=2500)
-                    return self.resolve_torrserver_stream(enriched, file_idx, stream_title)
-                return None
-            return self._check_privacy_and_engine(self._to_engine_url(enriched, stream))
-
-        # ── HTTP .torrent file ─────────────────────────────
-        if url.startswith("http") and ".torrent" in url:
-            active = self.get_active_engine()
-            if active == "TorrServer":
-                checked = self._check_privacy_and_engine("TorrServer")
-                if not checked:
-                    return None
-                resolved = self.resolve_torrserver_stream(url, file_idx, stream_title)
-                if resolved:
-                    return resolved
-                log("TorrServer resolution failed, trying Elementum fallback...", level="warning")
-                ui.show_notification("TorrServer no detectado. Usando Elementum...", time=2500)
-                if self._ensure_elementum_ready():
-                    return self.resolve_elementum_stream(url, file_idx)
-                return None
-            elif active == "Elementum":
-                if not self._ensure_elementum_ready():
-                    if self.is_engine_alive("TorrServer"):
-                        log("Elementum unavailable, falling back to active TorrServer...", level="info")
-                        ui.show_notification("Usando TorrServer...", time=2000)
-                        return self.resolve_torrserver_stream(url, file_idx, stream_title)
-                    return None
-                checked = self._check_privacy_and_engine("Elementum")
-                if not checked:
-                    return None
-                resolved = self.resolve_elementum_stream(url, file_idx)
-                if resolved:
-                    return resolved
-                if self.is_engine_alive("TorrServer"):
-                    log("Elementum resolution failed, trying active TorrServer fallback...", level="warning")
-                    ui.show_notification("Elementum no respondió. Usando TorrServer...", time=2500)
-                    return self.resolve_torrserver_stream(url, file_idx, stream_title)
-                return None
-            return self._check_privacy_and_engine(self._to_engine_url(url, stream))
-
-        # ── Direct HTTP stream ─────────────────────────────
-        if url.startswith("http"):
-            return url
-
-        log(f"Unresolvable: {stream.get('title', '?')}", level="warning")
-        return None
+            result = MediaCore().resolve_playback(rel)
+            if result and result.success:
+                return result.url
+            return None
+        except Exception as e:
+            log(f"MediaCore resolution exception: {e}", level="error")
+            return None
 
     def resolve_magnet(self, magnet_uri):
-        """Resolve a raw magnet URI (from manual input)."""
-        if self.rd.is_configured():
-            rd_url = self.rd.resolve(magnet_uri)
-            if rd_url:
-                return rd_url, "direct"
-        enriched = self._enrich_magnet(magnet_uri)
-        active = self.get_active_engine()
-        if active == "TorrServer":
-            checked = self._check_privacy_and_engine("TorrServer")
-            if not checked:
-                return None, "direct"
-            resolved = self.resolve_torrserver_stream(enriched, None, "Manual Magnet")
-            if resolved:
-                return resolved, "direct"
-            log("TorrServer manual magnet resolve failed, trying Elementum fallback...", level="warning")
-            ui.show_notification("TorrServer no detectado. Usando Elementum...", time=2500)
-            if self._ensure_elementum_ready():
-                resolved = self.resolve_elementum_stream(enriched, None)
-                if resolved:
-                    return resolved, "direct"
-            return None, "direct"
-        elif active == "Elementum":
-            if not self._ensure_elementum_ready():
-                return None, "plugin"
-            checked = self._check_privacy_and_engine("Elementum")
-            if not checked:
-                return None, "plugin"
-            resolved = self.resolve_elementum_stream(enriched, None)
-            if resolved:
-                return resolved, "direct"
-            return None, "plugin"
-        engine_url = self._to_engine_url(enriched, {})
-        checked = self._check_privacy_and_engine(engine_url)
-        if not checked:
-            return None, "plugin"
-        return checked, "plugin"
+        """Resolve a raw magnet URI (from manual input) via MediaCore."""
+        from resources.lib.mediacore.models import StreamRelease
+        from resources.lib.mediacore.orchestrator import MediaCore
+
+        rel = StreamRelease(
+            title="Manual Magnet",
+            url=magnet_uri,
+            source_name="Manual",
+        )
+        res = MediaCore().resolve_playback(rel)
+        if res and res.success:
+            return res.url, "direct"
+        return None, "direct"
 
     def _check_privacy_and_engine(self, engine_url):
         if Config.strict_debrid():

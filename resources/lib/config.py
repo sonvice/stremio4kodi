@@ -67,6 +67,19 @@ class Config:
     def stremio_parallel():
         return ADDON.getSetting("stremio_parallel") == "true"
 
+    # ── Torznab (Jackett & Prowlarr) ────────────────────────
+    @staticmethod
+    def torznab_enabled():
+        return ADDON.getSetting("torznab_enabled") == "true"
+
+    @staticmethod
+    def torznab_url():
+        return ADDON.getSetting("torznab_url") or ""
+
+    @staticmethod
+    def torznab_apikey():
+        return ADDON.getSetting("torznab_apikey") or ""
+
     # ── Torrents ───────────────────────────────────────────
     @staticmethod
     def torrent_engine():
@@ -345,6 +358,8 @@ class Config:
         except Exception:
             return "127.0.0.1"
 
+    acestream_host = acestream_engine_host
+
     @staticmethod
     def acestream_engine_port():
         try:
@@ -352,6 +367,8 @@ class Config:
             return int(val) if val else 6878
         except Exception:
             return 6878
+
+    acestream_port = acestream_engine_port
 
     @staticmethod
     def acestream_cache_ttl():

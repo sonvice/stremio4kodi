@@ -190,5 +190,19 @@ El proyecto está dividido en dos repositorios/carpetas hermanas:
 * **Conmutación Fluida en < 1 Segundo si TorrServer no está Activo:** Antes de enviar peticiones pesadas a la API de TorrServer, `resolve_torrserver_stream` ejecuta un chequeo previo ultrarrápido (<0.8s). Si TorrServer está apagado o no responde, el addon salta de inmediato a `Elementum` con la notificación `TorrServer no detectado. Usando Elementum...` en menos de 1 segundo (cumpliendo con creces la meta de <5 segundos).
 * **Gestión Visual de Motores:** En `_manage_engines` ([router.py](file:///home/wilson/Pictures/plugin.video.stremio4kodi_v3.2.3/plugin.video.stremio4kodi/resources/lib/router.py)) ahora se muestra el estado en vivo de TorrServer (`Activo` o `No detectado`) con su host y puerto configurados.
 
+---
+
+## 12. MediaCore v4.0.0 — Arquitectura Orquestada Unificada (Inspirada en HolyArrs)
+* **Arquitectura "One UI, One Media Core":** Desacoplamiento total del addon en módulos limpios dentro de `resources/lib/mediacore/`:
+  * **`models.py`:** Contratos de dominio universales (`MediaItem`, `StreamRelease`, `PlaybackResult`).
+  * **`playback/` (Playback Provider Hub):** Interfaz común `BasePlaybackProvider` implementada por `TorrServerProvider`, `DebridPlaybackProvider`, `ElementumProvider`, `AceStreamPlaybackProvider` y `DirectHttpProvider`. Pipeline de fallback inteligente con handoff inmediato (<1s) si TorrServer está apagado.
+  * **`sources/` (Sources Hub):** Puente concurrente con `StremioSource` (Torrentio, Comet, MediaFusion), `DhtSource` (Apibay, Bitsearch), `LiveAceStreamSource` y el **nuevo `TorznabSource`**.
+  * **Integración Nativa Torznab (Jackett & Prowlarr):** Soporte para indexadores privados y locales mediante la API XML estándar de Torznab. Configurable desde ajustes.
+  * **`scoring/` (Scoring & Ranker Engine):** Normalización RTN automática, clasificación y filtrado de idioma español (Castellano, Latino, Dual, VOSE), bonificación Debrid en caché y **deduplicación limpia por `infoHash`** entre múltiples fuentes.
+  * **`metadata/` (Metadata Hub):** Agregación de TMDB, Trakt, Cinemeta y Rotten Tomatoes (Tomatometer y Audience Score).
+  * **`orchestrator.py` (`MediaCore`):** Orquestador central reutilizable que coordina la búsqueda, puntuación y reproducción multimedia.
+  * **`router.py` Adelgazado:** Despachador de interfaz de usuario de Kodi desacoplado que delega la lógica de negocio al orquestador `MediaCore`.
+
+
 
 

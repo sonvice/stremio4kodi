@@ -774,50 +774,40 @@ class Router:
         if not streams:
             self.cache.set(lock_key, True, ttl=25)
             try:
-                category = "movies" if media_type == "movie" else "series"
-                streams = []
+                from resources.lib.mediacore.models import MediaItem
+                from resources.lib.mediacore.orchestrator import MediaCore
 
-                # 1. Query Stremio Addons first if imdb_id is available (exact match by ID)
-                if imdb_id:
-                    log(f"Querying Stremio addons for ID: {imdb_id}", level="info")
-                    stremio_streams = self.stremio.get_streams(media_type, imdb_id)
-                    if stremio_streams:
-                        streams.extend(stremio_streams)
+                clean_tt = imdb_id.split(":")[0] if imdb_id and imdb_id.startswith("tt") else ""
+                clean_tmdb = tmdb_id if str(tmdb_id).isdigit() else None
+                m_type = "series" if media_type == "series" else "movie"
 
-                # 2. Search DHT with Original Title (English/Native)
-                if original_title:
-                    log(f"DHT resolving stream for original title: {original_title}", level="info")
-                    dht_orig = self.bitsearch.search(original_title, category)
-                    if dht_orig:
-                        existing_hashes = {s.get("infoHash", "").lower() for s in streams if s.get("infoHash")}
-                        for s in dht_orig:
-                            h = s.get("infoHash", "").lower()
-                            if not h or h not in existing_hashes:
-                                streams.append(s)
-
-                # 3. Search DHT with Local Title (Spanish) if different
-                if title and title != original_title:
-                    log(f"DHT resolving stream for Spanish title: {title}", level="info")
-                    es_streams = self.bitsearch.search(title, category)
-                    if es_streams:
-                        existing_hashes = {s.get("infoHash", "").lower() for s in streams if s.get("infoHash")}
-                        for s in es_streams:
-                            h = s.get("infoHash", "").lower()
-                            if not h or h not in existing_hashes:
-                                streams.append(s)
-
-                # Filter out false positives / mismatched torrent titles
-                streams = self.resolver.filter_by_title_match(
-                    streams, title=title, original_title=original_title,
-                    media_type=media_type, season=season, episode=episode
+                item = MediaItem(
+                    media_type=m_type,
+                    title=title or original_title or "Media",
+                    ids={"imdb": clean_tt, "tmdb": clean_tmdb},
+                    season=int(season) if season and str(season).isdigit() else None,
+                    episode=int(episode) if episode and str(episode).isdigit() else None,
                 )
 
-                if self.rd.is_configured():
-                    streams = self.rd.tag_cached_streams(streams)
+                core = MediaCore()
+                releases = core.get_streams(item)
 
-                streams = self.resolver.filter_by_quality(streams)
-                streams = self.resolver.filter_spanish(streams)
-                streams = self.resolver.sort_streams(streams)
+                streams = []
+                for rel in releases:
+                    s_dict = rel.extra.get("raw") or {}
+                    s_dict["title"] = rel.title
+                    s_dict["name"] = rel.source_name
+                    s_dict["infoHash"] = rel.info_hash
+                    s_dict["fileIdx"] = rel.file_idx
+                    s_dict["url"] = rel.url
+                    s_dict["_display_title"] = rel.display_title
+                    s_dict["_quality"] = rel.quality
+                    s_dict["_variant"] = rel.variant
+                    s_dict["_debrid_cached"] = rel.is_debrid_cached
+                    s_dict["_debrid_provider"] = rel.debrid_provider
+                    s_dict["_seeds"] = rel.seeds
+                    s_dict["_size"] = rel.size_formatted
+                    streams.append(s_dict)
 
                 if streams:
                     self.cache.set(cache_key, streams, ttl=1800)
@@ -1012,26 +1002,36 @@ class Router:
         xbmcplugin.endOfDirectory(self.handle, succeeded=False)
         xbmc.sleep(300)
 
-        # 1. First query DHT Search using the query title
-        log(f"DHT resolving stream first for direct play: {title}", level="info")
-        category = "movies" if media_type == "movie" else "series"
-        streams = self.bitsearch.search(title, category)
+        # 1. Resolve streams across all enabled sources via MediaCore
+        from resources.lib.mediacore.models import MediaItem
+        from resources.lib.mediacore.orchestrator import MediaCore
 
-        # 2. Fallback to Stremio Addons if no DHT streams found
-        if not streams:
-            log(f"DHT returned no results for direct play: {title}. Falling back to Stremio addons", level="info")
-            streams = self.stremio.get_streams(media_type, imdb_id)
-
-        if not streams:
+        item = MediaItem(
+            media_type="series" if media_type == "series" else "movie",
+            title=title,
+            ids={"imdb": imdb_id.split(":")[0] if imdb_id and imdb_id.startswith("tt") else ""},
+        )
+        releases = MediaCore().get_streams(item)
+        if not releases:
             ui.show_notification("No streams found.")
             return
 
-        if self.rd.is_configured():
-            streams = self.rd.tag_cached_streams(streams)
-
-        streams = self.resolver.filter_by_quality(streams)
-        streams = self.resolver.filter_spanish(streams)
-        streams = self.resolver.sort_streams(streams)
+        streams = []
+        for rel in releases:
+            s_dict = rel.extra.get("raw") or {}
+            s_dict["title"] = rel.title
+            s_dict["name"] = rel.source_name
+            s_dict["infoHash"] = rel.info_hash
+            s_dict["fileIdx"] = rel.file_idx
+            s_dict["url"] = rel.url
+            s_dict["_display_title"] = rel.display_title
+            s_dict["_quality"] = rel.quality
+            s_dict["_variant"] = rel.variant
+            s_dict["_debrid_cached"] = rel.is_debrid_cached
+            s_dict["_debrid_provider"] = rel.debrid_provider
+            s_dict["_seeds"] = rel.seeds
+            s_dict["_size"] = rel.size_formatted
+            streams.append(s_dict)
 
         self._launch_stream(streams[0], imdb_id, media_type, title)
 
@@ -3046,6 +3046,20 @@ class Router:
         torr_port = Config.torrserver_port()
         torr_status = f"[COLOR lime][Activo ({torr_host}:{torr_port})][/COLOR]" if torr_alive else f"[COLOR yellow][No detectado ({torr_host}:{torr_port})][/COLOR]"
         items.append((f"TorrServer: {torr_status} — Configurar", "settings", "DefaultAddonProgram.png"))
+
+        # Torznab (Jackett / Prowlarr) status
+        torznab_enabled = Config.torznab_enabled()
+        torznab_url = Config.torznab_url()
+        torznab_status = f"[COLOR lime][Activo ({torznab_url})][/COLOR]" if (torznab_enabled and torznab_url) else "[COLOR gray][Desactivado][/COLOR]"
+        items.append((f"Torznab (Jackett/Prowlarr): {torznab_status} — Configurar", "settings", "DefaultAddonProgram.png"))
+
+        # Debrid status
+        if self.rd.is_configured():
+            debrid_name = self.rd.get_active_provider_name()
+            items.append((f"Debrid: [COLOR lime][Activo ({debrid_name})][/COLOR] — Ajustes", "settings", "DefaultAddonProgram.png"))
+        else:
+            items.append(("Debrid: [COLOR gray][No Configurado (P2P Directo)][/COLOR] — Ajustes", "settings", "DefaultAddonProgram.png"))
+
         items.append((f"Motor Torrent actual: [COLOR cyan]{torr_engine}[/COLOR]", "settings", "DefaultAddonProgram.png"))
         items.append((f"Motor AceStream actual: [COLOR cyan]{ace_engine}[/COLOR]", "settings", "DefaultAddonProgram.png"))
 
