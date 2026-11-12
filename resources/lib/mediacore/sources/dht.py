@@ -35,18 +35,37 @@ class DhtSource(BaseSource):
         releases: List[StreamRelease] = []
         for s in raw_streams:
             try:
+                from resources.lib.rtn import RTN
+                meta = RTN.parse(s)
+
                 title = s.get("title") or s.get("name") or "DHT Stream"
                 info_hash = s.get("infoHash") or s.get("info_hash") or ""
                 size = s.get("size") or 0
-                seeds = s.get("seeders") or s.get("seeds") or 0
-                source_name = s.get("source") or "DHT"
+                try:
+                    size_bytes = int(size)
+                except Exception:
+                    size_bytes = 0
+
+                raw_seeds = s.get("seeders") if s.get("seeders") is not None else s.get("seeds")
+                try:
+                    seeds = int(raw_seeds) if raw_seeds is not None else meta.get("seeds", 0)
+                except Exception:
+                    seeds = 0
+
+                source_name = s.get("source") or meta.get("addon") or "DHT"
 
                 rel = StreamRelease(
                     source_name=source_name,
                     title=title,
                     info_hash=info_hash,
-                    size_bytes=size,
+                    size_bytes=size_bytes,
+                    size_formatted=meta.get("size") or "",
                     seeds=seeds,
+                    quality=meta.get("resolution") or "Unknown",
+                    codec=meta.get("codec") or "",
+                    hdr=meta.get("hdr") or "",
+                    audio_channels=meta.get("audio") or "",
+                    variant=meta.get("language") or "V.O.",
                     url=f"magnet:?xt=urn:btih:{info_hash}&dn={title}",
                     extra={"raw": s},
                 )

@@ -95,7 +95,17 @@ class RTN:
         if not isinstance(s, dict):
             return s
 
+        import html
         title = s.get("title") or ""
+        if title and isinstance(title, str):
+            s["title"] = html.unescape(title)
+            title = s["title"]
+
+        name = s.get("name") or ""
+        if name and isinstance(name, str):
+            s["name"] = html.unescape(name)
+            name = s["name"]
+
         desc = s.get("description") or ""
         beh_file = s.get("behaviorHints", {}).get("filename") or ""
 
@@ -113,7 +123,11 @@ class RTN:
                 s["title"] = s["name"]
 
         # Normalize size
-        if not s.get("size"):
+        current_size = s.get("size")
+        if isinstance(current_size, (int, float)) and current_size > 0:
+            gb = current_size / (1024 ** 3)
+            s["size"] = f"{gb:.1f} GB" if gb >= 1.0 else f"{current_size / (1024 ** 2):.0f} MB"
+        elif not current_size:
             v_size = s.get("behaviorHints", {}).get("videoSize")
             if v_size and isinstance(v_size, (int, float)) and v_size > 0:
                 gb = v_size / (1024 ** 3)
@@ -127,14 +141,22 @@ class RTN:
                     s["size"] = m.group(1).strip()
 
         # Normalize seeds
-        if s.get("seeds") is None and s.get("seeders") is None:
+        current_seeds = s.get("seeds") if s.get("seeds") is not None else s.get("seeders")
+        if current_seeds is not None:
+            try:
+                s["seeds"] = int(current_seeds)
+            except Exception:
+                s["seeds"] = 0
+        else:
             combined = f"{s.get('title', '')} {desc} {s.get('name', '')}"
             m = re.search(r"(?:👤|\bseeds?\s*[:=]?\s*|\bseeders?\s*[:=]?\s*|\[s:\s*)\s*(\d+)", combined, re.I)
             if m:
                 try:
                     s["seeds"] = int(m.group(1))
                 except Exception:
-                    pass
+                    s["seeds"] = 0
+            else:
+                s["seeds"] = 0
 
         return s
 
@@ -233,13 +255,18 @@ class RTN:
         # 7. Seeds, Size & Flags
         seeds = s.get("seeds")
         if seeds is None:
-            seeds = s.get("seeders") or 0
+            seeds = s.get("seeders")
+        if seeds is None:
+            seeds = s.get("_seeds")
         try:
-            seeds = int(seeds)
+            seeds = int(seeds) if seeds is not None else 0
         except Exception:
             seeds = 0
 
-        size = s.get("size") or ""
+        size = s.get("size") or s.get("_size") or ""
+        if isinstance(size, (int, float)) and size > 0:
+            gb = size / (1024 ** 3)
+            size = f"{gb:.1f} GB" if gb >= 1.0 else f"{size / (1024 ** 2):.0f} MB"
         is_rd = bool(s.get("_rd_cached"))
         debrid_badge = s.get("_debrid_provider") or "RD"
         if not is_rd:

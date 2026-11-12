@@ -815,7 +815,7 @@ class Router:
 
                 streams = []
                 for rel in releases:
-                    s_dict = rel.extra.get("raw") or {}
+                    s_dict = dict(rel.extra.get("raw") or {})
                     s_dict["title"] = rel.title
                     s_dict["name"] = rel.source_name
                     s_dict["infoHash"] = rel.info_hash
@@ -826,7 +826,9 @@ class Router:
                     s_dict["_variant"] = rel.variant
                     s_dict["_debrid_cached"] = rel.is_debrid_cached
                     s_dict["_debrid_provider"] = rel.debrid_provider
+                    s_dict["seeds"] = rel.seeds
                     s_dict["_seeds"] = rel.seeds
+                    s_dict["size"] = rel.size_formatted
                     s_dict["_size"] = rel.size_formatted
                     streams.append(s_dict)
 
@@ -3125,8 +3127,8 @@ class Router:
         - Elimina redundancias como 'The Chosen (The Chosen (Los elegidos))' -> 'The Chosen [COLOR grey](Los elegidos)[/COLOR]'.
         - Descarta diferencias triviales que sólo son tildes ('Narcos: Mexico' vs 'Narcos: México').
         """
-        t_clean = (title or "").strip()
-        orig_clean = (original_title or "").strip()
+        t_clean = re.sub(r'\[/?COLOR.*?\]', '', (title or "")).strip()
+        orig_clean = re.sub(r'\[/?COLOR.*?\]', '', (original_title or "")).strip()
 
         if not t_clean:
             return orig_clean
@@ -3213,8 +3215,10 @@ class Router:
             rt_tag = self.rt.format_rt_tag(rt_score) if rt_score else ""
 
             display_title = self._format_display_title(title, original_title)
+            badge = item.get("_audio_badge") or item.get("badge") or ""
+            badge_suffix = f" {badge}" if badge else ""
 
-            label = f"{display_title} ({year}){rating_tag}{rt_tag}" if year else f"{display_title}{rating_tag}{rt_tag}"
+            label = f"{display_title}{badge_suffix} ({year}){rating_tag}{rt_tag}" if year else f"{display_title}{badge_suffix}{rating_tag}{rt_tag}"
             if is_series:
                 click = "tmdb_seasons" if tmdb_id else "seasons"
             else:
@@ -3344,8 +3348,7 @@ class Router:
             spanish_items = []
             for item in items[:25]:
                 item_copy = dict(item)
-                orig_name = item.get("name", item.get("title", ""))
-                item_copy["name"] = f"{orig_name} [COLOR lime][Audio ES][/COLOR]"
+                item_copy["_audio_badge"] = "[COLOR lime][Audio ES][/COLOR]"
                 spanish_items.append(item_copy)
 
             self._render_item_list(spanish_items, "movie")
@@ -3367,8 +3370,7 @@ class Router:
             top10 = []
             for idx, item in enumerate(items[:10], 1):
                 item_copy = dict(item)
-                orig_name = item.get("name", item.get("title", ""))
-                item_copy["name"] = f"[COLOR cyan]#{idx:02d}[/COLOR] {orig_name}"
+                item_copy["_audio_badge"] = f"[COLOR cyan]#{idx:02d}[/COLOR]"
                 top10.append(item_copy)
 
             self._render_item_list(top10, "movie")

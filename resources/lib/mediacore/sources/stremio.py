@@ -43,26 +43,27 @@ class StremioSource(BaseSource):
         releases: List[StreamRelease] = []
         for s in raw_streams:
             try:
-                addon_name = s.get("_addon") or s.get("name") or "Stremio"
+                from resources.lib.rtn import RTN
+                meta = RTN.parse(s)
+
+                addon_name = meta.get("addon") or s.get("_addon") or s.get("name") or "Stremio"
                 title = s.get("title") or s.get("name") or "Stream"
-                # Strip leading/trailing newlines common in Stremio stream titles
                 title_clean = title.split("\n")[0].strip()
 
                 info_hash = s.get("infoHash") or ""
                 file_idx = s.get("fileIdx")
                 url = s.get("url") or ""
 
-                # Extract parsed RTN metadata if available
-                quality = s.get("_quality") or "Unknown"
-                codec = s.get("_codec") or ""
-                hdr = s.get("_hdr") or ""
-                audio = s.get("_audio") or ""
-                languages = s.get("_languages") or []
-                variant = s.get("_variant") or "Other"
-                size_formatted = s.get("_size") or ""
-                seeds = s.get("_seeds") or 0
-                is_cached = s.get("_debrid_cached") or False
-                debrid_prov = s.get("_debrid_provider") or ""
+                quality = meta.get("resolution") or "Unknown"
+                codec = meta.get("codec") or ""
+                hdr = meta.get("hdr") or ""
+                audio = meta.get("audio") or ""
+                languages = [meta.get("language")] if meta.get("language") else []
+                variant = meta.get("language") or "Other"
+                size_formatted = meta.get("size") or ""
+                seeds = meta.get("seeds") or 0
+                is_cached = meta.get("is_rd") or False
+                debrid_prov = meta.get("debrid_badge") or ""
 
                 rel = StreamRelease(
                     source_name=addon_name,

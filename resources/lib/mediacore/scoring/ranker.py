@@ -20,32 +20,38 @@ class ScoringEngine:
 
     def normalize(self, release: StreamRelease):
         """Enriches release with RTN metadata if not already present."""
-        raw_dict = {
-            "title": release.title,
-            "name": release.source_name,
-            "size": release.size_bytes,
-            "seeds": release.seeds,
-            "url": release.url,
-            "infoHash": release.info_hash,
-        }
-        RTN.normalize_stream(raw_dict)
+        raw_dict = dict(release.extra.get("raw") or {})
+        if not raw_dict.get("title"):
+            raw_dict["title"] = release.title
+        if not raw_dict.get("name"):
+            raw_dict["name"] = release.source_name
+        if not raw_dict.get("seeds"):
+            raw_dict["seeds"] = release.seeds
+        if not raw_dict.get("size"):
+            raw_dict["size"] = release.size_bytes or release.size_formatted
+
+        meta = RTN.parse(raw_dict)
 
         if not release.quality or release.quality == "Unknown":
-            release.quality = raw_dict.get("_quality", "Unknown")
+            release.quality = meta.get("resolution") or "Unknown"
         if not release.codec:
-            release.codec = raw_dict.get("_codec", "")
+            release.codec = meta.get("codec") or ""
         if not release.hdr:
-            release.hdr = raw_dict.get("_hdr", "")
+            release.hdr = meta.get("hdr") or ""
         if not release.audio_channels:
-            release.audio_channels = raw_dict.get("_audio", "")
+            release.audio_channels = meta.get("audio") or ""
         if not release.languages:
-            release.languages = raw_dict.get("_languages", [])
-        if not release.variant or release.variant == "Other":
-            release.variant = raw_dict.get("_variant", "Other")
+            release.languages = [meta.get("language")] if meta.get("language") else []
+        if not release.variant or release.variant in ("Other", "VO", "V.O."):
+            release.variant = meta.get("language") or release.variant or "V.O."
         if not release.size_formatted:
-            release.size_formatted = raw_dict.get("_size", "")
-        if not release.seeds and raw_dict.get("_seeds"):
-            release.seeds = raw_dict.get("_seeds", 0)
+            release.size_formatted = meta.get("size") or ""
+        if not release.seeds:
+            release.seeds = meta.get("seeds") or 0
+        if not release.is_debrid_cached:
+            release.is_debrid_cached = meta.get("is_rd") or False
+        if not release.debrid_provider:
+            release.debrid_provider = meta.get("debrid_badge") or ""
 
         # Build colored Kodi display label
         badge = RTN.format_label(raw_dict)
@@ -143,12 +149,12 @@ class ScoringEngine:
 
         # Sort according to setting
         if sort_by == "quality":
-            ranked.sort(key=lambda r: (r.is_debrid_cached, r.score, r.seeds), reverse=True)
+            ranked.sort(key=lambda r: (r.is_debrid_cached, 1 if r.seeds > 0 else 0, r.score, r.seeds), reverse=True)
         elif sort_by == "size":
-            ranked.sort(key=lambda r: (r.is_debrid_cached, r.size_bytes), reverse=True)
+            ranked.sort(key=lambda r: (r.is_debrid_cached, 1 if r.seeds > 0 else 0, r.size_bytes, r.seeds), reverse=True)
         else:
-            # Default "seeds" / smart score
-            ranked.sort(key=lambda r: (r.is_debrid_cached, r.score, r.seeds), reverse=True)
+            # Default "seeds": Prioritizes cached debrid first, then active seeds (highest seeds first), then score
+            ranked.sort(key=lambda r: (r.is_debrid_cached, 1 if r.seeds > 0 else 0, r.seeds, r.score), reverse=True)
 
         log(f"ScoringEngine ranked {len(ranked)} releases (from {len(releases)} raw)", level="info")
         return ranked
