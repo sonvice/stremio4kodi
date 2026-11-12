@@ -1,237 +1,217 @@
-<div align="center">
-
-# 🎬 Stremio for Kodi (`plugin.video.stremio4kodi`)
+# Stremio for Kodi (`plugin.video.stremio4kodi`)
 
 [![Kodi Compatibility](https://img.shields.io/badge/Kodi-19%20|%2020%20|%2021%20(Matrix%20/%20Nexus%20/%20Omega)-blue.svg)](https://kodi.tv)
-[![Version](https://img.shields.io/badge/version-v3.7.29-brightgreen.svg)](https://github.com/sonvice/stremio4kodi/releases)
+[![Version](https://img.shields.io/badge/version-v4.1.3-brightgreen.svg)](https://github.com/sonvice/stremio4kodi/releases)
 [![Python Version](https://img.shields.io/badge/Python-3.0%2B-yellow.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-orange.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Android%20|%20CoreELEC%20|%20Linux%20|%20Windows%20|%20macOS-lightgrey.svg)](https://github.com/sonvice/stremio4kodi)
-[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20Development-F16061?logo=ko-fi&logoColor=white)](https://ko-fi.com/sonvice)
 
-**The ultimate bridge between Stremio's decentralized ecosystem and Kodi's native hardware playback engine.**  
-Stream movies, TV shows, and live sports with **TorrServer**, **Elementum**, **Real-Debrid**, integrated **OpenSubtitles v3**, and a zero-lag **AceStream** sports center with DNS anti-censorship bypass.
+Puente modular de alto rendimiento entre el ecosistema descentralizado de Stremio, indexadores Torznab, redes P2P y el motor nativo de reproduccion multimedia de Kodi.
 
----
-
-[ 🇬🇧 **English** ](#-english) &nbsp; | &nbsp; [ 🇪🇸 **Español** ](#-español)
+Disenado con una arquitectura desacoplada en Python 3 puro, 100% independiente de skins y optimizado tanto para dispositivos compactos (Fire TV Stick, Android TV, Smart TV Box) como para centros multimedia avanzados (NVIDIA Shield, Apple TV, PC y NAS).
 
 ---
 
-</div>
+## Indice de Contenidos
 
-<a name="-english"></a>
-## 🇬🇧 English
-
-### 🌟 Key Highlights & Features
-
-* **Decentralized Stremio Addon Protocol (v3):** Seamlessly loads catalogs, streams, and metadata from community Stremio addons (Cinemeta, CyberFlix, Torrentio, etc.) directly into Kodi's native user interface.
-* **Smart Torrent Engines with RAM Buffering:**
-  * **TorrServer MatriX:** High-speed streaming directly in **RAM**, preventing eMMC flash storage wear on TV Boxes, FireSticks, and Smart TVs. Supports PC/NAS remote offloading.
-  * **Elementum:** Complete self-healing integration with automatic architecture binary repairs on Android, CoreELEC, and Linux.
-  * **Silent Auto-Failover:** Automatically cascades: `Real-Debrid` ➔ `TorrServer` ➔ `Elementum` without disrupting playback.
-* **Live AceStream Sports Center:**
-  * **Real-Time Sports Trends:** Aggregates live football and sports broadcasts with community karma score voting (`+` / `-`).
-  * **Anti-Blocking DNS-over-HTTPS (DoH):** Bypasses ISP censorship blocks (Cloudflare `1.1.1.1` and Google `8.8.8.8`) at the socket level.
-  * **Zero-Lag Native Playback:** Instant `<10ms` menu navigation and silent cache restoration on stream exit.
-* **Clean Bilingual Titles:** Displays original titles alongside accurate Spanish localized titles with sanitized unicode characters.
-* **Free Built-in OpenSubtitles v3:** Automatic, zero-configuration subtitle search and download in multiple languages without needing an account or API key.
-* **Hardware-Accelerated Playback:** Full AMLogic, Intel/AMD, NVIDIA Shield, and Apple VideoToolbox hardware decoding via Kodi's native player.
+1. [Nuevas Funcionalidades de la Version 4](#nuevas-funcionalidades-de-la-version-4)
+2. [Servicios Compatibles y Como Sacarles Provecho](#servicios-compatibles-y-como-sacarles-provecho)
+3. [Guia Didactica de Instalacion](#guia-didactica-de-instalacion)
+4. [Guia de Actualizacion y Resolucion de Problemas](#guia-de-actualizacion-y-resolucion-de-problemas)
+5. [Politica de Retencion de Versiones (Dual-Version)](#politica-de-retencion-de-versiones-dual-version)
+6. [Configuracion Rapida en 1 Minuto (Codigo QR)](#configuracion-rapida-en-1-minuto-codigo-qr)
+7. [Ajustes de Rendimiento Recomendados](#ajustes-de-rendimiento-recomendados)
+8. [Preguntas Frecuentes (FAQ)](#preguntas-frecuentes-faq)
 
 ---
 
-### 📥 Didactic Installation Guide
+## Nuevas Funcionalidades de la Version 4
 
-#### Option 1: Via Official Sonvice Repository (Recommended)
-Installing via the repository ensures you automatically receive all future updates in the background:
+### 1. Arquitectura MediaCore (Orquestador Multimedia Unificado)
+En lugar de depender exclusivamente de un solo proveedor o protocolo, la version 4 incorpora **MediaCore**, un nucleo de orquestacion en capas que consulta en paralelo multiples origenes:
+* Addons comunitarios de Stremio (Torrentio, Comet, MediaFusion).
+* Indexadores de torrents Torznab (Jackett y Prowlarr).
+* Redes DHT descentralizadas.
+* Emisiones deportivas y canales en directo mediante AceStream.
 
-1. **Enable Unknown Sources in Kodi:**
-   * Open Kodi ➔ **Settings (⚙️)** ➔ **System** ➔ **Add-ons**.
-   * Toggle on **Unknown sources** and confirm **Yes**.
-2. **Add the Repository Source:**
-   * Go to **Settings (⚙️)** ➔ **File manager** ➔ **Add source**.
-   * Click `<None>` and enter:
-     ```text
-     https://sonvice.github.io/repository.sonvice/
-     ```
-   * Name the media source (e.g., `Sonvice Repo`) and select **OK**.
-3. **Install the Repository:**
-   * Return to Kodi Home ➔ **Add-ons** ➔ Click the **Open Box icon** (Add-on Browser).
-   * Select **Install from zip file** ➔ Choose `Sonvice Repo` ➔ Select `repository.sonvice-1.0.10.zip`.
-4. **Install Stremio for Kodi:**
-   * Select **Install from repository** ➔ **Sonvice Repository**.
-   * Open **Video add-ons** ➔ Select **Stremio for Kodi** ➔ Click **Install** and confirm dependencies.
+MediaCore desduplica resultados automaticamente comparando el identificador hash (`infoHash`) y normaliza la informacion de calidad, codecs y pistas de audio en una estructura uniforme antes de presentarla en pantalla.
 
-#### Option 2: Direct ZIP Download
-1. Download the latest release package:  
-   👉 [**Download plugin.video.stremio4kodi-3.7.29.zip**](https://cdn.jsdelivr.net/gh/sonvice/repository.sonvice@main/repo/plugin.video.stremio4kodi/plugin.video.stremio4kodi-3.7.29.zip)
-2. In Kodi, go to **Add-ons** ➔ **Add-on Browser** ➔ **Install from zip file** and select the downloaded file.
+### 2. Motor de Puntuacion Inteligente y Spanish Booster
+El sistema clasifica las versiones encontradas en funcion de la resolucion, tasa de bits y salud de la fuente, aplicando de forma preferente el algoritmo **Spanish Booster**:
+* **Prioridad automatica al audio en espanol (+3000 puntos):** Analiza etiquetas de metadatos como Castellano, Espanol, Dual, Multi y Latino, posicionando estos enlaces en los primeros lugares de la lista.
+* **Modos de filtrado configurables:** Modo Priorizar (los ubica al principio pero conserva versiones originales) o Modo Estricto (oculta cualquier enlace que no incluya pista en espanol).
+* **Limpieza de nombres y glifos:** Elimina caracteres residuales, etiquetas publicitarias y caracteres ilegibles para asegurar una lectura limpia en televisores.
 
----
+### 3. Home Moderna y Hub de Contenidos (100% Skin-Agnostic)
+* **Acceso visual unificado:** La pantalla principal agrupa colecciones de alta demanda:
+  * Seguir Viendo (recuperacion de punto de reproduccion guardado).
+  * Tendencias de Hoy en Cine y Television.
+  * Estrenos Destacados en Espanol.
+  * Plataformas de Streaming (Netflix, Disney+, Prime Video, HBO Max, Apple TV+, etc.) organizadas directamente sin exponer carpetas tecnicas.
+  * Top 10 Semanal y Buscador Universal.
+* **Compatibilidad Universal con Skins de Kodi:** Funciona de forma fluida sobre la interfaz estandar de Kodi (**Estuary**) y permite exportar Widgets nativos (`plugin://plugin.video.stremio4kodi/?action=home`) a skins avanzados como **Arctic Fuse**, **AH2**, **Titan** o **Nimbus**.
 
-### 🚀 Quick Start & Usage
+### 4. Configuracion Movil via Codigo QR y Web UI Local
+Configurar credenciales complejas con el mando a distancia es lento y propenso a errores. Stremio4Kodi implementa un servicio web efimero que se ejecuta en la red local:
+* Muestra en pantalla un codigo QR generado en Python puro mediante mapa de bits PNG sin dependencias externas.
+* El usuario escanea el codigo con la camara del telefono movil y se abre una aplicacion web local y responsiva.
+* Permite pegar tokens de Real-Debrid, URLs de Comet o claves Torznab en segundos.
+* Al pulsar **Guardar Cambios**, los ajustes se sincronizan en Kodi en tiempo real; al pulsar **Terminar y Cerrar TV**, la ventana modal se cierra automaticamente y el servidor web se apaga sin consumir memoria ni mantener puertos abiertos.
 
-#### 1. Choosing Your Playback Engine
-Navigate to **Add-ons** ➔ **Video add-ons** ➔ **Stremio for Kodi** ➔ **Settings** ➔ **General**:
-* **TorrServer (Recommended for TV Boxes & FireSticks):** Streams torrents inside circular RAM cache without touching internal storage.
-  * *Local TV/PC:* Set Host to `127.0.0.1`, Port `8090`.
-  * *Remote PC/NAS Offloading:* Set Host to your PC's local IP (e.g., `192.168.1.xxx`), Port `8090`. Your PC handles the BitTorrent connections, sending a smooth HTTP stream to your TV.
-* **Elementum:** Native built-in torrent engine with disk caching and automatic dependency repair.
-* **Real-Debrid:** Enter your API token in the **Debrid** tab for instant cached streaming without P2P seeding.
-
-#### 2. Browsing & Watching
-* **Discover Catalogs:** Browse Popular, Trending, In Theaters, and Streaming Platforms (Netflix, HBO Max, Disney+, Prime Video, Apple TV+).
-* **Instant Subtitles:** OpenSubtitles v3 fetches and loads matching subtitles on playback start automatically.
-* **Live Sports:** Open **Live Sports (AceStream)** to browse verified matches with live peer counts and download speeds.
+### 5. Subtitulos Gratuitos OpenSubtitles v3 Integrados
+Modulo nativo que consulta directamente los servicios REST de OpenSubtitles v3 al inicio de la reproduccion. No requiere registro de cuentas, contraseñas ni claves de pago; los subtitulos en espanol e ingles se descargan de forma instantanea y sincronizada.
 
 ---
 
-### ⚙️ Architecture & Recommended Performance Settings
+## Servicios Compatibles y Como Sacarles Provecho
 
-For TorrServer web dashboard (`http://localhost:8090` or `http://192.168.1.xxx:8090`):
+Stremio4Kodi esta disenado para integrarse con los principales servicios de la comunidad multimedia:
 
-| Setting | Low-Spec Device (FireStick / TV Box) | PC / Server / NAS | Purpose |
+| Categoria | Servicio | Como aprovecharlo al maximo |
+| :--- | :--- | :--- |
+| **Proveedores Debrid** | **Real-Debrid**, **TorBox**, **AllDebrid**, **Premiumize.me**, **Debrid-Link** | Convierte los enlaces torrent en transmisiones de descarga directa de alta velocidad (CDN). Permite reproducir archivos 4K UHD con tasas de bits elevadas (>60 Mbps) sin depender del numero de semillas ni exponer tu direccion IP en redes P2P. |
+| **Motores Torrent P2P** | **TorrServer MatriX** | Transmite torrents directamente utilizando un bufer circular en la **memoria RAM**, sin escribir en el almacenamiento interno ni desgastar las memorias flash de televisores o FireSticks. Permite delegar la ejecucion de TorrServer a un PC o NAS local (ej. `192.168.1.50:8090`), transmitiendo solo el flujo de video limpio por red interna. |
+| **Motores Torrent P2P** | **Elementum** | Motor torrent nativo que funciona de forma autonoma en disco con recuperacion automatica de dependencias. Ideal como respaldo si no se dispone de TorrServer o Debrid. |
+| **Indexadores Privados/Locales**| **Torznab (Prowlarr / Jackett)** | Permite buscar simultaneamente en docenas de trackers publicos y trackers privados especializados (incluyendo trackers espanoles como DonTorrent). MediaCore consulta estos trackers en paralelo y envia el archivo a Real-Debrid o TorrServer de forma transparente. |
+| **Fuentes Stremio y Comet** | **Torrentio, Comet, MediaFusion** | Acceso a las bases de datos mundiales de enlaces Stremio. Puedes introducir tu URL privada de manifest de Comet para aplicar tus propios filtros de tamano, resolucion y orden de proveedores. |
+| **Transmisiones en Vivo** | **AceStream (Horus / AceWeb)** | Reproduccion directa de eventos deportivos y canales P2P en directo con bypass DNS-over-HTTPS (DoH) integrado hacia Cloudflare y Google, evitando los bloqueos de operadoras a nivel de socket. |
+| **Metadatos y Seguimiento** | **The Movie Database (TMDB)** | Proporciona fichas tecnicas, puntuaciones de Rotten Tomatoes e IMDb, sinopsis en espanol, posters en alta definicion y catalogos actualizados. |
+| **Seguimiento de Series** | **Trakt.tv / Simkl** | Sincronizacion del historial de reproduccion y marcado automatico de capitulos vistos. |
+
+---
+
+## Guia Didactica de Instalacion
+
+### Advertencia Tecnica Critica: Por que instalar siempre el Repositorio primero
+El motor de archivos remotos de Kodi (`zip://https://...`) no es un gestor de descargas convencional. Si se intenta instalar un archivo ZIP pesado (>50 archivos) directamente desde una direccion web remota, Kodi realiza cientos de peticiones HTTP parciales (Range Requests) para leer individualmente cada carpeta, lo que en Android TV, FireStick o CoreELEC satura la conexion y arroja el error:
+```text
+Fallo al descomprimir el archivo (Failed to unpack archive)
+```
+
+**El metodo correcto y universal:** Se instala primero el archivo ligero del repositorio (`repository.sonvice-X.X.X.zip`, pesa menos de 30 KB y contiene solo 2 ficheros). Una vez instalado el repositorio, Kodi descarga el archivo completo a su almacenamiento temporal local y lo descomprime a maxima velocidad, garantizando ademas las **actualizaciones automaticas**.
+
+---
+
+### Proceso de Instalacion Paso a Paso
+
+#### Paso 1: Habilitar Origenes Desconocidos en Kodi
+1. Inicia Kodi y entra en **Ajustes** (icono de rueda dentada en la esquina superior izquierda).
+2. Selecciona **Sistema** y entra en la seccion **Add-ons**.
+3. Activa la opcion **Origenes desconocidos**.
+4. Aparecera un mensaje de confirmacion; pulsa **Si**.
+
+#### Paso 2: Anadir la Fuente Web de Sonvice
+1. En el menu de **Ajustes**, entra en **Explorador de archivos**.
+2. Haz doble clic o pulsa en **Anadir fuente**.
+3. Haz clic sobre el recuadro que indica `<Ninguno>`.
+4. Escribe con precision la siguiente direccion URL:
+   ```text
+   https://sonvice.github.io/repository.sonvice/
+   ```
+5. En el campo de nombre inferior, introduce un nombre facil de identificar, por ejemplo:
+   ```text
+   Sonvice Repo
+   ```
+6. Pulsa **OK** para guardar la fuente.
+
+#### Paso 3: Instalar el Repositorio Oficial
+1. Vuelve a la pantalla principal de Kodi y entra en el menu **Add-ons**.
+2. Haz clic en el icono de la caja abierta situado arriba a la izquierda (**Explorador de complementos**).
+3. Selecciona la opcion **Instalar desde un archivo .zip**.
+4. En la lista de ubicaciones, selecciona **Sonvice Repo**.
+5. Haz clic sobre el archivo del repositorio:
+   ```text
+   repository.sonvice-1.0.11.zip
+   ```
+6. Espera unos segundos hasta que aparezca la notificacion en pantalla indicando que **Sonvice Repository se ha instalado correctamente**.
+
+#### Paso 4: Instalar Stremio for Kodi
+1. Dentro del mismo Explorador de complementos, selecciona **Instalar desde repositorio**.
+2. Elige **Sonvice Repository**.
+3. Entra en la categoria **Complementos para video**.
+4. Haz clic en **Stremio for Kodi** y pulsa el boton **Instalar** (abajo a la derecha).
+5. Si Kodi muestra una lista de dependencias adicionales necesarias, pulsa **OK** para confirmar la instalacion.
+
+---
+
+## Guia de Actualizacion y Resolucion de Problemas
+
+### Problema: Kodi indica que el repositorio esta instalado pero no muestra la actualizacion a la version 4
+Kodi mantiene una base de datos local en SQLite (`Addons33.db`) donde guarda en cache la lista de versiones para no saturar los servidores. De forma predeterminada, Kodi comprueba si hay novedades una vez cada 24 horas, lo que puede provocar que no veas la nueva version de forma inmediata.
+
+### Solucion: Forzar la Comprobacion Manual de Actualizaciones
+1. En Kodi, dirigete a **Add-ons** ➔ **Instalar desde repositorio**.
+2. Colocate sobre **Sonvice Repository** (sin hacer clic para entrar).
+3. Abre el **Menu contextual**:
+   * En mando a distancia de televisor: Manten pulsado el boton central o pulsa el boton Menu (tres lineas horizontales).
+   * En ordenador: Haz clic con el boton derecho del raton o pulsa la tecla `C`.
+   * En pantalla tactil: Manten pulsado sobre el nombre del repositorio.
+4. En el menu desplegable, selecciona **Comprobar actualizaciones** (Check for updates).
+5. Kodi se conectara en ese instante al CDN de GitHub Pages, descargara el indice `addons.xml` mas reciente y actualizara el addon a la version actual de forma instantanea.
+
+---
+
+## Politica de Retencion de Versiones (Dual-Version)
+
+El repositorio mantiene intencionadamente **unicamente dos versiones** de Stremio for Kodi:
+
+1. **Ultima Version Estable (`v4.1.x` - Recomendada):**
+   * Incluye la arquitectura MediaCore, la Home Moderna, el motor de puntuacion Spanish Booster, configuracion movil por QR y compatibilidad con widgets nativos.
+2. **Version Antigua / Clasica (`v3.7.33`):**
+   * Version monolitica clasica sin dependencias complejas, conservada permanentemente para dispositivos antiguos o usuarios que prefieran la interfaz tradicional de menus directos de Stremio.
+
+---
+
+## Configuracion Rapida en 1 Minuto (Codigo QR)
+
+Para no perder tiempo escribiendo contraseñas largas con el mando de la television:
+
+1. Abre **Stremio for Kodi** y pulsa en la opcion del menu:
+   ```text
+   Configurar desde el Movil (QR)
+   ```
+2. Asegurate de que tu telefono movil este conectado a la **misma red Wi-Fi** que tu Kodi.
+3. Abre la camara o cualquier lector de codigos QR en tu movil y apunta a la pantalla del televisor.
+4. Toca en el enlace que aparece para abrir la interfaz web de configuracion:
+   * **Pestana Debrid & P2P:** Activa Real-Debrid y pega tu API Token (o credenciales de TorrServer / TorBox).
+   * **Pestana Stremio & Comet:** Pega la URL de tu manifest si utilizas configuraciones privadas.
+   * **Pestana Torznab:** Introduce la URL y API Key de tu servidor Prowlarr o Jackett.
+   * **Pestana Audio & Filtros:** Ajusta si deseas priorizar o exigir audio en espanol.
+5. Pulsa el boton **Guardar Cambios** para verificar que todo se guarda correctamente (veras la confirmacion en verde tanto en el movil como en la TV).
+6. Pulsa **Terminar y Cerrar TV**; la ventana se cerrara en la television y el servidor web se apagara de forma automatica e instantanea.
+
+---
+
+## Ajustes de Rendimiento Recomendados
+
+Para la configuracion de TorrServer (`http://localhost:8090` o `http://IP_DE_TU_PC:8090`):
+
+| Parametro | Dispositivos Ligeros (Fire TV Stick / TV Box) | PC / Servidor / NAS | Proposito |
 | :--- | :--- | :--- | :--- |
-| **Cache size (RAM)** | `100 MB - 150 MB` | `500 MB - 1024 MB` | Memory ring buffer for downloaded video chunks. |
-| **Preload cache** | `5% - 10%` | `10% - 15%` | Buffer percentage before video starts playback. |
-| **Torrents connect limit**| `20 - 30` | `50 - 100` | Peer connection limit to avoid router overload. |
-| **Save to database** | Disabled | Disabled | Keeps disk writes zero; operates strictly in RAM. |
+| **Cache size (RAM)** | `100 MB - 150 MB` | `500 MB - 1024 MB` | Bufer de memoria en RAM para los fragmentos de video. |
+| **Preload cache** | `5% - 8%` | `10% - 15%` | Porcentaje de bufer previo antes de iniciar la reproduccion. |
+| **Torrents connect limit** | `20 - 30` | `60 - 100` | Limite de conexiones simultaneas para proteger routers domesticos. |
+| **Save to database** | Desactivado | Desactivado | Garantiza cero escrituras en memoria flash; 100% volatil en RAM. |
 
 ---
 
-### ❓ Frequently Asked Questions (FAQ)
+## Preguntas Frecuentes (FAQ)
 
-<details>
-<summary><b>1. Why choose TorrServer over Elementum on TV Boxes?</b></summary>
-Elementum writes torrent chunks to local storage. On devices with limited flash memory (8 GB FireSticks or Android TV boxes), this causes premature storage wear and out-of-space crashes. TorrServer operates 100% in volatile RAM.
-</details>
+> [!NOTE]
+> **1. ¿Que diferencia hay entre usar Real-Debrid o TorrServer?**
+> * **Real-Debrid** es un servicio de pago externo que descarga los torrents en sus servidores en la nube de alta velocidad. Cuando reproduces una pelicula, la recibes por descarga directa mediante protocolo HTTPS sin hacer P2P y sin consumir tu ancho de banda de subida.
+> * **TorrServer** es una herramienta gratuita y de codigo abierto que gestiona las conexiones torrent directamente en tu red domestica, almacenando el video temporalmente en la memoria RAM de tu dispositivo sin tocar el almacenamiento interno.
 
-<details>
-<summary><b>2. How does the AceStream anti-censorship bypass work?</b></summary>
-Many Spanish and European ISPs block P2P tracker domains via DNS manipulation. The addon injects a socket-level DNS resolver using DNS-over-HTTPS (DoH) querying Cloudflare (1.1.1.1) and Google (8.8.8.8), completely bypassing ISP DNS blocks.
-</details>
+> [!NOTE]
+> **2. ¿Por que el addon no contiene emojis en sus menus?**
+> Las fuentes tipograficas estandar de Kodi en sistemas como Android TV, CoreELEC y LibreELEC no incluyen glifos de emojis en sus tablas de caracteres TrueType, provocando que se rendericen rectangulos vacios o simbolos rotos. Stremio4Kodi utiliza exclusivamente iconos nativos del sistema para asegurar una apariencia visual uniforme y profesional en cualquier plataforma.
 
-<details>
-<summary><b>3. Do I need an account for OpenSubtitles?</b></summary>
-No. The addon integrates OpenSubtitles v3 with direct REST endpoints, downloading synchronized subtitles without requiring any account or API key.
-</details>
+> [!NOTE]
+> **3. ¿Como funcionan los subtitulos de OpenSubtitles v3?**
+> El addon se comunica directamente con la interfaz REST publica de OpenSubtitles v3, emparejando la duracion y el identificador IMDb de la pelicula o capitulo para descargar los subtitulos coincidentes en idioma espanol sin requerir cuentas de usuario ni claves comerciales.
 
 ---
 
-### ☕ Support Development
+## Licencia
 
-If you enjoy using Stremio for Kodi and would like to support its ongoing development, server maintenance, and new features, consider buying me a coffee:
-
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/sonvice)
-
----
-
-<a name="-español"></a>
-## 🇪🇸 Español
-
-### 🌟 Características Principales
-
-* **Protocolo de Addons de Stremio Descentralizado (v3):** Carga catálogos, enlaces y metadatos desde los addons comunitarios de Stremio (Cinemeta, CyberFlix, Torrentio, etc.) directamente en la interfaz nativa de Kodi.
-* **Motores Torrent Inteligentes con Búfer en RAM:**
-  * **TorrServer MatriX:** Transmisión directa en **memoria RAM**, protegiendo las memorias eMMC/flash de TV Boxes, FireSticks y televisores contra el desgaste. Permite delegar la carga pesada al PC/NAS doméstico.
-  * **Elementum:** Integración con auto-recuperación integral y reparación automática de binarios según arquitectura en Android, CoreELEC y Linux.
-  * **Failover Silencioso:** Conmutación jerárquica transparente: `Real-Debrid` ➔ `TorrServer` ➔ `Elementum` sin interrumpir la experiencia de usuario.
-* **Centro Deportivo AceStream en Vivo:**
-  * **Tendencias en Tiempo Real:** Agregación de partidos de fútbol y eventos deportivos con puntuación de reputación comunitaria (`+` / `-`).
-  * **Bypass Anti-Bloqueo DNS-over-HTTPS (DoH):** Evasión de bloqueos de operadoras (Cloudflare `1.1.1.1` y Google `8.8.8.8`) a nivel de socket.
-  * **Cero Retardos y 60 FPS:** Apertura de menús en `<10ms` y restauración silenciosa de listas al salir de la reproducción sin pantallas negras.
-* **Títulos Bilingües Limpios:** Muestra el título original junto con su traducción al español con codificación de caracteres corregida sin errores unicode.
-* **OpenSubtitles v3 Gratuito e Integrado:** Búsqueda y descarga automática de subtítulos en español e inglés sin requerir registro, cuentas ni claves API.
-* **Aceleración por Hardware:** Soporte completo de decodificación por hardware en AMLogic, Intel/AMD, NVIDIA Shield y Apple VideoToolbox.
-
----
-
-### 📥 Guía Didáctica de Instalación
-
-#### Opción 1: Desde el Repositorio Oficial Sonvice (Recomendado)
-Instalar desde el repositorio garantiza que recibirás todas las actualizaciones futuras de forma automática en segundo plano:
-
-1. **Activar Orígenes Desconocidos en Kodi:**
-   * Abre Kodi ➔ **Ajustes (⚙️)** ➔ **Sistema** ➔ **Add-ons**.
-   * Activa la casilla **Orígenes desconocidos** y confirma con **Sí**.
-2. **Añadir la Fuente del Repositorio:**
-   * Ve a **Ajustes (⚙️)** ➔ **Explorador de archivos** ➔ **Añadir fuente**.
-   * Haz clic sobre `<Ninguno>` y escribe exactamente:
-     ```text
-     https://sonvice.github.io/repository.sonvice/
-     ```
-   * Asigna un nombre a la fuente (por ejemplo: `Sonvice Repo`) y pulsa **OK**.
-3. **Instalar el Repositorio:**
-   * Vuelve al menú principal de Kodi ➔ **Add-ons** ➔ Haz clic en el **icono de la caja abierta** (Explorador de complementos).
-   * Selecciona **Instalar desde un archivo .zip** ➔ Elige `Sonvice Repo` ➔ Selecciona `repository.sonvice-1.0.10.zip`.
-4. **Instalar Stremio for Kodi:**
-   * Selecciona **Instalar desde repositorio** ➔ **Sonvice Repository**.
-   * Entra en **Complementos para vídeo** ➔ Selecciona **Stremio for Kodi** ➔ Pulsa **Instalar** y confirma dependencias.
-
-#### Opción 2: Descarga Directa del archivo ZIP
-1. Descarga el paquete de la última versión:  
-   👉 [**Descargar plugin.video.stremio4kodi-3.7.29.zip**](https://cdn.jsdelivr.net/gh/sonvice/repository.sonvice@main/repo/plugin.video.stremio4kodi/plugin.video.stremio4kodi-3.7.29.zip)
-2. En Kodi, ve a **Add-ons** ➔ **Explorador de complementos** ➔ **Instalar desde un archivo .zip** y selecciona el archivo descargado.
-
----
-
-### 🚀 Inicio Rápido y Uso
-
-#### 1. Selección del Motor de Reproducción
-Ve a **Add-ons** ➔ **Add-ons de vídeo** ➔ **Stremio for Kodi** ➔ **Ajustes** ➔ **General**:
-* **TorrServer (Recomendado en TV Box / FireStick):** Reproduce torrents en la memoria RAM sin degradar la memoria interna.
-  * *Mismo televisor o PC local:* Servidor en `127.0.0.1`, Puerto `8090`.
-  * *PC o Servidor Remoto:* Introduce la IP local de tu ordenador (ej: `192.168.1.xxx`), Puerto `8090`. Tu PC asume todas las conexiones torrent y envía un flujo HTTP limpio a la tele.
-* **Elementum:** Motor torrent nativo integrado con soporte de reparación automática de arquitectura.
-* **Real-Debrid:** Introduce tu token API en la pestaña **Debrid** para reproducción en la nube instantánea sin descargas P2P.
-
-#### 2. Navegación y Reproducción
-* **Explorar Catálogos:** Películas y series populares, en cartelera y filtrado por plataformas (Netflix, HBO Max, Disney+, Prime Video, Apple TV+).
-* **Subtítulos Automáticos:** OpenSubtitles v3 detecta y sincroniza los subtítulos coincidentes al iniciar el vídeo.
-* **Deportes en Vivo:** Entra en **Deportes en Directo (AceStream)** para explorar partidos verificados con conteo de peers y velocidad en tiempo real.
-
----
-
-### ⚙️ Parámetros de Rendimiento Recomendados
-
-Ajustes óptimos para la interfaz web de TorrServer (`http://localhost:8090` o `http://192.168.1.xxx:8090`):
-
-| Parámetro | Dispositivo Modesto (TV Box / FireStick) | PC / Servidor / NAS | Función |
-| :--- | :--- | :--- | :--- |
-| **Cache size (Memoria RAM)** | `100 MB - 150 MB` | `500 MB - 1024 MB` | Búfer circular en RAM para los fragmentos de vídeo. |
-| **Preload cache (Prebúfer)** | `5% - 10%` | `10% - 15%` | Porcentaje de búfer antes de arrancar el reproductor. |
-| **Torrents connect limit** | `20 - 30` | `50 - 100` | Límite de conexiones para no saturar routers débiles. |
-| **Save to database** | Desactivado | Desactivado | Cero escrituras en almacenamiento; 100% en RAM. |
-
----
-
-### ❓ Preguntas Frecuentes (FAQ)
-
-<details>
-<summary><b>1. ¿Por qué es mejor TorrServer que Elementum en televisores?</b></summary>
-Elementum escribe las partes del torrent en el almacenamiento interno. En dispositivos con memoria limitada (como Fire TV Sticks de 8 GB), esto satura el espacio y desgasta las memorias flash. TorrServer trabaja de forma 100% volátil en memoria RAM.
-</details>
-
-<details>
-<summary><b>2. ¿Cómo funciona el bypass de bloqueo DNS para AceStream?</b></summary>
-Las operadoras de telecomunicaciones bloquean dominios de streaming P2P modificando las respuestas DNS estándar. El addon integra un resolvedor interno DoH (DNS-over-HTTPS) que consulta a Cloudflare (1.1.1.1) y Google (8.8.8.8), evadiendo los bloqueos de forma totalmente transparente.
-</details>
-
-<details>
-<summary><b>3. ¿Necesito una cuenta para los subtítulos?</b></summary>
-No. El addon integra OpenSubtitles v3 mediante endpoints REST directos, descargando subtítulos limpios y sincronizados sin necesidad de usuario, contraseña ni clave API.
-</details>
-
----
-
-### ☕ Apoyar el Desarrollo
-
-Si disfrutas utilizando Stremio for Kodi y valoras el trabajo dedicado al proyecto, puedes apoyar su desarrollo continuo, mantenimiento de servidores y nuevas funciones invitándome a un café:
-
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/sonvice)
-
----
-
-## 📄 License / Licencia
-
-Distributed under the **MIT License**. See `LICENSE` for more information.
+Distribuido bajo licencia de codigo abierto **MIT License**. Consulta el archivo `LICENSE` para obtener mas informacion.
