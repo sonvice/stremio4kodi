@@ -121,7 +121,9 @@ class SetupRequestHandler(BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/html; charset=utf-8')
                 self.send_header('Content-Length', str(len(content)))
-                self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
+                self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0')
+                self.send_header('Pragma', 'no-cache')
+                self.send_header('Expires', '0')
                 self.end_headers()
                 self.wfile.write(content)
             else:
@@ -264,6 +266,56 @@ class SetupRequestHandler(BaseHTTPRequestHandler):
             })
             return
 
+        if path == '/api/play':
+            content_length = int(self.headers.get('Content-Length', 0))
+            if content_length <= 0 or content_length > MAX_BODY_BYTES:
+                self._send_json({"ok": False, "error": "Payload invalido."}, status=400)
+                return
+
+            body = self.rfile.read(content_length)
+            try:
+                payload = json.loads(body.decode('utf-8'))
+            except Exception as e:
+                self._send_json({"ok": False, "error": f"JSON malformado: {e}"}, status=400)
+                return
+
+            play_type = payload.get("type", "").strip().lower()
+            uri = payload.get("uri", "").strip()
+
+            if not play_type or not uri:
+                self._send_json({"ok": False, "error": "Parametros 'type' y 'uri' requeridos."}, status=400)
+                return
+
+            if play_type not in ("torrent", "acestream"):
+                self._send_json({"ok": False, "error": "Tipo no soportado. Usa 'torrent' o 'acestream'."}, status=400)
+                return
+
+            play_req = {"type": play_type, "uri": uri}
+            self.server.play_request = play_req
+            if hasattr(self.server, 'wrapper'):
+                self.server.wrapper.play_request = play_req
+            self.server.last_activity = time.time()
+
+            if xbmc and xbmcgui:
+                try:
+                    dialog = xbmcgui.Dialog()
+                    msg = "Reproduccion de Torrent recibida" if play_type == "torrent" else "Canal AceStream recibido"
+                    dialog.notification(
+                        "Stremio4Kodi",
+                        msg,
+                        xbmcgui.NOTIFICATION_INFO,
+                        3000
+                    )
+                except Exception:
+                    pass
+
+            self._send_json({
+                "ok": True,
+                "message": "Enviado a Kodi. Iniciando reproduccion...",
+                "type": play_type
+            })
+            return
+
         self.send_error(404, "Endpoint no encontrado.")
 
 
@@ -278,13 +330,15 @@ class SetupServer:
         self.thread = None
         self.is_saved = False
         self.is_finished = False
+        self.play_request = None
         self.save_count = 0
         self.last_save_time = ""
         self.is_closed = False
         self.last_activity = time.time()
 
     def get_url(self):
-        return f"http://{self.host}:{self.port}/?k={self.session_token}"
+        t = int(time.time())
+        return f"http://{self.host}:{self.port}/?k={self.session_token}&t={t}"
 
     def start(self):
         """Inicia el servidor en un hilo secundario daemon."""
@@ -305,6 +359,7 @@ class SetupServer:
         self.httpd.last_activity = self.last_activity
         self.httpd.is_saved = False
         self.httpd.is_finished = False
+        self.httpd.play_request = None
         self.httpd.save_count = 0
         self.httpd.last_save_time = ""
         self.httpd.wrapper = self

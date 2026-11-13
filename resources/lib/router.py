@@ -122,6 +122,7 @@ class Router:
             "home":                    self._home_hub,
             "home_hub":                self._home_hub,
             "mobile_setup":            self._mobile_setup_route,
+            "play_external":           self._play_external,
             "spanish_releases":        self._spanish_releases,
             "top_weekly":              self._top_weekly,
             "widget_continue":         self._widget_continue,
@@ -1240,6 +1241,40 @@ class Router:
             self.cache.delete("_chosen_resume_pos")
             self.cache.delete("_chosen_resume_id")
             raise
+
+    # ══════════════════════════════════════════════════════
+    #  PLAY EXTERNAL (MOBILE / REMOTE CAST)
+    # ══════════════════════════════════════════════════════
+    def _play_external(self):
+        """Reproduce un enlace externo (Magnet/Torrent o AceStream) enviado desde el móvil."""
+        req_type = self.params.get("type", "torrent")
+        uri = self.params.get("uri", "").strip()
+        if not uri:
+            ui.show_notification("Enlace vacio recibido.")
+            return
+
+        log(f"Play external requested ({req_type}): {uri[:80]}", level="info")
+
+        if req_type == "torrent":
+            ui.show_notification("Resolviendo torrent recibido...", time=2500)
+            playable_url, url_type = self.resolver.resolve_magnet(uri)
+            if not playable_url:
+                ui.show_notification("No se pudo resolver el torrent.")
+                return
+            log(f"External play ({url_type}): {playable_url}", level="info")
+            if playable_url.startswith("plugin://"):
+                xbmc.executebuiltin(f'PlayMedia("{playable_url}")')
+            else:
+                li = xbmcgui.ListItem(label="Torrent Remoto", path=playable_url)
+                xbmc.Player().play(playable_url, li)
+        elif req_type == "acestream":
+            match = re.search(r'([a-fA-F0-9]{40})', uri)
+            if not match:
+                ui.show_notification("Hash AceStream no valido (debe tener 40 caracteres).")
+                return
+            ace_hash = match.group(1).lower()
+            self._add_manual_acestream_history(ace_hash, "AceStream Remoto (Movil)")
+            self._play_acestream_hash(ace_hash, "AceStream Remoto", handle=None)
 
     # ══════════════════════════════════════════════════════
     #  MANUAL TORRENT / MAGNET

@@ -3,366 +3,522 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#060c18">
-  <title>Stremio4Kodi — Configuración Móvil</title>
+  <meta name="theme-color" content="#070b14">
+  <title>Stremio4Kodi — Control & Configuración</title>
   <style>
     :root {
-      --bg: #070d19;
-      --card-bg: rgba(16, 29, 54, 0.72);
-      --card-border: rgba(90, 145, 255, 0.18);
-      --text: #f0f4fc;
-      --text-muted: #9ab3db;
-      --accent: #2e75ff;
-      --accent-glow: rgba(46, 117, 255, 0.4);
-      --accent2: #00e5ff;
-      --ok: #00e676;
-      --err: #ff5252;
-      --input-bg: rgba(3, 10, 22, 0.75);
-      --radius: 18px;
+      --bg: #070b14;
+      --card-bg: #0e1626;
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-border-focus: rgba(0, 180, 216, 0.5);
+      --text: #f1f5f9;
+      --text-muted: #8fa0bc;
+      --accent: #0077b6;
+      --accent-bright: #00b4d8;
+      --accent-glow: rgba(0, 180, 216, 0.25);
+      --ok: #10b981;
+      --ok-glow: rgba(16, 185, 129, 0.2);
+      --err: #ef4444;
+      --input-bg: #060913;
+      --radius: 16px;
+      --radius-sm: 10px;
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body {
       margin: 0; min-height: 100vh; color: var(--text); background: var(--bg);
-      background: radial-gradient(100% 60% at 80% -10%, rgba(46,117,255,0.22), transparent 70%),
-                  radial-gradient(90% 50% at 0% 20%, rgba(0,229,255,0.14), transparent 60%),
-                  radial-gradient(130% 90% at 50% 0%, #0c1c38 0%, var(--bg) 65%) fixed;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      line-height: 1.45;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.5; -webkit-font-smoothing: antialiased;
     }
     header {
-      position: sticky; top: 0; z-index: 20;
-      background: rgba(7, 13, 25, 0.82);
+      position: sticky; top: 0; z-index: 30;
+      background: rgba(7, 11, 20, 0.92);
       backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
       border-bottom: 1px solid var(--card-border);
     }
-    .header-content {
-      max-width: 680px; margin: 0 auto; padding: 14px 18px;
+    .header-bar {
+      max-width: 620px; margin: 0 auto; padding: 12px 18px;
       display: flex; align-items: center; justify-content: space-between;
     }
     .brand {
-      display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 19px;
-      letter-spacing: -0.02em; background: linear-gradient(135deg, #fff, var(--accent2));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      font-weight: 700; font-size: 17px; letter-spacing: -0.01em; color: #fff;
+      display: flex; align-items: center; gap: 8px;
     }
     .status-badge {
-      display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;
-      padding: 4px 10px; border-radius: 999px; background: rgba(0,230,118,0.12);
-      color: var(--ok); border: 1px solid rgba(0,230,118,0.3);
+      display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;
+      padding: 4px 10px; border-radius: 999px; background: rgba(16, 185, 129, 0.12);
+      color: var(--ok); border: 1px solid rgba(16, 185, 129, 0.25);
     }
-    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+    .status-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--ok);
+      box-shadow: 0 0 6px var(--ok);
+    }
     nav {
-      display: flex; gap: 8px; max-width: 680px; margin: 0 auto; padding: 10px 16px;
-      overflow-x: auto; scrollbar-width: none;
+      display: flex; gap: 6px; max-width: 620px; margin: 0 auto; padding: 6px 14px 12px;
+      overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
     }
     nav::-webkit-scrollbar { display: none; }
     nav button {
-      flex: 1; min-width: 95px; padding: 10px 12px; border-radius: 14px; border: 1px solid transparent;
-      background: transparent; color: var(--text-muted); font-size: 13px; font-weight: 600;
-      cursor: pointer; transition: 0.2s; white-space: nowrap; text-align: center;
+      flex: 0 0 auto; padding: 8px 14px; border-radius: 999px; border: 1px solid transparent;
+      background: rgba(255, 255, 255, 0.05); color: var(--text-muted); font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: 0.15s ease; white-space: nowrap;
     }
     nav button.active {
-      background: linear-gradient(135deg, rgba(46,117,255,0.3), rgba(0,229,255,0.18));
-      color: #fff; border-color: var(--card-border); box-shadow: 0 4px 14px var(--accent-glow);
+      background: var(--card-bg); color: #fff; border-color: var(--card-border-focus);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
     }
-    main { max-width: 680px; margin: 0 auto; padding: 16px 16px 130px; }
+    main { max-width: 620px; margin: 0 auto; padding: 16px 16px 120px; }
     .tab-pane { display: none; }
-    .tab-pane.active { display: block; animation: fadeIn 0.25s ease-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .tab-pane.active { display: block; animation: tabFade 0.2s ease-out; }
+    @keyframes tabFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    
     .card {
       background: var(--card-bg); border: 1px solid var(--card-border);
-      border-radius: var(--radius); padding: 18px; margin-bottom: 16px;
-      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-      box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+      border-radius: var(--radius); padding: 18px; margin-bottom: 14px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+    .card-head {
+      margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between;
     }
     .card-title {
-      font-size: 15px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.05em; color: var(--accent2); margin-top: 0; margin-bottom: 14px;
-      display: flex; align-items: center; justify-content: space-between;
+      font-size: 15px; font-weight: 700; color: #fff; margin: 0;
     }
+    .card-subtitle {
+      font-size: 12px; color: var(--text-muted); margin-top: 2px;
+    }
+
+    /* Segmented Pill Selector */
+    .segmented {
+      display: flex; background: var(--input-bg); padding: 4px; border-radius: var(--radius-sm);
+      border: 1px solid var(--card-border); margin-bottom: 14px; gap: 4px;
+    }
+    .segmented button {
+      flex: 1; padding: 9px 12px; border-radius: 7px; border: none; background: transparent;
+      color: var(--text-muted); font-size: 13px; font-weight: 600; cursor: pointer; transition: 0.15s;
+    }
+    .segmented button.active {
+      background: var(--card-bg); color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    /* Form Fields */
     .field { margin-bottom: 14px; }
     .field:last-child { margin-bottom: 0; }
-    label.field-label {
+    .field-label {
       display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;
     }
+    .input-wrap { position: relative; display: flex; align-items: center; }
     input[type=text], input[type=password], select, textarea {
-      width: 100%; padding: 12px 14px; border-radius: 12px;
+      width: 100%; padding: 12px 14px; border-radius: var(--radius-sm);
       border: 1px solid var(--card-border); background: var(--input-bg);
-      color: var(--text); font-size: 15px; font-family: inherit;
+      color: var(--text); font-size: 16px; font-family: inherit; line-height: 1.4;
       transition: border-color 0.15s, box-shadow 0.15s;
     }
     input:focus, select:focus, textarea:focus {
-      outline: none; border-color: var(--accent2); box-shadow: 0 0 0 3px rgba(0,229,255,0.2);
+      outline: none; border-color: var(--accent-bright);
+      box-shadow: 0 0 0 3px var(--accent-glow);
     }
-    textarea { min-height: 90px; resize: vertical; line-height: 1.4; word-break: break-all; }
+    textarea { min-height: 84px; resize: vertical; word-break: break-all; }
+    
+    .btn-paste-inline {
+      position: absolute; right: 8px; top: 8px; padding: 6px 12px; border-radius: 7px;
+      border: 1px solid rgba(255,255,255,0.12); background: rgba(0, 180, 216, 0.15);
+      color: var(--accent-bright); font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    .btn-paste-inline:active { transform: scale(0.96); background: rgba(0, 180, 216, 0.25); }
+
+    .btn-action-primary {
+      width: 100%; padding: 14px; border-radius: var(--radius-sm); border: none;
+      background: linear-gradient(135deg, var(--accent-bright), var(--accent));
+      color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
+      box-shadow: 0 4px 16px var(--accent-glow); margin-top: 12px;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: transform 0.1s, opacity 0.15s;
+    }
+    .btn-action-primary:active { transform: scale(0.98); }
+    .btn-action-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Switch Rows */
     .row-switch {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06);
+      padding: 11px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
     }
     .row-switch:last-child { border-bottom: none; }
-    .row-info .title { font-weight: 600; font-size: 15px; }
-    .row-info .desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .row-info .title { font-weight: 600; font-size: 14px; color: #fff; }
+    .row-info .desc { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+    
     .toggle {
-      position: relative; width: 50px; height: 30px; flex-shrink: 0;
+      position: relative; width: 46px; height: 26px; flex-shrink: 0;
     }
     .toggle input { opacity: 0; width: 0; height: 0; }
     .toggle-slider {
       position: absolute; inset: 0; border-radius: 999px;
-      background: rgba(120, 140, 180, 0.3); transition: 0.25s; cursor: pointer;
+      background: rgba(255, 255, 255, 0.15); transition: 0.2s; cursor: pointer;
     }
     .toggle-slider:before {
-      content: ""; position: absolute; height: 24px; width: 24px;
+      content: ""; position: absolute; height: 20px; width: 20px;
       left: 3px; bottom: 3px; background: #fff; border-radius: 50%;
-      transition: 0.25s; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      transition: 0.2s; box-shadow: 0 1px 4px rgba(0,0,0,0.4);
     }
     .toggle input:checked + .toggle-slider {
-      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      background: var(--ok);
     }
     .toggle input:checked + .toggle-slider:before {
       transform: translateX(20px);
     }
+
+    /* Fixed Bottom Save Bar */
     .bottom-bar {
-      position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
-      padding: 14px 18px calc(14px + env(safe-area-inset-bottom));
-      background: rgba(6, 12, 24, 0.88);
-      backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 25;
+      padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+      background: rgba(7, 11, 20, 0.94);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
       border-top: 1px solid var(--card-border);
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
+    .bottom-bar.hidden {
+      transform: translateY(100%); opacity: 0; pointer-events: none;
     }
     .bottom-bar-inner {
-      max-width: 680px; margin: 0 auto; display: flex; gap: 12px;
+      max-width: 620px; margin: 0 auto; display: flex; gap: 10px;
     }
     .btn-save {
-      flex: 1.1; padding: 14px 12px; border-radius: 999px; border: none;
-      background: linear-gradient(135deg, var(--accent2), var(--accent));
-      color: #fff; font-size: 15px; font-weight: 700; cursor: pointer;
-      box-shadow: 0 6px 24px var(--accent-glow);
-      display: flex; align-items: center; justify-content: center; gap: 6px;
-      transition: transform 0.12s, opacity 0.2s;
+      flex: 1.1; padding: 13px 12px; border-radius: var(--radius-sm); border: none;
+      background: linear-gradient(135deg, var(--accent-bright), var(--accent));
+      color: #fff; font-size: 14px; font-weight: 700; cursor: pointer;
+      box-shadow: 0 4px 14px var(--accent-glow);
     }
-    .btn-save:active { transform: scale(0.97); }
-    .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-save:active { transform: scale(0.98); }
+    .btn-save:disabled { opacity: 0.5; }
     .btn-finish {
-      flex: 0.9; padding: 14px 12px; border-radius: 999px;
-      border: 1px solid rgba(0, 230, 118, 0.45);
-      background: rgba(0, 230, 118, 0.14);
-      color: #00E676; font-size: 14px; font-weight: 700; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 6px;
-      transition: transform 0.12s, background 0.2s, opacity 0.2s;
+      flex: 0.9; padding: 13px 12px; border-radius: var(--radius-sm);
+      border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.12);
+      color: var(--ok); font-size: 14px; font-weight: 700; cursor: pointer;
     }
-    .btn-finish:active { transform: scale(0.97); }
-    .btn-finish:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-finish:active { transform: scale(0.98); }
+    .btn-finish:disabled { opacity: 0.5; }
+
+    /* Toast */
     .toast {
-      position: fixed; top: 16px; left: 16px; right: 16px; z-index: 99999;
-      max-width: 520px; margin: 0 auto; padding: 14px 18px; border-radius: 14px;
-      background: rgba(10, 24, 50, 0.98); border: 2px solid var(--accent);
-      color: #fff; font-weight: 700; font-size: 15px; text-align: center;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.7); opacity: 0; transform: translateY(-15px);
-      pointer-events: none; transition: transform 0.25s ease, opacity 0.25s ease;
+      position: fixed; top: 14px; left: 16px; right: 16px; z-index: 99999;
+      max-width: 480px; margin: 0 auto; padding: 12px 16px; border-radius: var(--radius-sm);
+      background: #0f1a30; border: 1px solid var(--accent-bright);
+      color: #fff; font-weight: 600; font-size: 14px; text-align: center;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6); opacity: 0; transform: translateY(-12px);
+      pointer-events: none; transition: transform 0.2s ease, opacity 0.2s ease;
     }
     .toast.show { opacity: 1; transform: translateY(0); }
-    .toast.ok { border-color: var(--ok); color: #fff; background: rgba(5, 42, 26, 0.98); box-shadow: 0 8px 25px rgba(0,230,118,0.35); }
-    .toast.err { border-color: var(--err); color: #fff; background: rgba(50, 10, 15, 0.98); box-shadow: 0 8px 25px rgba(255,82,82,0.35); }
+    .toast.ok { border-color: var(--ok); background: #062b1b; }
+    .toast.err { border-color: var(--err); background: #3b0d11; }
+    
+    .format-hint {
+      font-size: 12px; color: var(--text-muted); margin-top: 6px; display: flex; align-items: center; gap: 4px;
+    }
+    .format-hint.active { color: var(--ok); font-weight: 600; }
   </style>
 </head>
 <body>
 
 <header>
-  <div class="header-content">
+  <div class="header-bar">
     <div class="brand">
       <span>Stremio4Kodi</span>
     </div>
     <div class="status-badge" id="status-badge">
-      <span class="status-dot" id="status-dot"></span>
+      <span class="status-dot"></span>
       <span id="status-text">Kodi Conectado</span>
     </div>
   </div>
-  <nav>
-    <button class="active" onclick="switchTab(this, 'debrid')">Debrid & P2P</button>
-    <button onclick="switchTab(this, 'stremio')">Stremio & Comet</button>
-    <button onclick="switchTab(this, 'torznab')">Jackett / Prowlarr</button>
-    <button onclick="switchTab(this, 'preferences')">Audio & Filtros</button>
+  <nav id="nav-tabs">
+    <button class="active" onclick="switchTab(this, 'cast')">Reproducir en Kodi</button>
+    <button onclick="switchTab(this, 'debrid')">Real-Debrid</button>
+    <button onclick="switchTab(this, 'p2p')">Indexadores & P2P</button>
+    <button onclick="switchTab(this, 'stremio')">Addons Stremio</button>
+    <button onclick="switchTab(this, 'prefs')">Preferencias</button>
   </nav>
 </header>
 
 <main>
-  <!-- TAB 1: DEBRID & P2P -->
-  <section id="tab-debrid" class="tab-pane active">
+  <!-- TAB 1: REPRODUCIR EN KODI (CAST INSTANTÁNEO) -->
+  <section id="tab-cast" class="tab-pane active">
     <div class="card">
-      <div class="card-title">Real-Debrid</div>
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">Enviar a Pantalla</h2>
+          <div class="card-subtitle">Pega un enlace y se reproducirá al instante en Kodi</div>
+        </div>
+      </div>
+
+      <!-- Selector Torrent / AceStream -->
+      <div class="segmented">
+        <button type="button" class="active" id="seg-btn-torrent" onclick="switchCastMode('torrent')">Torrent / Magnet</button>
+        <button type="button" id="seg-btn-ace" onclick="switchCastMode('acestream')">Canal AceStream</button>
+      </div>
+
+      <!-- Modo Torrent -->
+      <div id="cast-mode-torrent">
+        <div class="field">
+          <label class="field-label" for="input-cast-torrent">Enlace Magnet o archivo .torrent:</label>
+          <div class="input-wrap">
+            <textarea id="input-cast-torrent" placeholder="magnet:?xt=urn:btih:... o https://... o hash de 40 caracteres" oninput="checkTorrentInput()"></textarea>
+            <button type="button" class="btn-paste-inline" onclick="pasteClipboard('input-cast-torrent', checkTorrentInput)">Pegar</button>
+          </div>
+          <div class="format-hint" id="hint-torrent">Admite enlaces magnet, URLs http:// y hashes infohash</div>
+        </div>
+        <button type="button" class="btn-action-primary" id="btn-cast-torrent" onclick="sendCastRequest('torrent')">
+          <span>Reproducir Torrent en Kodi</span>
+        </button>
+      </div>
+
+      <!-- Modo AceStream -->
+      <div id="cast-mode-acestream" style="display: none;">
+        <div class="field">
+          <label class="field-label" for="input-cast-ace">Hash o enlace acestream://:</label>
+          <div class="input-wrap">
+            <input type="text" id="input-cast-ace" placeholder="acestream://... o Content ID de 40 caracteres" oninput="checkAceInput()">
+            <button type="button" class="btn-paste-inline" onclick="pasteClipboard('input-cast-ace', checkAceInput)">Pegar</button>
+          </div>
+          <div class="format-hint" id="hint-ace">Admite enlaces acestream:// y hashes de 40 caracteres hex</div>
+        </div>
+        <button type="button" class="btn-action-primary" id="btn-cast-ace" onclick="sendCastRequest('acestream')">
+          <span>Reproducir AceStream en Kodi</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 2: REAL-DEBRID & MULTICUENTAS -->
+  <section id="tab-debrid" class="tab-pane">
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">Real-Debrid</h2>
+          <div class="card-subtitle">Descarga en streaming a máxima velocidad sin depender de semillas</div>
+        </div>
+      </div>
       <div class="row-switch">
         <div class="row-info">
           <div class="title">Activar Real-Debrid</div>
-          <div class="desc">Descarga directa ultra-rápida en caché sin subir torrents</div>
+          <div class="desc">Descarga los torrents a través de los servidores de Real-Debrid</div>
         </div>
         <label class="toggle">
           <input type="checkbox" id="rd_enabled">
           <span class="toggle-slider"></span>
         </label>
       </div>
-      <div class="field" style="margin-top:10px;">
-        <label class="field-label" for="rd_apikey">API Token / Clave de Real-Debrid</label>
-        <input type="password" id="rd_apikey" placeholder="Pega tu token de real-debrid.com/apitoken">
+      <div class="field" style="margin-top: 12px;">
+        <label class="field-label" for="rd_apikey">API Token de Real-Debrid:</label>
+        <div class="input-wrap">
+          <input type="password" id="rd_apikey" placeholder="Pega tu token de real-debrid.com/apitoken">
+          <button type="button" class="btn-paste-inline" onclick="pasteClipboard('rd_apikey')">Pegar</button>
+        </div>
+      </div>
+      <div class="row-switch" style="margin-top: 8px;">
+        <div class="row-info">
+          <div class="title">Priorizar enlaces Debrid</div>
+          <div class="desc">Muestra los enlaces de Debrid en primer lugar</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="rd_priority">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="row-switch">
+        <div class="row-info">
+          <div class="title">Modo Estricto Debrid</div>
+          <div class="desc">Oculta torrents P2P si no están en la nube de Debrid</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="strict_debrid">
+          <span class="toggle-slider"></span>
+        </label>
       </div>
     </div>
 
+    <!-- Cuentas secundarias -->
     <div class="card">
-      <div class="card-title">Otros Proveedores Debrid</div>
-      <div class="row-switch">
-        <div class="row-info"><div class="title">TorBox</div></div>
-        <label class="toggle"><input type="checkbox" id="torbox_enabled"><span class="toggle-slider"></span></label>
+      <div class="card-head">
+        <h2 class="card-title">Otras Cuentas Debrid</h2>
       </div>
-      <div class="field"><input type="password" id="torbox_apikey" placeholder="API Key de TorBox"></div>
+      
+      <!-- Torbox -->
+      <div class="row-switch">
+        <div class="row-info">
+          <div class="title">Torbox</div>
+          <div class="desc">Servicio Debrid con soporte Usenet y Torrents</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="torbox_enabled">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="field" style="margin-top: 8px;">
+        <input type="password" id="torbox_apikey" placeholder="API Key de Torbox">
+      </div>
 
-      <div class="row-switch">
-        <div class="row-info"><div class="title">AllDebrid</div></div>
-        <label class="toggle"><input type="checkbox" id="alldebrid_enabled"><span class="toggle-slider"></span></label>
+      <!-- AllDebrid -->
+      <div class="row-switch" style="margin-top: 10px;">
+        <div class="row-info">
+          <div class="title">AllDebrid</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="alldebrid_enabled">
+          <span class="toggle-slider"></span>
+        </label>
       </div>
-      <div class="field"><input type="password" id="alldebrid_apikey" placeholder="API Key de AllDebrid"></div>
+      <div class="field" style="margin-top: 8px;">
+        <input type="password" id="alldebrid_apikey" placeholder="API Key de AllDebrid">
+      </div>
 
-      <div class="row-switch">
-        <div class="row-info"><div class="title">Premiumize.me</div></div>
-        <label class="toggle"><input type="checkbox" id="premiumize_enabled"><span class="toggle-slider"></span></label>
+      <!-- Premiumize -->
+      <div class="row-switch" style="margin-top: 10px;">
+        <div class="row-info">
+          <div class="title">Premiumize.me</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="premiumize_enabled">
+          <span class="toggle-slider"></span>
+        </label>
       </div>
-      <div class="field"><input type="password" id="premiumize_apikey" placeholder="API Key de Premiumize"></div>
-
-      <div class="row-switch">
-        <div class="row-info"><div class="title">Debrid-Link</div></div>
-        <label class="toggle"><input type="checkbox" id="debridlink_enabled"><span class="toggle-slider"></span></label>
+      <div class="field" style="margin-top: 8px;">
+        <input type="password" id="premiumize_apikey" placeholder="API Key de Premiumize">
       </div>
-      <div class="field"><input type="password" id="debridlink_apikey" placeholder="API Key de Debrid-Link"></div>
     </div>
+  </section>
 
+  <!-- TAB 3: INDEXADORES & P2P -->
+  <section id="tab-p2p" class="tab-pane">
+    <!-- Prowlarr / Jackett -->
     <div class="card">
-      <div class="card-title">TorrServer & Motores P2P</div>
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">Jackett / Prowlarr (Torznab)</h2>
+          <div class="card-subtitle">Conecta indexadores locales privados o públicos</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="torznab_enabled">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
       <div class="field">
-        <label class="field-label" for="torrent_engine">Motor Principal</label>
+        <label class="field-label" for="torznab_url">URL(s) de Torznab:</label>
+        <input type="text" id="torznab_url" placeholder="http://192.168.1.138:9696/1, http://192.168.1.138:9696/2">
+        <div class="format-hint">Puedes separar varios indexadores por comas</div>
+      </div>
+      <div class="field">
+        <label class="field-label" for="torznab_apikey">API Key de Prowlarr / Jackett:</label>
+        <input type="password" id="torznab_apikey" placeholder="API Key del servidor">
+      </div>
+    </div>
+
+    <!-- Motor P2P local -->
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">Motor Torrent Local</h2>
+          <div class="card-subtitle">Para reproducción P2P cuando no se use Real-Debrid</div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label" for="torrent_engine">Motor Preferido:</label>
         <select id="torrent_engine">
-          <option value="TorrServer">TorrServer (Recomendado - Ultra Ligero)</option>
-          <option value="Elementum">Elementum</option>
-          <option value="Auto">Automático (TorrServer con fallback <1s)</option>
+          <option value="TorrServer">TorrServer (Recomendado: Máxima velocidad en RAM)</option>
+          <option value="Elementum">Elementum (Clásico local)</option>
         </select>
       </div>
-      <div class="field">
-        <label class="field-label" for="torrserver_host">Host / IP de TorrServer</label>
-        <input type="text" id="torrserver_host" placeholder="127.0.0.1 o IP del PC/servidor">
-      </div>
-      <div class="field">
-        <label class="field-label" for="torrserver_port">Puerto de TorrServer</label>
-        <input type="text" id="torrserver_port" placeholder="8090">
-      </div>
-      <div class="row-switch">
-        <div class="row-info">
-          <div class="title">Priorizar Debrid en Caché</div>
-          <div class="desc">Si un stream está en Real-Debrid, reproducir sin esperar P2P</div>
+      <div style="display: flex; gap: 10px;">
+        <div class="field" style="flex: 2;">
+          <label class="field-label" for="torrserver_host">Host TorrServer:</label>
+          <input type="text" id="torrserver_host" placeholder="127.0.0.1">
         </div>
-        <label class="toggle"><input type="checkbox" id="rd_priority"><span class="toggle-slider"></span></label>
-      </div>
-      <div class="row-switch">
-        <div class="row-info">
-          <div class="title">Modo Debrid Estricto</div>
-          <div class="desc">Bloquea conexiones P2P directas (solo enlaces por Debrid)</div>
+        <div class="field" style="flex: 1;">
+          <label class="field-label" for="torrserver_port">Puerto:</label>
+          <input type="text" id="torrserver_port" placeholder="8090">
         </div>
-        <label class="toggle"><input type="checkbox" id="strict_debrid"><span class="toggle-slider"></span></label>
-      </div>
-    </div>
-  </section>
-
-  <!-- TAB 2: STREMIO & COMET -->
-  <section id="tab-stremio" class="tab-pane">
-    <div class="card">
-      <div class="card-title">Comet (Instancia Personalizada)</div>
-      <div class="field">
-        <label class="field-label" for="comet_custom_manifest">URL completa de manifest.json</label>
-        <input type="text" id="comet_custom_manifest" placeholder="https://comet.servidor.com/stremio/ey.../manifest.json">
-        <p style="font-size:12px; color:var(--text-muted); margin-top:6px;">
-          Pega aquí el enlace de instalación generado en el configurador web de Comet para usar tus filtros y Debrids privados.
-        </p>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Addons de Stremio Adicionales</div>
-      <div class="field">
-        <label class="field-label" for="stremio_addons">URLs de Addons (separadas por ;;)</label>
-        <textarea id="stremio_addons" placeholder="https://torrentio.strem.fun;;https://cometa.stremx.net;;https://mediafusion.elfhosted.com"></textarea>
-      </div>
-    </div>
-  </section>
-
-  <!-- TAB 3: TORZNAB -->
-  <section id="tab-torznab" class="tab-pane">
-    <div class="card">
-      <div class="card-title">Puente Torznab (Jackett / Prowlarr)</div>
-      <div class="row-switch">
-        <div class="row-info">
-          <div class="title">Activar Torznab</div>
-          <div class="desc">Busca simultáneamente en tus trackers privados/públicos</div>
-        </div>
-        <label class="toggle"><input type="checkbox" id="torznab_enabled"><span class="toggle-slider"></span></label>
-      </div>
-      <div class="field" style="margin-top:10px;">
-        <label class="field-label" for="torznab_url">URL Torznab</label>
-        <input type="text" id="torznab_url" placeholder="http://192.168.1.50:9696/api (Prowlarr) o /api/v2.0/indexers/all/results/torznab/">
       </div>
       <div class="field">
-        <label class="field-label" for="torznab_apikey">API Key</label>
-        <input type="password" id="torznab_apikey" placeholder="Pega la API Key de tu Prowlarr o Jackett">
-      </div>
-    </div>
-  </section>
-
-  <!-- TAB 4: PREFERENCIAS & AUDIO -->
-  <section id="tab-preferences" class="tab-pane">
-    <div class="card">
-      <div class="card-title">Audio en Español & Calidad</div>
-      <div class="row-switch">
-        <div class="row-info">
-          <div class="title">Priorizar Streams en Español</div>
-          <div class="desc">Aplica el Spanish Booster (+3000 pts a Castellano / Dual)</div>
-        </div>
-        <label class="toggle"><input type="checkbox" id="spanish_boost"><span class="toggle-slider"></span></label>
-      </div>
-      <div class="field" style="margin-top:10px;">
-        <label class="field-label" for="spanish_filter_mode">Modo de Filtro de Idioma</label>
-        <select id="spanish_filter_mode">
-          <option value="boost">Priorizar (Mostrar primero español, pero dejar otros)</option>
-          <option value="only">Estricto (Ocultar streams que no tengan audio en español)</option>
-          <option value="off">Desactivado (Sin boost de idioma)</option>
-        </select>
-      </div>
-      <div class="field">
-        <label class="field-label" for="spanish_variant">Variante Preferida</label>
-        <select id="spanish_variant">
-          <option value="all">Todas (Castellano, Dual y Latino)</option>
-          <option value="castellano">Castellano (España) prioritario</option>
-          <option value="latino">Latino prioritario</option>
-          <option value="dual">Dual (Castellano + Original)</option>
-        </select>
-      </div>
-      <div class="field">
-        <label class="field-label" for="torrent_quality">Calidad Preferida</label>
+        <label class="field-label" for="torrent_quality">Calidad Preferida:</label>
         <select id="torrent_quality">
-          <option value="1080p">1080p (Óptimo para la mayoría de dispositivos)</option>
+          <option value="1080p">1080p Full HD</option>
           <option value="4K">4K UHD</option>
           <option value="720p">720p HD</option>
-          <option value="Any">Cualquiera</option>
+          <option value="Any">Cualquiera disponible</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 4: ADDONS STREMIO -->
+  <section id="tab-stremio" class="tab-pane">
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">Addons de Stremio</h2>
+          <div class="card-subtitle">Fuentes de metadatos y catálogo de streaming</div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label" for="stremio_addons">URLs de Addons (separadas por ;;):</label>
+        <textarea id="stremio_addons" placeholder="https://v3-cinemeta.strem.io;;https://torrentio.strem.fun"></textarea>
+      </div>
+      <div class="field">
+        <label class="field-label" for="comet_custom_manifest">URL Manifest de Comet (Opcional):</label>
+        <input type="text" id="comet_custom_manifest" placeholder="https://tu-comet.elfhosted.com/manifest.json">
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 5: PREFERENCIAS -->
+  <section id="tab-prefs" class="tab-pane">
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <h2 class="card-title">Idioma y Filtros</h2>
+          <div class="card-subtitle">Priorización de pistas de audio y subtítulos</div>
+        </div>
+      </div>
+      <div class="row-switch">
+        <div class="row-info">
+          <div class="title">Priorizar Audio en Español</div>
+          <div class="desc">Destaca fuentes con pistas en Castellano o Latino</div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="spanish_boost">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="field" style="margin-top: 12px;">
+        <label class="field-label" for="spanish_variant">Variante de Español preferida:</label>
+        <select id="spanish_variant">
+          <option value="all">Cualquiera (Castellano o Latino)</option>
+          <option value="castellano">Castellano (España)</option>
+          <option value="latino">Latino (Latinoamérica)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label" for="spanish_filter_mode">Modo de filtrado:</label>
+        <select id="spanish_filter_mode">
+          <option value="boost">Priorizar (Mostrar primero los que tengan español)</option>
+          <option value="strict">Estricto (Ocultar fuentes que no tengan español)</option>
+          <option value="none">Desactivado</option>
         </select>
       </div>
     </div>
   </section>
 </main>
 
-<div class="bottom-bar">
+<!-- Barra Inferior de Guardado (Se oculta automáticamente en la pestaña de Cast) -->
+<div class="bottom-bar hidden" id="bottom-bar">
   <div class="bottom-bar-inner">
     <button class="btn-save" id="save-btn" onclick="saveSettings(false)">
-      <span>Guardar Cambios</span>
+      <span>Guardar Ajustes</span>
     </button>
     <button class="btn-finish" id="finish-btn" onclick="saveSettings(true)">
-      <span>Terminar y Cerrar TV</span>
+      <span>Cerrar en Kodi</span>
     </button>
   </div>
 </div>
 
-<div id="toast" class="toast">Ajustes guardados</div>
+<div id="toast" class="toast">Ajustes sincronizados</div>
 
 <script>
   const urlParams = new URLSearchParams(window.location.search);
@@ -374,12 +530,31 @@
   }
 
   function switchTab(btn, tabId) {
-    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#nav-tabs button').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
     if (btn) btn.classList.add('active');
+    
     const target = document.getElementById('tab-' + tabId);
     if (target) target.classList.add('active');
+
+    // Mostrar u ocultar la barra inferior según la pestaña
+    const bar = document.getElementById('bottom-bar');
+    if (bar) {
+      if (tabId === 'cast') {
+        bar.classList.add('hidden');
+      } else {
+        bar.classList.remove('hidden');
+      }
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function switchCastMode(mode) {
+    const isTorrent = mode === 'torrent';
+    document.getElementById('seg-btn-torrent').className = isTorrent ? 'active' : '';
+    document.getElementById('seg-btn-ace').className = !isTorrent ? 'active' : '';
+    document.getElementById('cast-mode-torrent').style.display = isTorrent ? 'block' : 'none';
+    document.getElementById('cast-mode-acestream').style.display = !isTorrent ? 'block' : 'none';
   }
 
   let toastTimer = null;
@@ -391,12 +566,124 @@
     t.className = 'toast show ' + (isError ? 'err' : 'ok');
     toastTimer = setTimeout(() => {
       t.className = 'toast';
-    }, 4000);
+    }, 3500);
+  }
+
+  async function pasteClipboard(targetId, callback) {
+    const el = document.getElementById(targetId);
+    if (!el) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim()) {
+          el.value = text.trim();
+          showToast('Enlace pegado desde el portapapeles');
+          if (callback) callback();
+          return;
+        }
+      }
+    } catch (e) {}
+    el.focus();
+    if (el.select) el.select();
+    showToast('Mantén pulsado dentro del campo para pegar.');
+  }
+
+  function checkTorrentInput() {
+    const el = document.getElementById('input-cast-torrent');
+    const hint = document.getElementById('hint-torrent');
+    if (!el || !hint) return;
+    const v = el.value.trim().toLowerCase();
+    if (v.startsWith('magnet:?')) {
+      hint.className = 'format-hint active';
+      hint.innerText = 'Enlace Magnet válido detectado';
+    } else if (v.startsWith('http://') || v.startsWith('https://')) {
+      hint.className = 'format-hint active';
+      hint.innerText = 'URL web de torrent detectada';
+    } else if (/^[a-f0-9]{40}$/.test(v)) {
+      hint.className = 'format-hint active';
+      hint.innerText = 'Hash infohash de 40 caracteres detectado';
+    } else {
+      hint.className = 'format-hint';
+      hint.innerText = 'Admite enlaces magnet, URLs http:// y hashes infohash';
+    }
+  }
+
+  function checkAceInput() {
+    const el = document.getElementById('input-cast-ace');
+    const hint = document.getElementById('hint-ace');
+    if (!el || !hint) return;
+    const v = el.value.trim().toLowerCase();
+    if (v.startsWith('acestream://')) {
+      hint.className = 'format-hint active';
+      hint.innerText = 'Protocolo acestream:// detectado';
+    } else if (/[a-f0-9]{40}/.test(v)) {
+      hint.className = 'format-hint active';
+      hint.innerText = 'Hash AceStream de 40 caracteres detectado';
+    } else {
+      hint.className = 'format-hint';
+      hint.innerText = 'Admite enlaces acestream:// y hashes de 40 caracteres hex';
+    }
+  }
+
+  async function sendCastRequest(type) {
+    const isTorrent = type === 'torrent';
+    const inputEl = document.getElementById(isTorrent ? 'input-cast-torrent' : 'input-cast-ace');
+    const btnEl = document.getElementById(isTorrent ? 'btn-cast-torrent' : 'btn-cast-ace');
+
+    const val = (inputEl ? inputEl.value : '').trim();
+    if (!val) {
+      showToast('Por favor, pega un enlace o hash antes de enviar.', true);
+      if (inputEl) inputEl.focus();
+      return;
+    }
+
+    if (isTorrent) {
+      const isMagnet = val.toLowerCase().startsWith('magnet:?');
+      const isHttp = val.toLowerCase().startsWith('http://') || val.toLowerCase().startsWith('https://');
+      const isHex40 = /^[a-fA-F0-9]{40}$/.test(val);
+      if (!isMagnet && !isHttp && !isHex40) {
+        showToast('Formato no reconocido. Usa magnet:, URL http o hash de 40 caracteres.', true);
+        return;
+      }
+    } else {
+      const isAce = val.toLowerCase().startsWith('acestream://');
+      const hasHex40 = /[a-fA-F0-9]{40}/.test(val);
+      if (!isAce && !hasHex40) {
+        showToast('Hash no válido. Debe tener 40 caracteres o formato acestream://', true);
+        return;
+      }
+    }
+
+    const origText = btnEl ? btnEl.innerHTML : '';
+    if (btnEl) {
+      btnEl.disabled = true;
+      btnEl.innerHTML = '<span>Enviando a Kodi...</span>';
+    }
+
+    try {
+      const res = await fetch('/api/play?k=' + encodeURIComponent(token), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, uri: val })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error((data && (data.error || data.message)) || 'Error al enviar');
+
+      showToast(data.message || 'Enviado a Kodi. Iniciando reproducción...');
+      if (inputEl) inputEl.value = '';
+    } catch (err) {
+      showToast('Error: ' + err.message, true);
+    } finally {
+      if (btnEl) {
+        btnEl.disabled = false;
+        btnEl.innerHTML = origText;
+      }
+    }
   }
 
   async function loadConfig() {
     if (!token) {
-      showToast('Aviso: Token de sesión ausente en la URL.', true);
+      showToast('Aviso: Clave de sesión ausente en la URL.', true);
       return;
     }
     try {
@@ -466,8 +753,8 @@
       if (!res.ok || !data.ok) throw new Error((data && (data.error || data.message)) || 'Error al guardar');
 
       if (closeOnFinish) {
-        showToast('✓ Ajustes guardados. Se ha cerrado la ventana en Kodi.');
-        btnFinish.innerText = '✓ Configuración Finalizada';
+        showToast('Ajustes guardados. Se ha cerrado la ventana en Kodi.');
+        btnFinish.innerText = 'Finalizado';
         btnSave.style.display = 'none';
         btnFinish.style.flex = '1';
         btnFinish.disabled = true;
@@ -475,23 +762,23 @@
         if (stText) stText.innerText = 'Finalizado';
       } else {
         const timeInfo = data.last_save_time ? ` (${data.last_save_time})` : '';
-        showToast(`✓ Ajustes guardados en Kodi${timeInfo}. Puedes seguir editando.`);
-        btnSave.innerText = `✓ Guardado${timeInfo}`;
+        showToast(`Ajustes guardados en Kodi${timeInfo}`);
+        btnSave.innerText = `Guardado${timeInfo}`;
         const stText = document.getElementById('status-text');
         if (stText) stText.innerText = `Guardado ${data.last_save_time || ''}`;
         setTimeout(() => {
           btnSave.disabled = false;
           btnFinish.disabled = false;
-          btnSave.innerText = 'Guardar Cambios';
-          btnFinish.innerText = 'Terminar y Cerrar TV';
+          btnSave.innerText = 'Guardar Ajustes';
+          btnFinish.innerText = 'Cerrar en Kodi';
         }, 1200);
       }
     } catch (err) {
       showToast('Error: ' + err.message, true);
       btnSave.disabled = false;
       btnFinish.disabled = false;
-      btnSave.innerText = 'Guardar Cambios';
-      btnFinish.innerText = 'Terminar y Cerrar TV';
+      btnSave.innerText = 'Guardar Ajustes';
+      btnFinish.innerText = 'Cerrar en Kodi';
     }
   }
 

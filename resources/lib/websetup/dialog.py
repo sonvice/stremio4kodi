@@ -136,12 +136,34 @@ class QRSetupWindow(xbmcgui.WindowXMLDialog if xbmcgui else object):
             self.close()
 
     def run_monitor(self):
-        """Monitorea periódicamente las acciones del móvil: guardados sucesivos, finalización o inactividad."""
+        """Monitorea periódicamente las acciones del móvil: guardados sucesivos, finalización, reproducción o inactividad."""
         monitor = xbmc.Monitor() if xbmc else None
         last_seen_count = 0
 
         while self.is_active and not self.cancelled:
             if monitor and monitor.abortRequested():
+                self.close()
+                break
+
+            # 0. Petición de reproducción instantánea desde el móvil (Torrent / AceStream)
+            play_req = getattr(self.server, 'play_request', None) if self.server else None
+            if play_req:
+                self.server.play_request = None
+                if hasattr(self.server, 'wrapper'):
+                    self.server.wrapper.play_request = None
+                req_type = play_req.get('type', 'torrent')
+                req_uri = play_req.get('uri', '')
+                try:
+                    ctrl_status = self.getControl(203)
+                    if ctrl_status:
+                        label_tipo = "Torrent" if req_type == "torrent" else "AceStream"
+                        ctrl_status.setLabel(f'[COLOR FF00E676]• {label_tipo} recibido. Iniciando reproduccion...[/COLOR]')
+                except Exception:
+                    pass
+                if xbmc:
+                    from urllib.parse import quote
+                    xbmc.executebuiltin(f'RunPlugin(plugin://{ADDON_ID}/?action=play_external&type={req_type}&uri={quote(req_uri)})')
+                    xbmc.sleep(800)
                 self.close()
                 break
 
